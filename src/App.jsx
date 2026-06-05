@@ -3785,8 +3785,10 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
   const [editingValue, setEditingValue] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [isAddingPreset, setIsAddingPreset] = useState(false);
+  const [editingPresetId, setEditingPresetId] = useState("");
   const [presetDraft, setPresetDraft] = useState({ id: "", label: "", tagsText: "" });
   const activePreset = presets.find((preset) => preset.id === activeTag);
+  const editingPreset = presets.find((preset) => preset.id === editingPresetId);
   const presetForTag = (tag) => presets.find((preset) => preset.tags.includes(tag));
 
   function submitTag(event) {
@@ -3801,16 +3803,19 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
     setEditingValue(tag === "전체" || tagFilterPreset(tag, presets) ? "" : tag);
     setIsAdding(false);
     setIsAddingPreset(false);
-    const preset = presets.find((item) => item.id === tag);
-    if (preset) {
-      setPresetDraft({ id: preset.id, label: preset.label, tagsText: preset.tags.join(", ") });
-    }
+    setEditingPresetId("");
   }
 
   function closePresetEditor() {
     setIsAddingPreset(false);
+    setEditingPresetId("");
     setPresetDraft({ id: "", label: "", tagsText: "" });
-    onFilter("전체");
+  }
+
+  function openPresetEditor(preset) {
+    setIsAddingPreset(false);
+    setEditingPresetId(preset.id);
+    setPresetDraft({ id: preset.id, label: preset.label, tagsText: preset.tags.join(", ") });
   }
 
   function submitEdit(event) {
@@ -3822,7 +3827,7 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
 
   function submitPreset(event) {
     event.preventDefault();
-    const targetPreset = activePreset && !isAddingPreset ? activePreset : null;
+    const targetPreset = editingPreset && !isAddingPreset ? editingPreset : null;
     const tagsText = presetDraft.tagsText || targetPreset?.tags.join(", ") || "";
     const tags = normalizeTags(tagsText.split(",").map((tag) => tag.trim()));
     onSavePreset({
@@ -3832,6 +3837,7 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
       tone: targetPreset?.tone || "custom"
     });
     setIsAddingPreset(false);
+    setEditingPresetId("");
     setPresetDraft({ id: "", label: "", tagsText: "" });
   }
 
@@ -3865,6 +3871,7 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
             className="tag-preset-add"
             onClick={() => {
               setIsAddingPreset(true);
+              setEditingPresetId("");
               setPresetDraft({ id: "", label: "", tagsText: "" });
               onFilter("전체");
             }}
@@ -3872,6 +3879,11 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
           >
             <Plus size={13} />
             Category
+          </button>
+        )}
+        {canManageTags && activePreset && !isAddingPreset && !editingPreset && (
+          <button className="tag-preset-manage" onClick={() => openPresetEditor(activePreset)} type="button">
+            Category 수정
           </button>
         )}
       </div>
@@ -3959,18 +3971,18 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
           </button>
         </form>
       )}
-      {canManageTags && activePreset && (
+      {canManageTags && editingPreset && (
         <form className="tag-edit-panel tag-preset-edit-panel" onSubmit={submitPreset}>
           <span>선택한 Category</span>
           <input
-            aria-label={`${activePreset.label} Category 이름 수정`}
-            onChange={(event) => setPresetDraft((current) => ({ ...current, id: activePreset.id, tagsText: current.tagsText || activePreset.tags.join(", "), label: event.target.value }))}
-            value={presetDraft.id === activePreset.id ? presetDraft.label : activePreset.label}
+            aria-label={`${editingPreset.label} Category 이름 수정`}
+            onChange={(event) => setPresetDraft((current) => ({ ...current, id: editingPreset.id, tagsText: current.tagsText || editingPreset.tags.join(", "), label: event.target.value }))}
+            value={presetDraft.id === editingPreset.id ? presetDraft.label : editingPreset.label}
           />
           <input
-            aria-label={`${activePreset.label} 포함 태그 수정`}
-            onChange={(event) => setPresetDraft((current) => ({ ...current, id: activePreset.id, label: presetDraft.label || activePreset.label, tagsText: event.target.value }))}
-            value={presetDraft.id === activePreset.id ? presetDraft.tagsText : activePreset.tags.join(", ")}
+            aria-label={`${editingPreset.label} 포함 태그 수정`}
+            onChange={(event) => setPresetDraft((current) => ({ ...current, id: editingPreset.id, label: presetDraft.label || editingPreset.label, tagsText: event.target.value }))}
+            value={presetDraft.id === editingPreset.id ? presetDraft.tagsText : editingPreset.tags.join(", ")}
           />
           <button
             type="submit"
@@ -3979,7 +3991,10 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
           </button>
           <button
             className="danger"
-            onClick={() => onDeletePreset(activePreset.id)}
+            onClick={() => {
+              onDeletePreset(editingPreset.id);
+              closePresetEditor();
+            }}
             type="button"
           >
             삭제
