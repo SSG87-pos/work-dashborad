@@ -421,6 +421,15 @@ function eventRangeLabel(event) {
   return start === end ? formatDate(start) : `${formatDate(start)} - ${formatDate(end)}`;
 }
 
+function calendarEventRangeClass(event, date) {
+  const start = eventStartDate(event);
+  const end = eventEndDate(event);
+  if (start === end) return "single";
+  if (date === start) return "range-start";
+  if (date === end) return "range-end";
+  return "range-middle";
+}
+
 function weekdayOf(value) {
   return toDate(value).getDay();
 }
@@ -4332,7 +4341,7 @@ function CalendarView({
       date: eventStartDate(draftEvent),
       startDate: eventStartDate(draftEvent),
       endDate: eventEndDate(draftEvent),
-      ownerId: draftEvent.scope === "team" ? draftEvent.ownerId : draftEvent.ownerId || selectedPersonId,
+      ownerId: selectedPersonId,
       note: draftEvent.note.trim()
     };
     onAddEvent(nextEvent);
@@ -4362,15 +4371,6 @@ function CalendarView({
         </div>
       </div>
       <form className="calendar-add-form" onSubmit={submitEvent}>
-        <label className="calendar-form-field calendar-title-field">
-          <span>일정명</span>
-          <input
-            aria-label="일정명"
-            onChange={(event) => setDraftEvent((current) => ({ ...current, title: event.target.value }))}
-            placeholder="일정명"
-            value={draftEvent.title}
-          />
-        </label>
         <label className="calendar-form-field">
           <span>시작일</span>
           <input
@@ -4409,19 +4409,14 @@ function CalendarView({
             <option value="personal">개인 일정</option>
           </select>
         </label>
-        <label className="calendar-form-field">
-          <span>담당</span>
-          <select
-            aria-label="일정 담당자"
-            onChange={(event) => setDraftEvent((current) => ({ ...current, ownerId: event.target.value }))}
-            value={draftEvent.ownerId}
-          >
-            {teamAssignablePeople().map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
-          </select>
+        <label className="calendar-form-field calendar-title-field">
+          <span>일정명</span>
+          <input
+            aria-label="일정명"
+            onChange={(event) => setDraftEvent((current) => ({ ...current, title: event.target.value }))}
+            placeholder="예: 전략과제 공유회"
+            value={draftEvent.title}
+          />
         </label>
         <label className="calendar-form-field calendar-note-field">
           <span>세부내용</span>
@@ -4492,16 +4487,23 @@ function CalendarView({
                       </button>
                     ))}
                     {dayEvents.map((event) => (
-                      <button
-                        className={`calendar-event ${event.scope} ${selectedCalendarItem?.type === "event" && selectedCalendarItem.id === event.id ? "selected" : ""}`}
-                        key={`${date}-${event.id}`}
-                        onClick={() => setSelectedCalendarItem({ type: "event", id: event.id, event })}
-                      type="button"
-                    >
-                      <i />
-                      <b>{event.title}</b>
-                      {eventStartDate(event) !== eventEndDate(event) && <em>{eventRangeLabel(event)}</em>}
-                    </button>
+                      (() => {
+                        const rangeClass = calendarEventRangeClass(event, date);
+                        const isMiddle = rangeClass === "range-middle";
+                        return (
+                          <button
+                            className={`calendar-event ${event.scope} ${rangeClass} ${selectedCalendarItem?.type === "event" && selectedCalendarItem.id === event.id ? "selected" : ""}`}
+                            key={`${date}-${event.id}`}
+                            onClick={() => setSelectedCalendarItem({ type: "event", id: event.id, event })}
+                            title={`${event.title} · ${eventRangeLabel(event)}`}
+                            type="button"
+                          >
+                            <i />
+                            <b>{isMiddle ? "\u00A0" : event.title}</b>
+                            {eventStartDate(event) !== eventEndDate(event) && !isMiddle && <em>{eventRangeLabel(event)}</em>}
+                          </button>
+                        );
+                      })()
                   ))}
                     {date && events.filter((event) => eventSpansDate(event, date)).length + tasks.filter((task) => task.dueDate === date).length > 5 && (
                       <small>+ 더보기</small>
