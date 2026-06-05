@@ -88,6 +88,7 @@ Greetings:
 
 - Timeline is a workflow peer of the board.
 - It should use soft solid status colors matching the legend, not strong saturated gradients.
+- The timeline container, toolbar, legend, grid, and empty state must keep the same rounded-card grammar as the board and other workflow panels.
 - Monthly timeline excludes weekends.
 - Toolbar, legend, and date axis should stay readable while the timeline scrolls.
 - Task bars show tag, task title, progress percent, and repeat/risk markers when applicable.
@@ -166,6 +167,10 @@ Metadata and history:
 - Calendar task click opens the common task detail, not a separate reduced task card.
 - Personal or team event detail should emphasize the event note/details more than metadata.
 - Event detail does not need to repeat type or person when color/context already communicates it.
+- Event edit mode should not keep the old event title as a separate large heading above the form.
+- In event edit mode, `일정명` belongs at the top, then `구분/대상자`, then `시작일/종료일`, then `일정 세부내용`.
+- Calendar event edit inputs, selects, and action buttons must use matching heights, font size, and visual weight.
+- `팀 일정` and `개인 일정` labels should stay on one line in the calendar detail panel.
 
 ## Updates Contract
 
@@ -199,6 +204,9 @@ Metadata and history:
 - Tags can be applied in multiples.
 - Tag chips should have one shared grammar across briefing, board, detail, update, tag library, and task form.
 - Tag bundle presets are filters, not real editable tags.
+- Category preset clicks filter work immediately; they must not open the admin edit UI by themselves.
+- Admin Category editing must use a separate explicit action such as `Category 수정`.
+- The `전체` tag filter is the HOME/all-work filter and should be visually more prominent than normal individual tag chips.
 - Preset chips may have subtle border color differences, but avoid strong filled colors.
 - Importance filter applies to board, timeline, recurring, and archive workflow views.
 
@@ -249,6 +257,10 @@ Avoid reintroducing these issues:
 - Update input smaller than the submit button.
 - Search placeholder text larger than surrounding controls.
 - Korean words breaking in the middle.
+- Category filter clicks opening edit mode immediately.
+- The `전체` tag filter shrinking back to the same size as ordinary tags.
+- Empty timeline panels losing rounded corners.
+- Calendar event edit forms with uneven input/select/button heights or a large stale title above the form.
 
 ## Verification Checklist
 

@@ -6,7 +6,7 @@ Mainline handoff for `/Users/seulgi/Documents/work-dashboard`.
 
 Project goal: build a clickable React/Vite prototype and evolve it into a usable shared work dashboard for `연구기획그룹-전략`. The dashboard is centered on personal daily briefing, public team workflow, task assignment, task detail/update logs, tag filtering, timeline/calendar, recurring work, archive, personal notes, performance reporting, and later real login/admin/backend support.
 
-Last updated: 2026-06-05
+Last updated: 2026-06-06
 
 ## Current State
 
@@ -56,7 +56,8 @@ Key product decisions now in the prototype:
   - `전략/투자 묶음` = `전략과제`, `투자검토`, `시장동향`
   - `조사/근거 묶음` = `자료조사`, `외부자료`, `정책`
   - `운영/KPI 묶음` = `월간보고`, `회의체`, `운영`, `KPI`
-  - Current edit surface is the `tagFilterPresets` constant in `src/App.jsx`; a future settings/admin UI should manage these presets.
+  - Category preset clicks are filter actions only; admin edit opens through the explicit `Category 수정` action.
+  - `전체` is the HOME/all-work tag filter and should stay visually more prominent than ordinary tag chips.
 - Recurring task rules support interval, weekdays, start/end, no-end, and duration. Time-of-day is intentionally excluded.
 - Recurring tab previews future schedules in one line and has `미수행 반복 일정 삭제` to remove future unstarted recurring instances while preserving already progressed history.
 - Virtual recurring instances are generated for timeline/calendar/performance without saving duplicate tasks; saved recurring instances remain independently editable.
@@ -64,6 +65,7 @@ Key product decisions now in the prototype:
 - Timeline uses solid soft status colors, a `🔁` sticker for recurrence, and schedule-attention stickers for delay/due/start issues.
 - Timeline toolbar/legend/date axis are sticky inside the timeline scroll area.
 - Calendar distinguishes work/team/personal items by color and opens details on the right.
+- Calendar event edit mode puts `일정명` at the top, keeps event type labels on one line, and uses matching input/select/button sizing.
 - Updates tab shows non-completed, non-archived tasks with logs from the last 7 days, sorted by latest log date.
 - Updates tab has explicit scope controls:
   - `My`: tasks assigned to the selected person or logs written by that person
@@ -183,6 +185,12 @@ Recent UI/UX refinements from the latest session:
   - Visible recurring source tasks now round-trip their recurrence rule directly through `tasks` columns, while future generated instances can still use `recurring_template_id`.
   - The app shows a short top-of-workspace sync notice when Supabase writes fail or when sample-only prototype records remain local.
   - Important transition guardrail: roster-assigned tasks use the signed-in admin/lead as the auth owner for RLS while displaying/filtering by roster id until the teammate signs up.
+- Final small UI guardrails after design polishing:
+  - multi-day agenda event dates render on the first line right side instead of increasing card height
+  - `전체` tag filter is larger than normal individual tags
+  - Category preset filtering is separated from admin Category editing
+  - empty timeline panels keep rounded-card styling
+  - calendar event edit forms keep aligned title, controls, and action buttons.
 
 ## Completed Work
 

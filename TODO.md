@@ -7,6 +7,11 @@
   - Done: added root agent rules with operational commands, golden rules, design governance, coding rules, and context map; added `src/AGENTS.md` for React/CSS-specific guardrails; added `CLAUDE.md` links; added `DESIGN.md` with approved layout, typography, chip, task-detail, briefing, board, timeline, calendar, updates, performance, tag, and regression rules.
   - Verified: root and nested `AGENTS.md` are under the 500-line limit, `CLAUDE.md` files link `@AGENTS.md`, and the design document consolidates the project decisions currently spread across handoff/TODO and UI iteration notes.
 
+- [x] Refresh design guardrails after final visual polish.
+  - Files: `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: documented the latest anti-regression rules for the HOME-like `전체` tag filter, Category filter/edit separation, empty timeline rounded-card styling, multi-day agenda date placement, and calendar event edit form sizing/order.
+  - Purpose: prevent future broad style passes from undoing the small design details already approved through iteration.
+
 - [x] Apply a modern UI detail pass without reinstalling the stack.
   - Files: `src/App.jsx`, `src/styles.css`.
   - Done: added a final design-token/detail-pass layer for calmer surfaces, shared chip styling, clearer board cards, softer detail panel hierarchy, compact tag dictionary, and view-change scroll reset.
