@@ -332,10 +332,15 @@ function cleanImportedEvent(event, index) {
   const ownerId = people.some((person) => person.id === event.ownerId && person.isTeamMember !== false)
     ? event.ownerId
     : "lead";
+  const startDate = isISODate(event.startDate) ? event.startDate : isISODate(event.date) ? event.date : TODAY;
+  const endDateCandidate = isISODate(event.endDate) ? event.endDate : startDate;
+  const endDate = diffDays(endDateCandidate, startDate) >= 0 ? endDateCandidate : startDate;
   return {
     id: typeof event.id === "string" && event.id ? event.id : `imported-event-${Date.now()}-${index}`,
     title: typeof event.title === "string" && event.title.trim() ? event.title.trim() : "가져온 일정",
-    date: typeof event.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(event.date) ? event.date : TODAY,
+    date: startDate,
+    startDate,
+    endDate,
     scope,
     ownerId,
     note: typeof event.note === "string" ? event.note : ""
@@ -394,6 +399,26 @@ function formatDate(value) {
 
 function toISODate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function eventStartDate(event) {
+  return isISODate(event?.startDate) ? event.startDate : isISODate(event?.date) ? event.date : TODAY;
+}
+
+function eventEndDate(event) {
+  const start = eventStartDate(event);
+  const end = isISODate(event?.endDate) ? event.endDate : start;
+  return diffDays(end, start) >= 0 ? end : start;
+}
+
+function eventSpansDate(event, date) {
+  return diffDays(date, eventStartDate(event)) >= 0 && diffDays(eventEndDate(event), date) >= 0;
+}
+
+function eventRangeLabel(event) {
+  const start = eventStartDate(event);
+  const end = eventEndDate(event);
+  return start === end ? formatDate(start) : `${formatDate(start)} - ${formatDate(end)}`;
 }
 
 function weekdayOf(value) {
@@ -599,24 +624,24 @@ function todayAgendaFor(tasks, events, personId, isTeam) {
       statusTone: task.status !== "완료" && taskProgress(task) < 100 ? "risk" : task.status.replace("/", "")
     }));
   const teamEvents = events
-    .filter((event) => event.date === TODAY && event.scope === "team")
+    .filter((event) => eventSpansDate(event, TODAY) && event.scope === "team")
     .map((event) => ({
       id: `team-${event.id}`,
       tone: "team",
       label: "팀",
       title: event.title,
       actor: "공유",
-      meta: event.note || "팀 공유 일정"
+      meta: eventStartDate(event) === eventEndDate(event) ? event.note || "팀 공유 일정" : eventRangeLabel(event)
     }));
   const personalEvents = events
-    .filter((event) => event.date === TODAY && event.scope === "personal" && event.ownerId === personId)
+    .filter((event) => eventSpansDate(event, TODAY) && event.scope === "personal" && event.ownerId === personId)
     .map((event) => ({
       id: `personal-${event.id}`,
       tone: "personal",
       label: "개인",
       title: event.title,
       actor: personName(event.ownerId),
-      meta: event.note || "개인 일정"
+      meta: eventStartDate(event) === eventEndDate(event) ? event.note || "개인 일정" : eventRangeLabel(event)
     }));
   return [...todayTasks, ...teamEvents, ...personalEvents].slice(0, 6);
 }
@@ -2084,6 +2109,9 @@ function App() {
     const nextEvent = {
       ...event,
       title: event.title.trim(),
+      date: eventStartDate(event),
+      startDate: eventStartDate(event),
+      endDate: eventEndDate(event),
       note: event.note?.trim() ?? ""
     };
     if (!nextEvent.title) return;
@@ -4206,6 +4234,8 @@ function CalendarView({
   const [draftEvent, setDraftEvent] = useState({
     title: "",
     date: TODAY,
+    startDate: TODAY,
+    endDate: TODAY,
     scope: "team",
     ownerId: selectedPersonId,
     note: ""
@@ -4244,12 +4274,15 @@ function CalendarView({
       ...draftEvent,
       id: `e-${Date.now()}`,
       title,
+      date: eventStartDate(draftEvent),
+      startDate: eventStartDate(draftEvent),
+      endDate: eventEndDate(draftEvent),
       ownerId: draftEvent.scope === "team" ? draftEvent.ownerId : draftEvent.ownerId || selectedPersonId,
       note: draftEvent.note.trim()
     };
     onAddEvent(nextEvent);
     setSelectedCalendarItem({ type: "event", id: nextEvent.id, event: nextEvent });
-    setDraftEvent((current) => ({ ...current, title: "", note: "" }));
+    setDraftEvent((current) => ({ ...current, title: "", date: TODAY, startDate: TODAY, endDate: TODAY, note: "" }));
   }
 
   return (
@@ -4274,53 +4307,86 @@ function CalendarView({
         </div>
       </div>
       <form className="calendar-add-form" onSubmit={submitEvent}>
-        <input
-          aria-label="일정명"
-          onChange={(event) => setDraftEvent((current) => ({ ...current, title: event.target.value }))}
-          placeholder="일정명"
-          value={draftEvent.title}
-        />
-        <input
-          aria-label="일정 날짜"
-          onChange={(event) => setDraftEvent((current) => ({ ...current, date: event.target.value }))}
-          type="date"
-          value={draftEvent.date}
-        />
-        <select
-          aria-label="일정 구분"
-          onChange={(event) => setDraftEvent((current) => ({ ...current, scope: event.target.value }))}
-          value={draftEvent.scope}
-        >
-          <option value="team">팀 공유</option>
-          <option value="personal">개인 일정</option>
-        </select>
-        <select
-          aria-label="일정 담당자"
-          onChange={(event) => setDraftEvent((current) => ({ ...current, ownerId: event.target.value }))}
-          value={draftEvent.ownerId}
-        >
-          {teamAssignablePeople().map((person) => (
-            <option key={person.id} value={person.id}>
-              {person.name}
-            </option>
-          ))}
-        </select>
-        <div className="emoji-input-frame">
+        <label className="calendar-form-field calendar-title-field">
+          <span>일정명</span>
           <input
-            aria-label="일정 메모"
-            onChange={(event) => setDraftEvent((current) => ({ ...current, note: event.target.value }))}
-            placeholder="일정 세부 내용"
-            ref={calendarNoteRef}
-            value={draftEvent.note}
+            aria-label="일정명"
+            onChange={(event) => setDraftEvent((current) => ({ ...current, title: event.target.value }))}
+            placeholder="일정명"
+            value={draftEvent.title}
           />
-          <EmojiPopover
-            onSelect={(emoji) =>
-              insertEmojiAtCursor(calendarNoteRef, draftEvent.note, emoji, (value) => setDraftEvent((current) => ({ ...current, note: value })))
-            }
-            triggerLabel="일정 메모에 이모지 넣기"
-            triggerClassName="textarea-emoji-trigger"
+        </label>
+        <label className="calendar-form-field">
+          <span>시작일</span>
+          <input
+            aria-label="일정 시작일"
+            onChange={(event) => {
+              const nextStart = event.target.value;
+              setDraftEvent((current) => ({
+                ...current,
+                date: nextStart,
+                startDate: nextStart,
+                endDate: diffDays(current.endDate, nextStart) >= 0 ? current.endDate : nextStart
+              }));
+            }}
+            type="date"
+            value={eventStartDate(draftEvent)}
           />
-        </div>
+        </label>
+        <label className="calendar-form-field">
+          <span>종료일</span>
+          <input
+            aria-label="일정 종료일"
+            min={eventStartDate(draftEvent)}
+            onChange={(event) => setDraftEvent((current) => ({ ...current, endDate: event.target.value }))}
+            type="date"
+            value={eventEndDate(draftEvent)}
+          />
+        </label>
+        <label className="calendar-form-field">
+          <span>구분</span>
+          <select
+            aria-label="일정 구분"
+            onChange={(event) => setDraftEvent((current) => ({ ...current, scope: event.target.value }))}
+            value={draftEvent.scope}
+          >
+            <option value="team">팀 공유</option>
+            <option value="personal">개인 일정</option>
+          </select>
+        </label>
+        <label className="calendar-form-field">
+          <span>담당</span>
+          <select
+            aria-label="일정 담당자"
+            onChange={(event) => setDraftEvent((current) => ({ ...current, ownerId: event.target.value }))}
+            value={draftEvent.ownerId}
+          >
+            {teamAssignablePeople().map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="calendar-form-field calendar-note-field">
+          <span>세부내용</span>
+          <div className="emoji-input-frame">
+            <input
+              aria-label="일정 메모"
+              onChange={(event) => setDraftEvent((current) => ({ ...current, note: event.target.value }))}
+              placeholder="일정 세부 내용"
+              ref={calendarNoteRef}
+              value={draftEvent.note}
+            />
+            <EmojiPopover
+              onSelect={(emoji) =>
+                insertEmojiAtCursor(calendarNoteRef, draftEvent.note, emoji, (value) => setDraftEvent((current) => ({ ...current, note: value })))
+              }
+              triggerLabel="일정 메모에 이모지 넣기"
+              triggerClassName="textarea-emoji-trigger"
+            />
+          </div>
+        </label>
         <button className="primary-button small" type="submit">
           <Plus size={15} />
           일정 추가
@@ -4349,7 +4415,7 @@ function CalendarView({
                 : [];
               const dayEvents = date
                 ? events
-                    .filter((event) => event.date === date)
+                    .filter((event) => eventSpansDate(event, date))
                     .slice(0, Math.max(1, 5 - taskDueItems.length))
                 : [];
               return (
@@ -4379,9 +4445,10 @@ function CalendarView({
                     >
                       <i />
                       <b>{event.title}</b>
+                      {eventStartDate(event) !== eventEndDate(event) && <em>{eventRangeLabel(event)}</em>}
                     </button>
                   ))}
-                    {date && events.filter((event) => event.date === date).length + tasks.filter((task) => task.dueDate === date).length > 5 && (
+                    {date && events.filter((event) => eventSpansDate(event, date)).length + tasks.filter((task) => task.dueDate === date).length > 5 && (
                       <small>+ 더보기</small>
                     )}
                   </div>
@@ -4477,7 +4544,12 @@ function CalendarDetailPanel({
   function submitEventUpdate(submitEvent) {
     submitEvent.preventDefault();
     if (!eventDraft?.title?.trim()) return;
-    onUpdateEvent(eventDraft);
+    onUpdateEvent({
+      ...eventDraft,
+      date: eventStartDate(eventDraft),
+      startDate: eventStartDate(eventDraft),
+      endDate: eventEndDate(eventDraft)
+    });
     setIsEditingEvent(false);
   }
   return (
@@ -4509,11 +4581,28 @@ function CalendarDetailPanel({
             />
           </label>
           <label>
-            <span>일자</span>
+            <span>시작일</span>
             <input
-              onChange={(changeEvent) => setEventDraft((current) => ({ ...current, date: changeEvent.target.value }))}
+              onChange={(changeEvent) => {
+                const nextStart = changeEvent.target.value;
+                setEventDraft((current) => ({
+                  ...current,
+                  date: nextStart,
+                  startDate: nextStart,
+                  endDate: diffDays(eventEndDate(current), nextStart) >= 0 ? eventEndDate(current) : nextStart
+                }));
+              }}
               type="date"
-              value={eventDraft?.date ?? TODAY}
+              value={eventStartDate(eventDraft)}
+            />
+          </label>
+          <label>
+            <span>종료일</span>
+            <input
+              min={eventStartDate(eventDraft)}
+              onChange={(changeEvent) => setEventDraft((current) => ({ ...current, endDate: changeEvent.target.value }))}
+              type="date"
+              value={eventEndDate(eventDraft)}
             />
           </label>
           <label>
@@ -4542,7 +4631,7 @@ function CalendarDetailPanel({
           <dl className="calendar-event-meta">
             <div>
               <dt>일자</dt>
-              <dd>{formatDate(event.date)}</dd>
+              <dd>{eventRangeLabel(event)}</dd>
             </div>
             <div>
               <dt>구분</dt>
@@ -4576,6 +4665,9 @@ function RecurringView({ canManageTask, onSelect, onSelectOccurrence, onStopRecu
                 <button className="recurring-title-button" onClick={() => onSelect(task.id)} type="button">
                   {displayTaskTitle(task)}
                 </button>
+                {displayTaskTitle(task) === "팀장 주간 업무 배정 정리" && (
+                  <em className="recurring-sample-chip">수정 흐름 샘플</em>
+                )}
                 <small>
                   {recurringSummary(task)} · {personName(task.ownerId)} · 다음 마감 {occurrences[0]?.dueDate ?? task.dueDate}
                 </small>
@@ -4819,32 +4911,22 @@ function UpdatesView({ initialScope = "mine", onAddUpdate, onSelect, selectedPer
             </div>
             {newAssignmentTasks.length ? (
               <div className="new-assignment-grid">
-                {newAssignmentTasks.map((task) => {
-                  const statusMeta = reportStatusMeta(task);
-                  return (
-                    <button className="new-assignment-card" key={task.id} onClick={() => onSelect(task.id)} type="button">
-                      <span className="new-assignment-top">
-                        <span
-                          className="update-summary-badge update-initial-badge"
-                          style={avatarStyle(task.ownerId)}
-                          title={personName(task.ownerId)}
-                        >
-                          {initials(personName(task.ownerId))}
-                        </span>
-                        <span className={`update-status-badge report-${statusMeta.tone}`}>{statusMeta.label}</span>
-                      </span>
-                      <strong>{displayTaskTitle(task)}</strong>
-                      <span className="new-assignment-meta">
-                        {personName(task.ownerId)} · {task.priority} · {taskProgress(task)}%
-                      </span>
-                      <span className="update-tag-line">
-                        {taskTags(task).slice(0, 2).map((tag) => (
-                          <em className={`tag-tone-${tagTone(tag)}`} key={`${task.id}-new-${tag}`}>{tag}</em>
-                        ))}
-                      </span>
-                    </button>
-                  );
-                })}
+                {newAssignmentTasks.map((task) => (
+                  <TaskCard
+                    canManage={false}
+                    dragging={false}
+                    key={task.id}
+                    onArchive={() => {}}
+                    onDragEnd={() => {}}
+                    onDragStart={() => {}}
+                    onEdit={() => {}}
+                    onSelect={() => onSelect(task.id)}
+                    onStatusChange={() => {}}
+                    selected={false}
+                    showOwner
+                    task={task}
+                  />
+                ))}
               </div>
             ) : (
               <p className="empty-note">최근 3일 안에 새로 배정된 업무가 없습니다.</p>

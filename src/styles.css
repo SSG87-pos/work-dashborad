@@ -6682,11 +6682,25 @@ body[data-page="team"] .briefing-panel {
 
 .calendar-add-form {
   display: grid;
-  grid-template-columns: minmax(180px, 1.2fr) 150px 120px 120px minmax(160px, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: minmax(210px, 1.2fr) 140px 140px 112px 120px minmax(190px, 1fr) auto;
+  align-items: end;
+  gap: 9px;
   border-bottom: 1px solid #eef2f7;
   background: #fbfcfe;
   padding: 10px 12px;
+}
+
+.calendar-form-field {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.calendar-form-field span {
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 560;
+  line-height: 1;
 }
 
 .calendar-add-form input,
@@ -6699,7 +6713,13 @@ body[data-page="team"] .briefing-panel {
   color: var(--text);
   padding: 0 10px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 560;
+}
+
+.calendar-add-form .primary-button {
+  height: 34px;
+  min-height: 34px;
+  align-self: end;
 }
 
 .calendar-toolbar h2 {
@@ -6807,7 +6827,7 @@ body[data-page="team"] .briefing-panel {
 
 .calendar-events button {
   display: grid;
-  grid-template-columns: auto auto auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 5px;
   min-width: 0;
@@ -6859,14 +6879,14 @@ body[data-page="team"] .briefing-panel {
   color: #64748b;
   font-size: 10px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 540;
 }
 
 .calendar-events b {
   overflow: hidden;
   color: #1f2937;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 620;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -8366,8 +8386,15 @@ body[data-page="team"] .briefing-panel {
 
 .calendar-event-edit-form {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
   margin-top: 12px;
+}
+
+.calendar-event-edit-form label:first-child,
+.calendar-event-edit-form label:has(textarea),
+.calendar-event-edit-form > div {
+  grid-column: 1 / -1;
 }
 
 .calendar-event-edit-form label {
@@ -8384,6 +8411,7 @@ body[data-page="team"] .briefing-panel {
 .calendar-event-edit-form input,
 .calendar-event-edit-form textarea {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 9px 10px;
@@ -10961,4 +10989,40 @@ body[data-page="team"] .briefing-panel {
 
 .tag-preset-edit-panel input {
   min-width: 0;
+}
+
+.recurring-sample-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  margin-left: 8px;
+  border: 1px solid #c7d9f7;
+  border-radius: 999px;
+  background: #f8fbff;
+  color: #2563eb;
+  padding: 0 7px;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 560;
+  vertical-align: middle;
+}
+
+/* Calendar ranges and update new-assignment cards. */
+.new-assignment-grid {
+  align-items: start;
+  gap: 10px;
+}
+
+.new-assignment-grid .task-card {
+  min-height: 0;
+  box-shadow: none;
+}
+
+.new-assignment-grid .task-card .card-main {
+  gap: 8px;
+  padding: 10px;
+}
+
+.new-assignment-grid .task-card .card-title-row strong {
+  font-size: 13px;
 }

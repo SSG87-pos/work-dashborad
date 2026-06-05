@@ -310,6 +310,8 @@ async function readDashboardState() {
       id: event.id,
       title: event.title,
       date: event.event_date,
+      startDate: event.start_date ?? event.event_date,
+      endDate: event.end_date ?? event.start_date ?? event.event_date,
       scope: event.scope,
       ownerId: event.owner_roster_id ?? event.owner_id,
       note: event.note ?? ""
@@ -754,7 +756,9 @@ async function addCalendarEvent(event) {
   const ownerId = isUuid(event.ownerId) ? event.ownerId : scope === "personal" ? currentUser.id : null;
   const row = {
     title: event.title.trim(),
-    event_date: event.date || TODAY,
+    event_date: event.startDate || event.date || TODAY,
+    start_date: event.startDate || event.date || TODAY,
+    end_date: event.endDate || event.startDate || event.date || TODAY,
     scope,
     owner_id: ownerId,
     owner_roster_id: rosterIdFor(event.ownerId),
@@ -778,7 +782,9 @@ async function updateCalendarEvent(event) {
     .from("calendar_events")
     .update({
       title: event.title.trim(),
-      event_date: event.date || TODAY,
+      event_date: event.startDate || event.date || TODAY,
+      start_date: event.startDate || event.date || TODAY,
+      end_date: event.endDate || event.startDate || event.date || TODAY,
       scope,
       owner_id: ownerId,
       owner_roster_id: rosterIdFor(event.ownerId),

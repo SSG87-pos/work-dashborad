@@ -21,14 +21,18 @@ export const initialCalendarEvents = [
     id: "e-001",
     title: "전략과제 중간 공유회",
     date: "2026-06-11",
+    startDate: "2026-06-11",
+    endDate: "2026-06-13",
     scope: "team",
     ownerId: "lead",
-    note: "팀 전체 참석"
+    note: "3일 동안 진행되는 팀 공유 일정 샘플"
   },
   {
     id: "e-002",
     title: "김서연 외부 자문 미팅",
     date: "2026-06-16",
+    startDate: "2026-06-16",
+    endDate: "2026-06-16",
     scope: "personal",
     ownerId: "seoyeon",
     note: "기획보고 근거 확인"
@@ -37,6 +41,8 @@ export const initialCalendarEvents = [
     id: "e-003",
     title: "월간보고 자료 마감 공지",
     date: "2026-06-24",
+    startDate: "2026-06-24",
+    endDate: "2026-06-24",
     scope: "team",
     ownerId: "junho",
     note: "공용 캘린더 공지"
