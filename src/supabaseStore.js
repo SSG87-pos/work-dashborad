@@ -9,14 +9,13 @@ function isUuid(value) {
 function recurringFrequencyToDb(value) {
   if (value === "매주") return "weekly";
   if (value === "매월") return "monthly";
-  if (value === "분기") return "quarterly";
   return null;
 }
 
 function recurringFrequencyFromDb(value) {
   if (value === "weekly") return "매주";
   if (value === "monthly") return "매월";
-  if (value === "quarterly") return "분기";
+  if (value === "quarterly") return "매월";
   return null;
 }
 
@@ -65,6 +64,9 @@ function canPersistTask(task) {
 function fromTaskRow(row, relations = {}) {
   const tags = relations.tags ?? [];
   const recurring = recurringFrequencyFromDb(row.recurring_frequency);
+  const recurringInterval = row.recurring_frequency === "quarterly"
+    ? Math.max(3, Number(row.recurring_interval) || 3)
+    : row.recurring_interval ?? 1;
   return {
     id: row.id,
     title: row.title,
@@ -89,7 +91,7 @@ function fromTaskRow(row, relations = {}) {
     isNewAssignment: false,
     recurring,
     recurringDetail: row.recurring_rule_detail ?? "",
-    recurringInterval: row.recurring_interval ?? 1,
+    recurringInterval,
     recurringWeekdays: row.recurring_weekdays ?? [],
     recurringStartDate: row.recurring_start_date ?? row.start_date,
     recurringEndDate: row.recurring_end_date ?? "",
@@ -213,6 +215,7 @@ async function readDashboardState() {
     linksResult,
     historyResult,
     taskTagsResult,
+    tagGroupsResult,
     eventsResult,
     memosResult,
     preferencesResult
@@ -230,6 +233,7 @@ async function readDashboardState() {
     client.from("task_links").select("*").order("created_at", { ascending: false }),
     client.from("task_change_history").select("*").order("created_at", { ascending: false }),
     client.from("task_tags").select("task_id, tags(name)").order("created_at", { ascending: true }),
+    client.from("tag_groups").select("*").order("sort_order", { ascending: true }),
     client.from("calendar_events").select("*").order("event_date", { ascending: true }),
     client.from("dashboard_memos").select("*"),
     client.from("user_preferences").select("*").eq("user_id", currentUser.id).maybeSingle()
@@ -238,6 +242,7 @@ async function readDashboardState() {
   [usersResult, rosterResult, tagsResult, tasksResult, subtasksResult, updatesResult, linksResult, historyResult, taskTagsResult, eventsResult, memosResult].forEach((result) => {
     if (result.error) throw result.error;
   });
+  if (tagGroupsResult.error && tagGroupsResult.error.code !== "42P01") throw tagGroupsResult.error;
   if (preferencesResult.error) throw preferencesResult.error;
 
   const relationMap = new Map();
@@ -295,6 +300,12 @@ async function readDashboardState() {
   return createDashboardSnapshot({
     tasks: tasksResult.data.map((task) => fromTaskRow(task, ensureRelations(task.id))),
     availableTags: tagsResult.data.map((tag) => tag.name),
+    tagGroups: (tagGroupsResult.data ?? []).map((group) => ({
+      id: group.id,
+      label: group.label,
+      tags: group.tags ?? [],
+      tone: group.tone ?? "custom"
+    })),
     calendarEvents: eventsResult.data.map((event) => ({
       id: event.id,
       title: event.title,
@@ -474,6 +485,32 @@ async function deleteTag(name) {
   const client = requireSupabaseClient();
   if (!name) return false;
   const { error } = await client.from("tags").delete().eq("name", name);
+  if (error) throw error;
+  return true;
+}
+
+async function saveTagGroup(group) {
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser || !group?.id || !group?.label?.trim()) return false;
+  const { error } = await client
+    .from("tag_groups")
+    .upsert({
+      id: group.id,
+      label: group.label.trim(),
+      tags: group.tags ?? [],
+      tone: group.tone || "custom",
+      created_by: currentUser.id,
+      updated_at: new Date().toISOString()
+    });
+  if (error) throw error;
+  return true;
+}
+
+async function deleteTagGroup(groupId) {
+  const client = requireSupabaseClient();
+  if (!groupId) return false;
+  const { error } = await client.from("tag_groups").delete().eq("id", groupId);
   if (error) throw error;
   return true;
 }
@@ -696,6 +733,18 @@ async function deleteTask(taskId) {
   return true;
 }
 
+async function deleteFutureRecurringInstances(templateId, fromDate = TODAY) {
+  if (!isUuid(templateId)) return { skipped: true };
+  const client = requireSupabaseClient();
+  const { error } = await client
+    .from("tasks")
+    .delete()
+    .eq("recurring_template_id", templateId)
+    .gt("start_date", fromDate);
+  if (error) throw error;
+  return true;
+}
+
 async function addCalendarEvent(event) {
   const client = requireSupabaseClient();
   const currentUser = await readCurrentUser(client);
@@ -785,7 +834,9 @@ export const supabaseDashboardStore = {
   tags: {
     add: addTag,
     rename: renameTag,
-    delete: deleteTag
+    delete: deleteTag,
+    saveGroup: saveTagGroup,
+    deleteGroup: deleteTagGroup
   },
   tasks: {
     save: saveTask,
@@ -794,6 +845,7 @@ export const supabaseDashboardStore = {
     addLink: addTaskLink,
     setArchived: setTaskArchived,
     setSubtaskDone,
+    deleteFutureInstances: deleteFutureRecurringInstances,
     delete: deleteTask
   },
   events: {

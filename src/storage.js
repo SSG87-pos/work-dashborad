@@ -31,6 +31,7 @@ export function createDashboardSnapshot(state) {
     version: dashboardStateVersion,
     tasks: state.tasks ?? [],
     availableTags: state.availableTags ?? [],
+    tagGroups: state.tagGroups ?? [],
     calendarEvents: state.calendarEvents ?? [],
     isAuthenticated: state.isAuthenticated ?? true,
     selectedPersonId: state.selectedPersonId ?? "seoyeon",

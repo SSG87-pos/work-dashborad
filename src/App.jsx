@@ -7,7 +7,6 @@ import {
   Archive,
   ArchiveRestore,
   Bell,
-  BarChart3,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -48,6 +47,17 @@ import { supabaseDashboardStore } from "./supabaseStore.js";
 const dayMs = 24 * 60 * 60 * 1000;
 const boardStatuses = ["검토/대기", "계획", "진행중", "완료", "보류"];
 const priorityFilters = ["전체", "높음", "보통", "낮음"];
+const UNASSIGNED_OWNER_ID = "unassigned";
+const unassignedPerson = {
+  id: UNASSIGNED_OWNER_ID,
+  name: "미지정",
+  role: "담당자 미정",
+  permissionRole: "member",
+  color: "#94a3b8",
+  emoji: "•",
+  isTeamMember: false,
+  isActive: true
+};
 const statusMeanings = {
   "검토/대기": "검토·승인·자료 회신을 기다리는 상태",
   계획: "등록은 되었지만 아직 착수 전",
@@ -63,7 +73,7 @@ const statusStickerLabels = {
   보류: "⏸ 보류"
 };
 const defaultAvailableTags = normalizeTags([...categories.filter((item) => item !== "전체"), ...tagOptions]);
-const tagFilterPresets = [
+const defaultTagFilterPresets = [
   { id: "preset:planning-report", label: "기획/임원보고", tags: ["기획보고", "임원보고"], tone: "report" },
   { id: "preset:strategy", label: "전략/투자 묶음", tags: ["전략과제", "투자검토", "시장동향"], tone: "strategy" },
   { id: "preset:research", label: "조사/근거 묶음", tags: ["자료조사", "외부자료", "정책"], tone: "research" },
@@ -74,7 +84,7 @@ const fullPageViews = ["calendar", "updates", "performance"];
 const pageOptions = ["my", "team"];
 const timelineModeOptions = ["month", "year"];
 const performanceModes = ["week", "month", "quarter", "year"];
-const recurringTypes = ["매주", "매월", "분기"];
+const recurringTypes = ["매주", "매월"];
 const weekdayOptions = [
   { value: 1, label: "월" },
   { value: 2, label: "화" },
@@ -207,8 +217,8 @@ function persistedTaskId(value, taskList) {
   return taskList.some((task) => task.id === value) ? value : taskList[0]?.id ?? "";
 }
 
-function persistedTag(value, tags) {
-  return value === "전체" || tags.includes(value) || tagFilterPresets.some((preset) => preset.id === value) ? value : "전체";
+function persistedTag(value, tags, presets = defaultTagFilterPresets) {
+  return value === "전체" || tags.includes(value) || presets.some((preset) => preset.id === value) ? value : "전체";
 }
 
 function uniqueById(items) {
@@ -350,6 +360,7 @@ function normalizeImportedDashboard(payload) {
   return {
     tasks: importedTasks,
     availableTags: importedTags.length ? importedTags : normalizeTags(defaultAvailableTags),
+    tagGroups: Array.isArray(payload.tagGroups) ? payload.tagGroups : defaultTagFilterPresets,
     calendarEvents: uniqueById((Array.isArray(payload.calendarEvents) ? payload.calendarEvents : []).map(cleanImportedEvent)),
     memoByPage: initialMemoByPageFrom(payload),
     profileOverrides: persistedObject(payload.profileOverrides)
@@ -416,7 +427,7 @@ function recurrenceEnd(task, fallbackRangeEnd) {
 }
 
 function recurringUnitText(recurring, interval) {
-  const unit = recurring === "매주" ? "주" : recurring === "매월" ? "개월" : "분기";
+  const unit = recurring === "매주" ? "주" : "개월";
   return interval === 1 ? recurring : `${interval}${unit}마다`;
 }
 
@@ -426,17 +437,21 @@ function recurringDescription(task) {
   const start = recurrenceStart(task).replaceAll("-", ".");
   const end = task.recurringNoEnd || !task.recurringEndDate ? "계속" : task.recurringEndDate.replaceAll("-", ".");
   const unit = recurringUnitText(task.recurring, interval);
-  const weekdayText = task.recurring === "매주"
-    ? ` · ${normalizeRecurringWeekdays(task.recurringWeekdays, task.dueDate).map((day) => `${weekdayLabel(day)}요일`).join(", ")}`
-    : "";
-  return `${start}부터 ${end}까지 ${unit}${weekdayText}`;
+  if (task.recurring === "매월") {
+    const duration = Math.max(1, Number(task.recurringDurationDays) || 1);
+    const anchorDay = toDate(recurrenceStart(task)).getDate();
+    return `${start}부터 ${end}까지 ${unit} 반복, 매월 ${anchorDay}일부터 ${duration}일간 업무진행`;
+  }
+  const weekdayText = normalizeRecurringWeekdays(task.recurringWeekdays, task.dueDate)
+    .map((day) => `${weekdayLabel(day)}요일`)
+    .join(", ");
+  return `${start}부터 ${end}까지 ${unit} ${weekdayText} 반복`;
 }
 
 function addCalendarStep(value, recurring, interval = 1) {
   const date = toDate(value);
   if (recurring === "매주") date.setDate(date.getDate() + 7 * interval);
   if (recurring === "매월") date.setMonth(date.getMonth() + interval);
-  if (recurring === "분기") date.setMonth(date.getMonth() + 3 * interval);
   return toISODate(date);
 }
 
@@ -491,6 +506,13 @@ function recurringDueDates(task, options = {}) {
 }
 
 function occurrenceFromDueDate(task, dueDate) {
+  if (task.recurring === "매주") {
+    return {
+      startDate: dueDate,
+      dueDate,
+      subtasks: task.subtasks?.filter((subtask) => subtask.title?.trim()).length ?? 0
+    };
+  }
   const duration = Math.max(1, Number(task.recurringDurationDays) || 1);
   const start = toDate(dueDate);
   start.setDate(start.getDate() - duration + 1);
@@ -699,15 +721,19 @@ function businessDatesInMonth(year, month) {
 }
 
 function personName(id) {
+  if (id === UNASSIGNED_OWNER_ID) return unassignedPerson.name;
   return peopleDirectory.find((person) => person.id === id)?.name ?? "미지정";
 }
 
 function personEmoji(id) {
+  if (id === UNASSIGNED_OWNER_ID) return unassignedPerson.emoji;
   return peopleDirectory.find((person) => person.id === id)?.emoji ?? initials(personName(id));
 }
 
 function avatarStyle(personOrId) {
-  const person = typeof personOrId === "string" ? peopleDirectory.find((item) => item.id === personOrId) : personOrId;
+  const person = personOrId === UNASSIGNED_OWNER_ID
+    ? unassignedPerson
+    : typeof personOrId === "string" ? peopleDirectory.find((item) => item.id === personOrId) : personOrId;
   const color = person?.color ?? "#2563eb";
   return { "--avatar": color, "--avatar-bg": `${color}20` };
 }
@@ -729,6 +755,10 @@ function teamCompositionOrder(members) {
 
 function teamAssignablePeople(directory = peopleDirectory) {
   return directory.filter((person) => person.isTeamMember !== false && person.isActive !== false);
+}
+
+function taskOwnerOptions(directory = peopleDirectory) {
+  return [unassignedPerson, ...teamAssignablePeople(directory)];
 }
 
 function permissionRole(id) {
@@ -757,13 +787,13 @@ function primaryTag(task) {
   return taskTags(task)[0] ?? "태그 없음";
 }
 
-function tagFilterPreset(value) {
-  return tagFilterPresets.find((preset) => preset.id === value);
+function tagFilterPreset(value, presets = defaultTagFilterPresets) {
+  return presets.find((preset) => preset.id === value);
 }
 
-function matchesTagFilter(taskTagList, filterValue) {
+function matchesTagFilter(taskTagList, filterValue, presets = defaultTagFilterPresets) {
   if (filterValue === "전체") return true;
-  const preset = tagFilterPreset(filterValue);
+  const preset = tagFilterPreset(filterValue, presets);
   if (preset) return preset.tags.some((tag) => taskTagList.includes(tag));
   return taskTagList.includes(filterValue);
 }
@@ -772,7 +802,7 @@ function recurringSummary(task) {
   if (!task.recurring) return "없음";
   const detail = recurringDescription(task) || task.recurringDetail?.trim();
   const duration = Number(task.recurringDurationDays);
-  const durationText = duration ? `업무기간 ${duration}일` : "";
+  const durationText = task.recurring === "매월" && duration ? `업무기간 ${duration}일` : "";
   return [detail, durationText].filter(Boolean).join(" · ");
 }
 
@@ -1336,7 +1366,7 @@ function defaultAssignerType(personId) {
 function isRecentAssignment(task) {
   if (!isISODate(task.createdAt)) return false;
   const daysFromRegistration = diffDays(task.createdAt, TODAY);
-  return daysFromRegistration >= 0 && daysFromRegistration < 2;
+  return daysFromRegistration >= 0 && daysFromRegistration < 3;
 }
 
 function taskBadges(task) {
@@ -1534,12 +1564,16 @@ function App() {
   );
   const initialMemoByPage = useMemo(() => initialMemoByPageFrom(persisted), [persisted]);
   const initialProfileOverrides = useMemo(() => persistedObject(persisted.profileOverrides), [persisted]);
+  const initialTagGroups = useMemo(
+    () => Array.isArray(persisted.tagGroups) && persisted.tagGroups.length ? persisted.tagGroups : defaultTagFilterPresets,
+    [persisted]
+  );
   const [tasks, setTasks] = useState(initialPersistedTasks);
   const [selectedPersonId, setSelectedPersonId] = useState(() => persistedPerson(persisted.selectedPersonId));
   const [isAuthenticated, setIsAuthenticated] = useState(() => isSupabaseReady ? false : persisted.isAuthenticated !== false);
   const [authStatus, setAuthStatus] = useState(isSupabaseReady ? "checking" : "local");
   const [authMessage, setAuthMessage] = useState("");
-  const [category, setCategory] = useState(() => persistedTag(persisted.category, initialPersistedTags));
+  const [category, setCategory] = useState(() => persistedTag(persisted.category, initialPersistedTags, initialTagGroups));
   const [priorityFilter, setPriorityFilter] = useState(() => persistedOption(persisted.priorityFilter, priorityFilters, "전체"));
   const [query, setQuery] = useState("");
   const [activeView, setActiveView] = useState(() => persistedOption(persisted.activeView, viewOptions, "board"));
@@ -1549,12 +1583,14 @@ function App() {
   const [timelineYear, setTimelineYear] = useState(() => persistedYear(persisted.timelineYear));
   const [calendarEvents, setCalendarEvents] = useState(initialPersistedEvents);
   const [availableTags, setAvailableTags] = useState(initialPersistedTags);
+  const [tagGroups, setTagGroups] = useState(initialTagGroups);
   const [selectedTaskId, setSelectedTaskId] = useState(() => persistedTaskId(persisted.selectedTaskId, initialPersistedTasks));
   const [selectedBriefingKey, setSelectedBriefingKey] = useState("");
   const [detailContext, setDetailContext] = useState("briefing");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [briefingFeedbackKey, setBriefingFeedbackKey] = useState("");
   const [editingTask, setEditingTask] = useState(null);
+  const [pendingRecurringSave, setPendingRecurringSave] = useState(null);
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [memoByPage, setMemoByPage] = useState(initialMemoByPage);
@@ -1585,7 +1621,7 @@ function App() {
           expectedEmail: profile.expectedEmail ?? "",
           authUserId: profile.authUserId ?? ""
         }));
-      return [...base, ...extras];
+      return [unassignedPerson, ...base, ...extras.filter((person) => person.id !== UNASSIGNED_OWNER_ID)];
     },
     [profileOverrides]
   );
@@ -1608,6 +1644,9 @@ function App() {
     }
     if (Array.isArray(snapshot.availableTags) && snapshot.availableTags.length > 0) {
       setAvailableTags(normalizeTags(snapshot.availableTags));
+    }
+    if (Array.isArray(snapshot.tagGroups)) {
+      setTagGroups(snapshot.tagGroups);
     }
     if (Array.isArray(snapshot.calendarEvents) && (!preservePrototypeTasks || snapshot.calendarEvents.length > 0)) {
       setCalendarEvents(snapshot.calendarEvents);
@@ -1678,14 +1717,14 @@ function App() {
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
       const tags = taskTags(task);
-      const byCategory = matchesTagFilter(tags, category);
+      const byCategory = matchesTagFilter(tags, category, tagGroups);
       const text = `${task.title} ${task.description} ${tags.join(" ")}`.toLowerCase();
       const byScope = activePage === "team" || task.ownerId === selectedPersonId;
       const byArchive = activeView === "archive" ? task.archived : !task.archived;
       const byPriority = !["board", "timeline", "recurring", "archive"].includes(activeView) || priorityFilter === "전체" || task.priority === priorityFilter;
       return byScope && byCategory && byArchive && byPriority && text.includes(query.trim().toLowerCase());
     });
-  }, [activePage, activeView, category, priorityFilter, query, selectedPersonId, tasks]);
+  }, [activePage, activeView, category, priorityFilter, query, selectedPersonId, tagGroups, tasks]);
 
   const briefing = useMemo(
     () => briefingFor(tasks, activePage === "my" ? selectedPersonId : null),
@@ -1714,6 +1753,7 @@ function App() {
       version: 1,
       tasks,
       availableTags,
+      tagGroups,
       calendarEvents,
       isAuthenticated,
       selectedPersonId,
@@ -1733,6 +1773,7 @@ function App() {
     activePage,
     activeView,
     availableTags,
+    tagGroups,
     calendarEvents,
     category,
     isAuthenticated,
@@ -1862,8 +1903,14 @@ function App() {
     setSelectedTaskId(tasks.find((task) => !task.archived)?.id ?? tasks[0]?.id ?? "");
   }, [selectedTaskId, tasks]);
 
-  function saveTask(task) {
+  function saveTask(task, options = {}) {
     const isNew = !task.id;
+    const shouldChooseRecurringScope = !isNew && task.recurring && !options.recurringScope;
+    if (shouldChooseRecurringScope) {
+      setPendingRecurringSave({ task });
+      return;
+    }
+    const recurringScope = options.recurringScope ?? "all";
     const nextTags = normalizeTags(task.tags).length ? normalizeTags(task.tags) : ["운영"];
     const nextSubtasks = (task.subtasks ?? [])
       .map((subtask, index) => ({
@@ -1896,7 +1943,10 @@ function App() {
     setAvailableTags((current) => normalizeTags([...current, ...nextTags]));
     setTasks((current) => {
       if (isNew) return [applyStatusTransition(nextTask, null, selectedPersonId), ...current];
-      return current.map((item) => {
+      const scopedCurrent = recurringScope === "future"
+        ? current.filter((item) => !(item.recurringTemplateId === nextTask.id && diffDays(item.startDate, TODAY) > 0))
+        : current;
+      return scopedCurrent.map((item) => {
         if (item.id !== nextTask.id) return item;
         const dueEntry = dueDateHistoryEntry(item.dueDate, nextTask.dueDate, selectedPersonId);
         const taskWithHistory = dueEntry
@@ -1905,10 +1955,17 @@ function App() {
         return applyStatusTransition(taskWithHistory, item, selectedPersonId);
       });
     });
+    if (recurringScope === "future" && isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.deleteFutureInstances(nextTask.id, TODAY).catch((error) => {
+        console.warn("Supabase 미래 반복 회차 정리에 실패했습니다.", error);
+        showSyncNotice("미래 반복 회차 정리를 Supabase에 반영하지 못했습니다.");
+      });
+    }
     persistTaskToSupabase({ ...nextTask, peopleDirectory: directory }, nextTask.id);
     setSelectedBriefingKey("");
     setSelectedTaskId(nextTask.id);
     setEditingTask(null);
+    setPendingRecurringSave(null);
   }
 
   function updateStatus(taskId, nextStatus) {
@@ -2178,6 +2235,44 @@ function App() {
     }
   }
 
+  function saveTagGroup(group) {
+    if (!canManageTagsFor(selectedPersonId)) return;
+    const cleanLabel = group.label.trim();
+    const cleanTags = normalizeTags(group.tags ?? []);
+    if (!cleanLabel || !cleanTags.length) return;
+    const id = group.id || `preset:${cleanLabel.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}`;
+    const nextGroup = {
+      id,
+      label: cleanLabel,
+      tags: cleanTags,
+      tone: group.tone || "custom"
+    };
+    setTagGroups((current) => {
+      const exists = current.some((item) => item.id === id);
+      return exists
+        ? current.map((item) => (item.id === id ? nextGroup : item))
+        : [...current, nextGroup];
+    });
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tags.saveGroup(nextGroup).catch((error) => {
+        console.warn("Supabase 태그 묶음 저장에 실패했습니다.", error);
+        showSyncNotice("태그 묶음 저장은 마이그레이션 적용 후 Supabase에 반영됩니다.");
+      });
+    }
+  }
+
+  function deleteTagGroup(groupId) {
+    if (!canManageTagsFor(selectedPersonId)) return;
+    setTagGroups((current) => current.filter((group) => group.id !== groupId));
+    if (category === groupId) setCategory("전체");
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tags.deleteGroup(groupId).catch((error) => {
+        console.warn("Supabase 태그 묶음 삭제에 실패했습니다.", error);
+        showSyncNotice("태그 묶음 삭제는 마이그레이션 적용 후 Supabase에 반영됩니다.");
+      });
+    }
+  }
+
   function changePage(page) {
     setActivePage(page);
     setSelectedBriefingKey("");
@@ -2361,7 +2456,53 @@ function App() {
     }
   }
 
-  function selectTask(taskId, context = "workflow") {
+  function materializeRecurringInstance(instance) {
+    if (!instance?.isRecurringInstance || !instance.recurringTemplateId) return instance?.id ?? "";
+    const existing = tasks.find((task) => task.recurringTemplateId === instance.recurringTemplateId && task.dueDate === instance.dueDate);
+    if (existing) return existing.id;
+    const source = tasks.find((task) => task.id === instance.recurringTemplateId) ?? instance;
+    const instanceId = `t-${Date.now()}-${instance.dueDate.replaceAll("-", "")}`;
+    const nextTask = {
+      ...source,
+      ...instance,
+      id: instanceId,
+      recurring: null,
+      recurringDetail: "",
+      recurringInterval: 1,
+      recurringWeekdays: [],
+      recurringStartDate: "",
+      recurringEndDate: "",
+      recurringNoEnd: false,
+      recurringDurationDays: 1,
+      isRecurringInstance: false,
+      recurringTemplateId: instance.recurringTemplateId,
+      createdAt: TODAY,
+      status: instance.status || "계획",
+      progress: 0,
+      completedAt: "",
+      completedBy: "",
+      updates: [],
+      statusHistory: [{
+        date: TODAY,
+        actorId: selectedPersonId,
+        type: "recurring",
+        from: "반복 예정",
+        to: "개별 업무",
+        note: `${formatDate(instance.startDate)} 회차를 개별 업무로 전환`
+      }],
+      subtasks: (source.subtasks ?? []).map((subtask, index) => ({
+        ...subtask,
+        id: `st-${Date.now()}-${index}`,
+        done: false
+      }))
+    };
+    setTasks((current) => [nextTask, ...current]);
+    persistTaskToSupabase({ ...nextTask, peopleDirectory: directory }, nextTask.id);
+    return instanceId;
+  }
+
+  function selectTask(taskOrId, context = "workflow") {
+    const taskId = typeof taskOrId === "object" ? materializeRecurringInstance(taskOrId) : taskOrId;
     if (context === "briefing" && activeView !== "board") {
       setActiveView("board");
     }
@@ -2380,6 +2521,7 @@ function App() {
         behavior: prefersReducedMotion ? "auto" : "smooth",
       });
     }, 80);
+    return taskId;
   }
 
   function selectBriefingGroup(group) {
@@ -2418,6 +2560,7 @@ function App() {
       team: "연구기획그룹-전략",
       tasks,
       availableTags,
+      tagGroups,
       calendarEvents,
       memoByPage,
       profileOverrides
@@ -2445,6 +2588,7 @@ function App() {
       if (!confirmed) return;
       setTasks(imported.tasks);
       setAvailableTags(imported.availableTags);
+      setTagGroups(imported.tagGroups);
       setCalendarEvents(imported.calendarEvents);
       setMemoByPage(imported.memoByPage);
       setProfileOverrides(imported.profileOverrides);
@@ -2523,10 +2667,9 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar" aria-label="주요 메뉴">
         <div className="brand-block">
-          <div className="brand-mark" aria-hidden="true">🧭</div>
-          <div>
+          <div className="brand-wordmark">
             <strong>연구기획그룹</strong>
-            <span>전략 업무 허브</span>
+            <span>전략 TEAM</span>
           </div>
         </div>
         <nav className="nav-list">
@@ -2537,10 +2680,10 @@ function App() {
               changeWorkflowView("board");
             }}
             type="button"
-            title="오늘 브리핑"
+            title="My Desk"
           >
             <LayoutDashboard size={18} />
-            <span>오늘 브리핑</span>
+            <span>My Desk</span>
           </button>
           <button
             className={`nav-item ${activePage === "team" && !fullPageViews.includes(activeView) ? "active" : ""}`}
@@ -2549,10 +2692,10 @@ function App() {
               changeWorkflowView("board");
             }}
             type="button"
-            title="전체 업무흐름"
+            title="Team Flow"
           >
             <ClipboardList size={18} />
-            <span>전체 업무흐름</span>
+            <span>Team Flow</span>
           </button>
           <button
             className={`nav-item ${activeView === "calendar" ? "active" : ""}`}
@@ -2562,10 +2705,10 @@ function App() {
               closeTaskDetail();
             }}
             type="button"
-            title="캘린더"
+            title="Calendar"
           >
             <CalendarDays size={18} />
-            <span>캘린더</span>
+            <span>Calendar</span>
           </button>
           <button
             className={`nav-item ${activeView === "updates" ? "active" : ""}`}
@@ -2574,10 +2717,10 @@ function App() {
               closeTaskDetail();
             }}
             type="button"
-            title="업데이트"
+            title="Updates"
           >
             <MessageSquareText size={18} />
-            <span>업데이트</span>
+            <span>Updates</span>
           </button>
           <button
             className={`nav-item ${activeView === "performance" ? "active" : ""}`}
@@ -2587,14 +2730,14 @@ function App() {
               closeTaskDetail();
             }}
             type="button"
-            title="업무실적"
+            title="Highlights"
           >
-            <BarChart3 size={18} />
-            <span>업무실적</span>
+            <Sparkles size={18} />
+            <span>Highlights</span>
           </button>
         </nav>
         <div className="team-stack">
-          <span className="panel-label">팀 구성</span>
+          <span className="panel-label">Team Members</span>
           {teamMembers.map((person) => (
             <button
               className={`person-pill ${selectedPersonId === person.id ? "selected" : ""}`}
@@ -2623,7 +2766,7 @@ function App() {
         )}
         <header className="topbar">
           <div>
-            <h1>연구기획그룹-전략 업무 대시보드</h1>
+            <h1>Strategy Work Hub</h1>
             <p>
               {activePage === "my"
                 ? `${selectedPerson.name}님 기준으로 오늘 필요한 업무, 본인 업무 카드, 본인 타임라인을 보여줍니다.`
@@ -2742,15 +2885,15 @@ function App() {
                 <label className="filter-select">
                   <Filter size={16} />
                   <select aria-label="태그 필터" onChange={(event) => setCategory(event.target.value)} value={category}>
-                    <option value="전체">전체</option>
+                    <option value="전체">태그: 전체</option>
                     <optgroup label="묶음">
-                      {tagFilterPresets.map((preset) => (
-                        <option key={preset.id} value={preset.id}>{preset.label}</option>
+                      {tagGroups.map((preset) => (
+                        <option key={preset.id} value={preset.id}>묶음: {preset.label}</option>
                       ))}
                     </optgroup>
                     <optgroup label="태그">
                       {availableTags.map((item) => (
-                        <option key={item} value={item}>{item}</option>
+                        <option key={item} value={item}>태그: {item}</option>
                       ))}
                     </optgroup>
                   </select>
@@ -2775,9 +2918,11 @@ function App() {
                 canManageTags={canManageTags}
                 onAdd={addTag}
                 onDelete={deleteTag}
+                onDeletePreset={deleteTagGroup}
                 onFilter={setCategory}
                 onRename={renameTag}
-                presets={tagFilterPresets}
+                onSavePreset={saveTagGroup}
+                presets={tagGroups}
                 tags={availableTags}
               />
             )}
@@ -2829,12 +2974,12 @@ function App() {
                 onAddEvent={addCalendarEvent}
                 onAddLink={addTaskLink}
                 onAddUpdate={addTaskUpdate}
-                onArchive={(task) => toggleArchive((task.recurringTemplateId || task.id), true)}
+                onArchive={(task) => toggleArchive(task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id, true)}
                 onDeleteEvent={deleteCalendarEvent}
-                onDelete={(task) => deleteTask(task.recurringTemplateId || task.id)}
-                onEdit={(task) => setEditingTask(tasks.find((item) => item.id === (task.recurringTemplateId || task.id)) || task)}
+                onDelete={(task) => deleteTask(task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id)}
+                onEdit={(task) => setEditingTask(tasks.find((item) => item.id === (task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id)) || task)}
                 onMonthChange={setTimelineMonth}
-                onRestore={(task) => toggleArchive((task.recurringTemplateId || task.id), false)}
+                onRestore={(task) => toggleArchive(task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id, false)}
                 onSelectTask={selectTask}
                 onToggleSubtask={toggleSubtask}
                 onUpdateEvent={updateCalendarEvent}
@@ -2847,6 +2992,7 @@ function App() {
                 <RecurringView
                   canManageTask={(task) => canManageTaskFor(task, selectedPersonId)}
                   onSelect={(taskId) => selectTask(taskId, "workflow")}
+                  onSelectOccurrence={(task) => selectTask(task, "workflow")}
                   onStopRecurring={stopRecurring}
                   tasks={filteredTasks}
                 />
@@ -2903,6 +3049,13 @@ function App() {
           onClose={() => setEditingTask(null)}
           onSave={saveTask}
           task={editingTask}
+        />
+      )}
+      {pendingRecurringSave && (
+        <RecurringEditScopeModal
+          onCancel={() => setPendingRecurringSave(null)}
+          onSelect={(scope) => saveTask(pendingRecurringSave.task, { recurringScope: scope })}
+          task={pendingRecurringSave.task}
         />
       )}
       {isAccountOpen && (
@@ -3499,10 +3652,13 @@ function BriefingPanel({ briefing, briefingFeedbackKey, isTeam, note, onNoteChan
   );
 }
 
-function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onFilter, onRename, presets, tags }) {
+function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset, onFilter, onRename, onSavePreset, presets, tags }) {
   const [draftTag, setDraftTag] = useState("");
   const [editingValue, setEditingValue] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [isAddingPreset, setIsAddingPreset] = useState(false);
+  const [presetDraft, setPresetDraft] = useState({ id: "", label: "", tagsText: "" });
+  const activePreset = presets.find((preset) => preset.id === activeTag);
 
   function submitTag(event) {
     event.preventDefault();
@@ -3513,8 +3669,13 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onFilter, onRen
 
   function selectTag(tag) {
     onFilter(tag);
-    setEditingValue(tag === "전체" || tagFilterPreset(tag) ? "" : tag);
+    setEditingValue(tag === "전체" || tagFilterPreset(tag, presets) ? "" : tag);
     setIsAdding(false);
+    setIsAddingPreset(false);
+    const preset = presets.find((item) => item.id === tag);
+    if (preset) {
+      setPresetDraft({ id: preset.id, label: preset.label, tagsText: preset.tags.join(", ") });
+    }
   }
 
   function submitEdit(event) {
@@ -3522,6 +3683,21 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onFilter, onRen
     if (activeTag === "전체") return;
     onRename(activeTag, editingValue);
     setEditingValue("");
+  }
+
+  function submitPreset(event) {
+    event.preventDefault();
+    const targetPreset = activePreset && !isAddingPreset ? activePreset : null;
+    const tagsText = presetDraft.tagsText || targetPreset?.tags.join(", ") || "";
+    const tags = normalizeTags(tagsText.split(",").map((tag) => tag.trim()));
+    onSavePreset({
+      id: presetDraft.id || targetPreset?.id || "",
+      label: presetDraft.label || targetPreset?.label || "",
+      tags,
+      tone: targetPreset?.tone || "custom"
+    });
+    setIsAddingPreset(false);
+    setPresetDraft({ id: "", label: "", tagsText: "" });
   }
 
   return (
@@ -3549,7 +3725,40 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onFilter, onRen
             {preset.label}
           </button>
         ))}
+        {canManageTags && !isAddingPreset && (
+          <button
+            className="tag-preset-add"
+            onClick={() => {
+              setIsAddingPreset(true);
+              setPresetDraft({ id: "", label: "", tagsText: "" });
+              onFilter("전체");
+            }}
+            type="button"
+          >
+            <Plus size={13} />
+            묶음
+          </button>
+        )}
       </div>
+      {canManageTags && isAddingPreset && (
+        <form className="tag-edit-panel tag-preset-edit-panel" onSubmit={submitPreset}>
+          <span>새 묶음</span>
+          <input
+            aria-label="태그 묶음 이름"
+            onChange={(event) => setPresetDraft((current) => ({ ...current, label: event.target.value }))}
+            placeholder="묶음 이름"
+            value={presetDraft.label}
+          />
+          <input
+            aria-label="묶음 포함 태그"
+            onChange={(event) => setPresetDraft((current) => ({ ...current, tagsText: event.target.value }))}
+            placeholder="기획보고, 임원보고"
+            value={presetDraft.tagsText}
+          />
+          <button type="submit">저장</button>
+          <button onClick={() => setIsAddingPreset(false)} type="button">취소</button>
+        </form>
+      )}
       <div className="tag-library-body">
         <button
           className={`tag-filter-chip ${activeTag === "전체" ? "active" : ""}`}
@@ -3608,6 +3817,33 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onFilter, onRen
               onDelete(activeTag);
               setEditingValue("");
             }}
+            type="button"
+          >
+            삭제
+          </button>
+        </form>
+      )}
+      {canManageTags && activePreset && (
+        <form className="tag-edit-panel tag-preset-edit-panel" onSubmit={submitPreset}>
+          <span>선택한 묶음</span>
+          <input
+            aria-label={`${activePreset.label} 묶음 이름 수정`}
+            onChange={(event) => setPresetDraft((current) => ({ ...current, id: activePreset.id, tagsText: current.tagsText || activePreset.tags.join(", "), label: event.target.value }))}
+            value={presetDraft.id === activePreset.id ? presetDraft.label : activePreset.label}
+          />
+          <input
+            aria-label={`${activePreset.label} 포함 태그 수정`}
+            onChange={(event) => setPresetDraft((current) => ({ ...current, id: activePreset.id, label: presetDraft.label || activePreset.label, tagsText: event.target.value }))}
+            value={presetDraft.id === activePreset.id ? presetDraft.tagsText : activePreset.tags.join(", ")}
+          />
+          <button
+            type="submit"
+          >
+            수정
+          </button>
+          <button
+            className="danger"
+            onClick={() => onDeletePreset(activePreset.id)}
             type="button"
           >
             삭제
@@ -3905,7 +4141,7 @@ function TimelineView({ mode, month, onModeChange, onMonthChange, onSelect, onYe
               aria-label={`${title} 타임라인 업무 상세 보기, ${task.status}, 진행률 ${progress}%${risk ? `, ${risk.label}` : ""}`}
               className="timeline-row"
               key={task.id}
-              onClick={() => onSelect(task.recurringTemplateId || task.id)}
+              onClick={() => onSelect(task)}
               type="button"
             >
               <span className="timeline-title">
@@ -3988,7 +4224,7 @@ function CalendarView({
   ];
   const selectedTask =
     selectedCalendarItem?.type === "task"
-      ? selectedCalendarItem.task ?? displayTasks.find((task) => task.id === selectedCalendarItem.id)
+      ? displayTasks.find((task) => task.id === selectedCalendarItem.id) ?? selectedCalendarItem.task
       : null;
   const selectedEvent =
     selectedCalendarItem?.type === "event"
@@ -4020,8 +4256,9 @@ function CalendarView({
     <section className="calendar-view">
       <div className="calendar-toolbar">
         <div>
-          <h2>캘린더</h2>
-          <span>팀 공유 일정과 개인 일정을 함께 관리합니다.</span>
+          <span className="panel-label">Calendar</span>
+          <h2>일정 관리</h2>
+          <p className="calendar-help">팀 일정, 개인 일정, 계획된 업무 일정을 함께 관리합니다.</p>
         </div>
         <div className="period-switcher">
           <button onClick={() => changeMonth(-1)} type="button" title="이전 달">
@@ -4124,8 +4361,8 @@ function CalendarView({
                         className={`calendar-event task-due ${selectedCalendarItem?.type === "task" && selectedCalendarItem.id === task.id ? "selected" : ""}`}
                         key={`${date}-${task.id}`}
                         onClick={() => {
-                          setSelectedCalendarItem({ type: "task", id: task.id, task });
-                          onSelectTask(task.recurringTemplateId || task.id);
+                          const selectedId = onSelectTask(task) || task.id;
+                          setSelectedCalendarItem({ type: "task", id: selectedId });
                         }}
                         type="button"
                       >
@@ -4318,7 +4555,7 @@ function CalendarDetailPanel({
   );
 }
 
-function RecurringView({ canManageTask, onSelect, onStopRecurring, tasks }) {
+function RecurringView({ canManageTask, onSelect, onSelectOccurrence, onStopRecurring, tasks }) {
   const recurring = tasks.filter((task) => task.recurring && !task.isRecurringInstance);
   return (
     <section className="recurring-view">
@@ -4333,25 +4570,45 @@ function RecurringView({ canManageTask, onSelect, onStopRecurring, tasks }) {
         const hiddenOccurrenceCount = Math.max(0, occurrences.length - visibleOccurrences.length);
         return (
           <article className="recurring-row" key={task.id}>
-            <button className="recurring-main" onClick={() => onSelect(task.id)} type="button">
+            <div className="recurring-main">
               <span className="recurring-icon">🔁</span>
               <span>
-                <strong>{displayTaskTitle(task)}</strong>
+                <button className="recurring-title-button" onClick={() => onSelect(task.id)} type="button">
+                  {displayTaskTitle(task)}
+                </button>
                 <small>
                   {recurringSummary(task)} · {personName(task.ownerId)} · 다음 마감 {occurrences[0]?.dueDate ?? task.dueDate}
                 </small>
                 <span className="recurring-upcoming" aria-label="생성 예정 업무">
                   {visibleOccurrences.map((occurrence) => (
-                    <span
+                    <button
                       key={`${task.id}-${occurrence.dueDate}`}
+                      onClick={() => onSelectOccurrence({
+                        ...task,
+                        ...occurrence,
+                        id: `${task.id}__repeat__${occurrence.dueDate}`,
+                        status: "계획",
+                        completedAt: "",
+                        completedBy: "",
+                        progressBeforeComplete: undefined,
+                        progress: 0,
+                        updates: [],
+                        statusHistory: [],
+                        subtasks: (task.subtasks ?? []).map((subtask) => ({ ...subtask, done: false })),
+                        createdAt: "",
+                        isNewAssignment: false,
+                        isRecurringInstance: true,
+                        recurringTemplateId: task.id
+                      })}
                       title={`${formatDate(occurrence.startDate)} 시작 · ${formatDate(occurrence.dueDate)} 마감${occurrence.subtasks ? ` · 상세 업무 ${occurrence.subtasks}개 유지` : ""}`}
+                      type="button"
                     >
                       <b>{formatDate(occurrence.startDate)} 시작</b>
                       <small>
                         {formatDate(occurrence.dueDate)} 마감
                         {occurrence.subtasks ? ` · 상세 ${occurrence.subtasks}개 유지` : ""}
                       </small>
-                    </span>
+                    </button>
                   ))}
                   {hiddenOccurrenceCount > 0 && (
                     <span className="recurring-more-chip" title={`화면에는 앞 회차만 표시합니다. 남은 예정 ${hiddenOccurrenceCount}회`}>
@@ -4361,7 +4618,7 @@ function RecurringView({ canManageTask, onSelect, onStopRecurring, tasks }) {
                   )}
                 </span>
               </span>
-            </button>
+            </div>
             {canManageTask(task) && (
               <button
                 className="secondary-button small recurring-stop-button"
@@ -4442,6 +4699,13 @@ function UpdatesView({ initialScope = "mine", onAddUpdate, onSelect, selectedPer
       return task.ownerId === selectedPersonId || task.sortedUpdates.some((update) => update.authorId === selectedPersonId);
     })
     .sort((a, b) => b.latestUpdate.date.localeCompare(a.latestUpdate.date) || displayTaskTitle(a).localeCompare(displayTaskTitle(b), "ko-KR"));
+  const newAssignmentTasks = tasks
+    .filter((task) => !task.archived && task.status !== "완료" && isRecentAssignment(task))
+    .filter((task) => {
+      if (scope === "team") return true;
+      return task.ownerId === selectedPersonId || task.creatorId === selectedPersonId || task.assignerId === selectedPersonId;
+    })
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "") || displayTaskTitle(a).localeCompare(displayTaskTitle(b), "ko-KR"));
   const scopeCopy = scope === "team" ? "Team" : "My";
 
   return (
@@ -4472,73 +4736,123 @@ function UpdatesView({ initialScope = "mine", onAddUpdate, onSelect, selectedPer
           </div>
           <small className="updates-help">
             <Info size={14} />
-            {scope === "team" ? "팀 전체 로그" : "내 담당/작성 로그"} · 최근 7일 · 완료 제외
+            {scope === "team" ? "팀 전체" : "내 담당/작성"} 로그 7일 + 새 배정 3일 · 완료 제외
           </small>
         </div>
       </div>
-      {updatedTasks.length ? (
-        <div className="update-task-grid">
-          {updatedTasks.map((task) => {
-            const statusMeta = reportStatusMeta(task);
-            return (
-            <article className="update-task-card" key={task.id}>
-              <button className="update-task-main" onClick={() => onSelect(task.id)} type="button">
-                <span className="update-title-line">
-                  <span
-                    className="update-summary-badge update-initial-badge"
-                    style={avatarStyle(task.ownerId)}
-                    title={personName(task.ownerId)}
-                  >
-                    {initials(personName(task.ownerId))}
-                  </span>
-                  <strong>{displayTaskTitle(task)}</strong>
-                  <span className={`update-status-badge report-${statusMeta.tone}`}>{statusMeta.label}</span>
-                  <span className="update-tag-line">
-                    {taskTags(task).slice(0, 3).map((tag) => (
-                      <em className={`tag-tone-${tagTone(tag)}`} key={`${task.id}-${tag}`}>{tag}</em>
-                    ))}
-                  </span>
-                </span>
-                <span className="update-task-meta">{task.latestUpdate.date}</span>
-              </button>
-              <div className="update-log-stack">
-                {task.sortedUpdates.slice(0, 3).map((update, index) => (
-                  <div className="update-log-row" key={`${task.id}-${update.date}-${index}`}>
-                    <span>{update.date}</span>
-                    <strong>{personName(update.authorId)}</strong>
-                    <p>{update.text}</p>
-                  </div>
-                ))}
+      {updatedTasks.length || newAssignmentTasks.length ? (
+        <div className="updates-content-grid">
+          <div className="updates-column">
+            <div className="updates-section-title">
+              <strong>로그 업데이트</strong>
+              <span>{updatedTasks.length}건</span>
+            </div>
+            {updatedTasks.length ? (
+              <div className="update-task-grid update-log-grid">
+                {updatedTasks.map((task) => {
+                  const statusMeta = reportStatusMeta(task);
+                  return (
+                    <article className="update-task-card" key={task.id}>
+                      <button className="update-task-main" onClick={() => onSelect(task.id)} type="button">
+                        <span className="update-title-line">
+                          <span
+                            className="update-summary-badge update-initial-badge"
+                            style={avatarStyle(task.ownerId)}
+                            title={personName(task.ownerId)}
+                          >
+                            {initials(personName(task.ownerId))}
+                          </span>
+                          <strong>{displayTaskTitle(task)}</strong>
+                          <span className={`update-status-badge report-${statusMeta.tone}`}>{statusMeta.label}</span>
+                          <span className="update-tag-line">
+                            {taskTags(task).slice(0, 3).map((tag) => (
+                              <em className={`tag-tone-${tagTone(tag)}`} key={`${task.id}-${tag}`}>{tag}</em>
+                            ))}
+                          </span>
+                        </span>
+                        <span className="update-task-meta">{task.latestUpdate.date}</span>
+                      </button>
+                      <div className="update-log-stack">
+                        {task.sortedUpdates.slice(0, 3).map((update, index) => (
+                          <div className="update-log-row" key={`${task.id}-${update.date}-${index}`}>
+                            <span>{update.date}</span>
+                            <strong>{personName(update.authorId)}</strong>
+                            <p>{update.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <form
+                        className="update-inline-form"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          const text = (draftUpdates[task.id] ?? "").trim();
+                          if (!text) return;
+                          onAddUpdate(task.id, text);
+                          setDraftUpdates((current) => ({ ...current, [task.id]: "" }));
+                        }}
+                      >
+                        <span className="avatar tiny emoji-avatar" style={avatarStyle(selectedPersonId)}>
+                          {personEmoji(selectedPersonId)}
+                        </span>
+                        <input
+                          aria-label={`${displayTaskTitle(task)} 업데이트 추가`}
+                          onChange={(event) => setDraftUpdates((current) => ({ ...current, [task.id]: event.target.value }))}
+                          placeholder="업데이트 로그 바로 남기기"
+                          value={draftUpdates[task.id] ?? ""}
+                        />
+                        <button className="secondary-button small" type="submit">
+                          남기기
+                        </button>
+                      </form>
+                    </article>
+                  );
+                })}
               </div>
-              <form
-                className="update-inline-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const text = (draftUpdates[task.id] ?? "").trim();
-                  if (!text) return;
-                  onAddUpdate(task.id, text);
-                  setDraftUpdates((current) => ({ ...current, [task.id]: "" }));
-                }}
-              >
-                <span className="avatar tiny emoji-avatar" style={avatarStyle(selectedPersonId)}>
-                  {personEmoji(selectedPersonId)}
-                </span>
-                <input
-                  aria-label={`${displayTaskTitle(task)} 업데이트 추가`}
-                  onChange={(event) => setDraftUpdates((current) => ({ ...current, [task.id]: event.target.value }))}
-                  placeholder="업데이트 로그 바로 남기기"
-                  value={draftUpdates[task.id] ?? ""}
-                />
-                <button className="secondary-button small" type="submit">
-                  남기기
-                </button>
-              </form>
-            </article>
-            );
-          })}
+            ) : (
+              <p className="empty-note">최근 7일 안에 표시할 업데이트가 없습니다.</p>
+            )}
+          </div>
+          <div className="updates-column">
+            <div className="updates-section-title">
+              <strong>새로 배정된 업무</strong>
+              <span>{newAssignmentTasks.length}건</span>
+            </div>
+            {newAssignmentTasks.length ? (
+              <div className="new-assignment-grid">
+                {newAssignmentTasks.map((task) => {
+                  const statusMeta = reportStatusMeta(task);
+                  return (
+                    <button className="new-assignment-card" key={task.id} onClick={() => onSelect(task.id)} type="button">
+                      <span className="new-assignment-top">
+                        <span
+                          className="update-summary-badge update-initial-badge"
+                          style={avatarStyle(task.ownerId)}
+                          title={personName(task.ownerId)}
+                        >
+                          {initials(personName(task.ownerId))}
+                        </span>
+                        <span className={`update-status-badge report-${statusMeta.tone}`}>{statusMeta.label}</span>
+                      </span>
+                      <strong>{displayTaskTitle(task)}</strong>
+                      <span className="new-assignment-meta">
+                        {personName(task.ownerId)} · {task.priority} · {taskProgress(task)}%
+                      </span>
+                      <span className="update-tag-line">
+                        {taskTags(task).slice(0, 2).map((tag) => (
+                          <em className={`tag-tone-${tagTone(tag)}`} key={`${task.id}-new-${tag}`}>{tag}</em>
+                        ))}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="empty-note">최근 3일 안에 새로 배정된 업무가 없습니다.</p>
+            )}
+          </div>
         </div>
       ) : (
-        <p className="empty-note">최근 7일 안에 표시할 업데이트가 없습니다. 업무 상세에서 바로 업데이트를 남길 수 있습니다.</p>
+        <p className="empty-note">최근 표시할 업데이트나 새 배정 업무가 없습니다. 업무 상세에서 바로 업데이트를 남길 수 있습니다.</p>
       )}
     </section>
   );
@@ -4586,6 +4900,41 @@ function BriefingDetail({ group, isTeam, onClose, onSelect, selectedTaskId }) {
         <strong>위 업무를 선택하면 오른쪽 패널이 개별 업무 상세로 전환됩니다.</strong>
       </div>
     </section>
+  );
+}
+
+function RecurringEditScopeModal({ onCancel, onSelect, task }) {
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="recurring-scope-modal" role="dialog" aria-modal="true" aria-label="반복업무 수정 범위 선택">
+        <div className="modal-header">
+          <div>
+            <span className="panel-label">반복업무 수정</span>
+            <h2>{displayTaskTitle(task)}</h2>
+          </div>
+          <button className="icon-button" onClick={onCancel} type="button" title="닫기">
+            <X size={18} />
+          </button>
+        </div>
+        <p className="recurring-scope-help">
+          이 업무는 반복 규칙이 연결되어 있어요. 저장할 범위를 선택해 주세요.
+        </p>
+        <div className="recurring-scope-options">
+          <button className="recurring-scope-option disabled" disabled type="button">
+            <strong>이번 회차만</strong>
+            <span>특정 회차를 직접 선택해 수정할 때 사용할 수 있습니다.</span>
+          </button>
+          <button className="recurring-scope-option" onClick={() => onSelect("future")} type="button">
+            <strong>앞으로의 회차</strong>
+            <span>오늘 이후 미수행 회차를 새 규칙 기준으로 다시 보여줍니다.</span>
+          </button>
+          <button className="recurring-scope-option" onClick={() => onSelect("all")} type="button">
+            <strong>반복 규칙 전체</strong>
+            <span>원본 반복 규칙만 수정하고 기존에 저장된 회차 기록은 유지합니다.</span>
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -5309,11 +5658,6 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
     });
   }
 
-  const draftSubtasks = draft.subtasks.filter((subtask) => subtask.title.trim());
-  const derivedProgress = draftSubtasks.length
-    ? Math.round((draftSubtasks.filter((subtask) => subtask.done).length / draftSubtasks.length) * 100)
-    : 0;
-
   return (
     <div className="modal-backdrop" role="presentation">
       <form className="task-modal" onSubmit={submit} role="dialog" aria-modal="true" aria-label={task.id ? "업무 수정" : "업무 추가"}>
@@ -5376,7 +5720,7 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
           <label className="field">
             <span>담당자</span>
             <select value={draft.ownerId} onChange={(event) => update("ownerId", event.target.value)}>
-              {teamAssignablePeople().map((person) => (
+              {taskOwnerOptions().map((person) => (
                 <option key={person.id} value={person.id}>
                   {person.name} {person.role}
                 </option>
@@ -5390,10 +5734,6 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
                 <option key={type}>{type}</option>
               ))}
             </select>
-          </label>
-          <label className="field">
-            <span>등록자</span>
-            <input readOnly value={personName(draft.creatorId || draft.ownerId)} />
           </label>
           <label className="field">
             <span>상태</span>
@@ -5420,38 +5760,27 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
             <input type="date" value={draft.dueDate} onChange={(event) => update("dueDate", event.target.value)} />
           </label>
           <label className="field">
-            <span>자동 진행률</span>
-            <input
-              max="100"
-              min="0"
-              type="number"
-              value={derivedProgress}
-              readOnly
-            />
-          </label>
-          <label className="field">
-            <span>반복 주기</span>
+            <span>반복 여부</span>
             <select value={draft.recurring || ""} onChange={(event) => changeRecurring(event.target.value)}>
               <option value="">없음</option>
-              <option value="매주">매주</option>
-              <option value="매월">매월</option>
-              <option value="분기">분기</option>
+              <option value="매주">주 단위</option>
+              <option value="매월">월 단위</option>
             </select>
           </label>
           {draft.recurring && (
             <div className="field wide recurring-config-field">
               <span>반복 설정</span>
               <div className="recurring-config-card">
-                <label>
-                  <small>반복단위</small>
+                <label className="recurring-unit-field">
+                  <small>반복 단위</small>
                   <select value={draft.recurring || ""} onChange={(event) => changeRecurring(event.target.value)}>
                     {recurringTypes.map((type) => (
-                      <option key={type} value={type}>{type.replace("매", "")}</option>
+                      <option key={type} value={type}>{type === "매주" ? "주 단위" : "월 단위"}</option>
                     ))}
                   </select>
                 </label>
-                <label>
-                  <small>반복주기</small>
+                <label className="recurring-interval-field">
+                  <small>반복 주기</small>
                   <span className="inline-number-field">
                     <input
                       min="1"
@@ -5460,9 +5789,24 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
                       value={draft.recurringInterval || 1}
                       onChange={(event) => update("recurringInterval", event.target.value)}
                     />
-                    <b>{draft.recurring === "매주" ? "주" : draft.recurring === "매월" ? "개월" : "분기"}</b>
+                    <b>{draft.recurring === "매주" ? "주마다" : "개월마다"}</b>
                   </span>
                 </label>
+                {draft.recurring === "매월" && (
+                  <label className="recurring-duration-field">
+                    <small>업무 기간</small>
+                    <span className="inline-number-field">
+                      <input
+                        min="1"
+                        max="31"
+                        type="number"
+                        value={draft.recurringDurationDays || 1}
+                        onChange={(event) => update("recurringDurationDays", event.target.value)}
+                      />
+                      <b>일</b>
+                    </span>
+                  </label>
+                )}
                 {draft.recurring === "매주" && (
                   <div className="recurring-weekday-picker">
                     <small>반복일</small>
@@ -5480,7 +5824,7 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
                     </div>
                   </div>
                 )}
-                <label>
+                <label className="recurring-start-field">
                   <small>반복 시작</small>
                   <input
                     type="date"
@@ -5488,7 +5832,7 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
                     onChange={(event) => update("recurringStartDate", event.target.value)}
                   />
                 </label>
-                <label>
+                <label className="recurring-end-field">
                   <small>반복 종료</small>
                   <input
                     disabled={draft.recurringNoEnd}
@@ -5503,24 +5847,12 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
                     onChange={(event) => update("recurringNoEnd", event.target.checked)}
                     type="checkbox"
                   />
-                  계속 반복
-                </label>
-                <label>
-                  <small>업무기간</small>
-                  <span className="inline-number-field">
-                    <input
-                      min="1"
-                      max="31"
-                      type="number"
-                      value={draft.recurringDurationDays || 1}
-                      onChange={(event) => update("recurringDurationDays", event.target.value)}
-                    />
-                    <b>일</b>
-                  </span>
+                  <span>종료일 없이 계속 반복</span>
                 </label>
                 <div className="recurring-summary-preview">
                   <small>요약</small>
                   <strong>{recurringDescription(draft)}</strong>
+                  <em>ⓘ 주말·공휴일은 자동 보정하지 않으니, 휴일이 포함된 회차는 해당 월 업무에서 일정을 조정하세요.</em>
                 </div>
               </div>
             </div>
