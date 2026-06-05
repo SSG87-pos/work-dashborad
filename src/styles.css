@@ -8513,10 +8513,15 @@ body[data-page="team"] .briefing-panel {
 }
 
 .calendar-event-detail-head {
+  grid-column: 1 / -1;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.calendar-event-detail-head .panel-label {
+  white-space: nowrap;
 }
 
 .calendar-event-actions {
@@ -8533,15 +8538,17 @@ body[data-page="team"] .briefing-panel {
 }
 
 .calendar-event-edit-form {
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
-  margin-top: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+  margin-top: 8px;
 }
 
 .calendar-event-edit-form label {
   display: grid;
   gap: 5px;
+  min-width: 0;
 }
 
 .calendar-event-edit-form span {
@@ -8551,28 +8558,54 @@ body[data-page="team"] .briefing-panel {
 }
 
 .calendar-event-edit-form input,
+.calendar-event-edit-form select,
 .calendar-event-edit-form textarea {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 9px;
-  padding: 8px 10px;
+  background: #fff;
+  padding: 0 10px;
   color: var(--ink);
   font: inherit;
   font-size: 12.5px;
   font-weight: 520;
+  line-height: 1.2;
   outline: none;
+}
+
+.calendar-event-edit-form input,
+.calendar-event-edit-form select {
+  height: 38px;
+}
+
+.calendar-event-title-field,
+.calendar-event-note-field {
+  grid-column: 1 / -1;
 }
 
 .calendar-event-edit-form textarea {
   min-height: 110px;
+  padding-top: 9px;
+  padding-bottom: 9px;
   resize: vertical;
 }
 
-.calendar-event-edit-form > div {
+.calendar-event-edit-actions {
+  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.calendar-event-edit-actions .primary-button.small,
+.calendar-event-edit-actions .secondary-button.small {
+  width: auto;
+  min-width: 64px;
+  height: 36px;
+  padding: 0 14px;
+  font-size: 12.5px;
+  line-height: 1;
 }
 
 /* Compact weekly performance report rows. */

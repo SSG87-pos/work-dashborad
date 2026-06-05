@@ -4712,11 +4712,11 @@ function CalendarDetailPanel({
     setIsEditingEvent(false);
   }
   return (
-    <aside className="calendar-detail-panel">
+    <aside className={`calendar-detail-panel ${isEditingEvent ? "is-editing-event" : ""}`}>
       <div className="calendar-event-detail-head">
         <div>
           <span className="panel-label">{event.scope === "team" ? "팀 일정" : "개인 일정"}</span>
-          <h3>{event.title}</h3>
+          {!isEditingEvent && <h3>{event.title}</h3>}
         </div>
         {!isEditingEvent && (
           <div className="calendar-event-actions">
@@ -4734,14 +4734,14 @@ function CalendarDetailPanel({
       </div>
       {isEditingEvent ? (
         <form className="calendar-event-edit-form" onSubmit={submitEventUpdate}>
-          <label>
+          <label className="calendar-event-title-field">
             <span>일정명</span>
             <input
               onChange={(changeEvent) => setEventDraft((current) => ({ ...current, title: changeEvent.target.value }))}
               value={eventDraft?.title ?? ""}
             />
           </label>
-          <label>
+          <label className="calendar-event-half-field">
             <span>구분</span>
             <select
               onChange={(changeEvent) => {
@@ -4759,7 +4759,7 @@ function CalendarDetailPanel({
             </select>
           </label>
           {eventDraft?.scope === "personal" && (
-            <label>
+            <label className="calendar-event-half-field">
               <span>대상자</span>
               <select
                 disabled={!canAssignPersonalCalendar}
@@ -4774,7 +4774,7 @@ function CalendarDetailPanel({
               </select>
             </label>
           )}
-          <label>
+          <label className="calendar-event-half-field">
             <span>시작일</span>
             <input
               onChange={(changeEvent) => {
@@ -4790,7 +4790,7 @@ function CalendarDetailPanel({
               value={eventStartDate(eventDraft)}
             />
           </label>
-          <label>
+          <label className="calendar-event-half-field">
             <span>종료일</span>
             <input
               min={eventStartDate(eventDraft)}
@@ -4799,7 +4799,7 @@ function CalendarDetailPanel({
               value={eventEndDate(eventDraft)}
             />
           </label>
-          <label>
+          <label className="calendar-event-note-field">
             <span>일정 세부내용</span>
             <textarea
               onChange={(changeEvent) => setEventDraft((current) => ({ ...current, note: changeEvent.target.value }))}
@@ -4807,7 +4807,7 @@ function CalendarDetailPanel({
               value={eventDraft?.note ?? ""}
             />
           </label>
-          <div>
+          <div className="calendar-event-edit-actions">
             <button className="secondary-button small" onClick={() => setIsEditingEvent(false)} type="button">
               취소
             </button>
