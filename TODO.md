@@ -203,12 +203,14 @@
   - Verification: Supabase migration list includes `promote_first_admin`.
 
 - [x] Start real Supabase dashboard data sync.
-  - Files: `src/App.jsx`, `src/supabaseStore.js`.
+  - Files: `src/App.jsx`, `src/supabaseStore.js`, `src/styles.css`.
   - Done: login/session restore now reads `supabaseDashboardStore.read()` and hydrates profile/preferences/memos/tags/events/tasks when DB data exists; empty task DB keeps the existing prototype data visible during transition.
   - Done: page/view/tag/timeline preferences and page-scoped shared memos write back to Supabase after login.
   - Done: shared tag add/rename/delete calls Supabase with the product rule preserved: everyone can add, admin can rename/delete.
   - Done: actual UUID-backed tasks can be saved to Supabase with subtasks, links, and tag joins; status changes, update logs, related links, archive/delete, and subtask check progress have first DB write paths.
-  - Done: team/personal calendar event creation writes to Supabase, with personal events tied to a real user when available.
+  - Done: due-date edits on UUID-backed tasks append Supabase change-history rows.
+  - Done: team/personal calendar event creation, edit, and delete write to Supabase, with personal events tied to a real user when available.
+  - Done: profile name/title/emoji editing writes to Supabase when the current person is a real auth user.
   - Guardrail: prototype tasks assigned to temporary local users remain local until those people create real accounts, because Supabase task ownership is auth-user UUID based.
   - Build: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed.
 
@@ -228,9 +230,9 @@
   - Current adapter: `src/storage.js`.
   - Target: replace storage boundary without mixing network calls directly into view components.
 
-- [ ] Wire shared task, tag, calendar, memo CRUD to Supabase.
-  - Current state: real auth/session works, but the dashboard still renders prototype/local task data.
-  - Next scope: load users/tags/tasks/calendar/memos from Supabase after login, then replace write paths incrementally.
+- [ ] Finish remaining Supabase CRUD parity.
+  - Done already: auth/session, profile name/title/emoji, preferences, page memos, tags, first task writes, status/log/link/archive/delete/subtask progress, calendar event create/edit/delete.
+  - Next scope: recurring template persistence, profile/admin permission management, calendar event permission feedback, and approved prototype-data import once real team accounts exist.
 
 - [ ] Decide internal login/SSO timeline.
   - Email/password is active for the first version.

@@ -171,7 +171,9 @@ Recent UI/UX refinements from the latest session:
   - Page/view/tag/timeline preferences and page-scoped shared memos are written back to Supabase.
   - Shared tags write through Supabase with add open to all users and rename/delete admin-only.
   - UUID-backed tasks can be saved to Supabase with subtasks, links, and tag joins; status/update/link/archive/delete/subtask-progress have first write paths.
-  - Calendar event creation writes team/personal events to Supabase; personal events are tied to a real user UUID.
+  - Due-date edits on UUID-backed tasks append Supabase change-history rows.
+  - Calendar event create/edit/delete writes team/personal events to Supabase; personal events are tied to a real user UUID.
+  - Profile name/title/emoji editing writes to Supabase for real auth users.
   - Important transition guardrail: static sample people like `lead`, `seoyeon`, and `junho` are not auth users, so their prototype tasks intentionally remain local until those people sign up.
 
 ## Completed Work

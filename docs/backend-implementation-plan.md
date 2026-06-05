@@ -174,7 +174,7 @@ After the first admin login and initial Supabase connection:
 
 1. Add a team-member onboarding flow so real users can join with auth UUID profiles.
 2. Replace temporary sample task ownership with real user IDs as members sign up.
-3. Finish full task CRUD parity for due-date edits, recurring templates, calendar edits/deletes, profile edits, and profile emoji persistence.
+3. Finish full task CRUD parity for recurring templates, admin permission management, profile management beyond self-editing, and production-grade validation/feedback.
 4. Add an admin/import path for moving approved prototype data into Supabase once real team users exist.
 5. Keep JSON export/import as an admin backup and migration tool.
 
@@ -187,5 +187,5 @@ After the first admin login and initial Supabase connection:
 - Initial Supabase schema, RLS policies, manual Data API grants, and first admin promotion have been applied.
 - Login/session restore hydrates profile/preferences/memos/tags/events/tasks from Supabase.
 - Empty Supabase task/calendar tables preserve prototype data during migration so the UI remains usable.
-- First write paths exist for shared tags, page-scoped memos, UUID-backed tasks, task status, update logs, links, archive/delete, subtask progress, and calendar event creation.
+- First write paths exist for shared tags, page-scoped memos, profile name/title/emoji, UUID-backed tasks, task status, due-date change history, update logs, links, archive/delete, subtask progress, and calendar event create/edit/delete.
 - Transition limitation: static sample people are not auth users. Their prototype tasks remain local until those people sign up and receive real UUID profiles.

@@ -1979,6 +1979,34 @@ function App() {
     }
   }
 
+  function updateCalendarEvent(event) {
+    const nextEvent = {
+      ...event,
+      title: event.title.trim(),
+      note: event.note?.trim() ?? ""
+    };
+    if (!nextEvent.title) return;
+    setCalendarEvents((current) => current.map((item) => (item.id === nextEvent.id ? nextEvent : item)));
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.events.update(nextEvent).catch((error) => {
+        console.warn("Supabase 일정 수정에 실패했습니다.", error);
+      });
+    }
+  }
+
+  function deleteCalendarEvent(eventId) {
+    const targetEvent = calendarEvents.find((event) => event.id === eventId);
+    if (!targetEvent) return;
+    const confirmed = window.confirm(`${targetEvent.title} 일정을 삭제할까요?`);
+    if (!confirmed) return;
+    setCalendarEvents((current) => current.filter((event) => event.id !== eventId));
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.events.delete(eventId).catch((error) => {
+        console.warn("Supabase 일정 삭제에 실패했습니다.", error);
+      });
+    }
+  }
+
   function toggleArchive(taskId, archived) {
     setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, archived } : task)));
     if (isSupabaseReady && isAuthenticated) {
@@ -2199,6 +2227,37 @@ function App() {
         emoji
       }
     }));
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.profiles.updateEmoji(personId, emoji).catch((error) => {
+        console.warn("Supabase 프로필 이모지 저장에 실패했습니다.", error);
+      });
+    }
+  }
+
+  function updateProfile(personId, profile) {
+    const cleanProfile = {
+      name: profile.name?.trim(),
+      role: profile.role?.trim(),
+      emoji: profile.emoji?.trim()
+    };
+    setProfileOverrides((current) => ({
+      ...current,
+      [personId]: {
+        ...(current[personId] ?? {}),
+        ...(cleanProfile.name ? { name: cleanProfile.name } : {}),
+        ...(cleanProfile.role ? { role: cleanProfile.role } : {}),
+        ...(cleanProfile.emoji ? { emoji: cleanProfile.emoji } : {})
+      }
+    }));
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.profiles.update(personId, {
+        name: cleanProfile.name,
+        title: cleanProfile.role,
+        profileEmoji: cleanProfile.emoji
+      }).catch((error) => {
+        console.warn("Supabase 프로필 저장에 실패했습니다.", error);
+      });
+    }
   }
 
   function selectTask(taskId, context = "workflow") {
@@ -2664,12 +2723,14 @@ function App() {
                 onAddLink={addTaskLink}
                 onAddUpdate={addTaskUpdate}
                 onArchive={(task) => toggleArchive((task.recurringTemplateId || task.id), true)}
+                onDeleteEvent={deleteCalendarEvent}
                 onDelete={(task) => deleteTask(task.recurringTemplateId || task.id)}
                 onEdit={(task) => setEditingTask(tasks.find((item) => item.id === (task.recurringTemplateId || task.id)) || task)}
                 onMonthChange={setTimelineMonth}
                 onRestore={(task) => toggleArchive((task.recurringTemplateId || task.id), false)}
                 onSelectTask={selectTask}
                 onToggleSubtask={toggleSubtask}
+                onUpdateEvent={updateCalendarEvent}
                 selectedPersonId={selectedPersonId}
                 tasks={filteredTasks}
               />
@@ -2743,6 +2804,7 @@ function App() {
           onClose={() => setIsAccountOpen(false)}
           onLogin={loginAs}
           onLogout={logout}
+          onUpdateProfile={updateProfile}
           onUpdateEmoji={updateProfileEmoji}
           people={directory}
         />
@@ -3006,10 +3068,29 @@ function LoginScreen({ authMessage, authStatus, isSupabaseReady, onLogin, onSupa
   );
 }
 
-function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmoji, people }) {
+function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmoji, onUpdateProfile, people }) {
   const currentPerson = people.find((person) => person.id === currentPersonId) ?? people[0];
   const isAdmin = currentPerson.permissionRole === "admin";
   const teamMembers = teamCompositionOrder(teamAssignablePeople(people));
+  const [profileDraft, setProfileDraft] = useState({
+    name: currentPerson.name,
+    role: currentPerson.role,
+    emoji: currentPerson.emoji
+  });
+
+  useEffect(() => {
+    setProfileDraft({
+      name: currentPerson.name,
+      role: currentPerson.role,
+      emoji: currentPerson.emoji
+    });
+  }, [currentPerson.id, currentPerson.name, currentPerson.role, currentPerson.emoji]);
+
+  function saveProfile(event) {
+    event.preventDefault();
+    if (!profileDraft.name.trim() || !profileDraft.role.trim()) return;
+    onUpdateProfile(currentPersonId, profileDraft);
+  }
 
   return (
     <div className="modal-backdrop" role="presentation">
@@ -3064,24 +3145,40 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
           <section className="account-section">
             <span className="panel-label">
               <UserCog size={14} />
-              프로필 이모지
+              프로필 설정
             </span>
-            <div className="profile-emoji-picker-row">
+            <form className="profile-edit-form" onSubmit={saveProfile}>
               <span className="profile-emoji large" style={avatarStyle(currentPerson)}>
-                {currentPerson.emoji}
+                {profileDraft.emoji}
               </span>
-              <div>
-                <strong>{currentPerson.emoji} {currentPerson.name}</strong>
-                <small>검색해서 프로필 이모지를 고를 수 있습니다.</small>
-              </div>
+              <label>
+                <small>이름</small>
+                <input
+                  onChange={(event) => setProfileDraft((current) => ({ ...current, name: event.target.value }))}
+                  value={profileDraft.name}
+                />
+              </label>
+              <label>
+                <small>직책</small>
+                <input
+                  onChange={(event) => setProfileDraft((current) => ({ ...current, role: event.target.value }))}
+                  value={profileDraft.role}
+                />
+              </label>
               <EmojiPopover
-                selectedEmoji={currentPerson.emoji}
-                onSelect={(emoji) => onUpdateEmoji(currentPersonId, emoji)}
+                selectedEmoji={profileDraft.emoji}
+                onSelect={(emoji) => {
+                  setProfileDraft((current) => ({ ...current, emoji }));
+                  onUpdateEmoji(currentPersonId, emoji);
+                }}
                 triggerLabel="프로필 이모지 선택"
                 triggerClassName="profile-emoji-trigger"
               />
-            </div>
-            <p className="account-help">변경한 이모지는 팀 구성, 업데이트 입력, 계정 버튼에 바로 반영됩니다.</p>
+              <button className="secondary-button small" type="submit">
+                저장
+              </button>
+            </form>
+            <p className="account-help">이름, 직책, 이모지는 팀 구성과 계정 버튼에 바로 반영됩니다.</p>
           </section>
         </div>
 
@@ -3709,11 +3806,13 @@ function CalendarView({
   onAddUpdate,
   onArchive,
   onDelete,
+  onDeleteEvent,
   onEdit,
   onMonthChange,
   onRestore,
   onSelectTask,
   onToggleSubtask,
+  onUpdateEvent,
   selectedPersonId,
   tasks
 }) {
@@ -3911,9 +4010,17 @@ function CalendarView({
           onArchive={onArchive}
           onClose={() => setSelectedCalendarItem(null)}
           onDelete={onDelete}
+          onDeleteEvent={(eventId) => {
+            onDeleteEvent(eventId);
+            setSelectedCalendarItem(null);
+          }}
           onEdit={onEdit}
           onRestore={onRestore}
           onToggleSubtask={onToggleSubtask}
+          onUpdateEvent={(event) => {
+            onUpdateEvent(event);
+            setSelectedCalendarItem({ type: "event", id: event.id, event });
+          }}
           selectedPersonId={selectedPersonId}
           task={selectedTask}
         />
@@ -3930,18 +4037,26 @@ function CalendarDetailPanel({
   onArchive,
   onClose,
   onDelete,
+  onDeleteEvent,
   onEdit,
   onRestore,
   onToggleSubtask,
+  onUpdateEvent,
   selectedPersonId,
   task
 }) {
+  const [isEditingEvent, setIsEditingEvent] = useState(false);
+  const [eventDraft, setEventDraft] = useState(() => event ?? null);
   const isTask = Boolean(task);
   const progress = isTask ? taskProgress(task) : 0;
   const tags = isTask ? taskTags(task) : [];
   const visibleSubtasks = isTask ? (task.subtasks ?? []).filter((subtask) => subtask.title?.trim()).slice(0, 4) : [];
   const visibleLinks = isTask ? (task.links ?? []).filter((link) => link.title || link.url).slice(0, 3) : [];
   const visibleUpdates = isTask ? (task.updates ?? []).slice(0, 3) : [];
+  useEffect(() => {
+    setEventDraft(event ?? null);
+    setIsEditingEvent(false);
+  }, [event?.id]);
   if (!task && !event) {
     return (
       <aside className="calendar-detail-panel calendar-detail-empty">
@@ -3971,16 +4086,67 @@ function CalendarDetailPanel({
       </aside>
     );
   }
+  function submitEventUpdate(submitEvent) {
+    submitEvent.preventDefault();
+    if (!eventDraft?.title?.trim()) return;
+    onUpdateEvent(eventDraft);
+    setIsEditingEvent(false);
+  }
   return (
     <aside className="calendar-detail-panel">
-      <div>
-        <span className="panel-label">{isTask ? "업무 일정" : event.scope === "team" ? "팀 일정" : "개인 일정"}</span>
-        <h3>{isTask ? displayTaskTitle(task) : event.title}</h3>
+      <div className="calendar-event-detail-head">
+        <div>
+          <span className="panel-label">{event.scope === "team" ? "팀 일정" : "개인 일정"}</span>
+          <h3>{event.title}</h3>
+        </div>
+        <div className="calendar-event-actions">
+          <button className="icon-button" onClick={() => setIsEditingEvent((current) => !current)} type="button" title="일정 수정">
+            <Edit3 size={14} />
+          </button>
+          <button className="icon-button danger-icon" onClick={() => onDeleteEvent(event.id)} type="button" title="일정 삭제">
+            <Trash2 size={14} />
+          </button>
+          <button className="icon-button" onClick={onClose} type="button" title="일정 상세 닫기">
+            <X size={15} />
+          </button>
+        </div>
       </div>
-      <button className="icon-button" onClick={onClose} type="button" title="일정 상세 닫기">
-        <X size={16} />
-      </button>
-      <div className="calendar-event-detail-card">
+      {isEditingEvent ? (
+        <form className="calendar-event-edit-form" onSubmit={submitEventUpdate}>
+          <label>
+            <span>일정명</span>
+            <input
+              onChange={(changeEvent) => setEventDraft((current) => ({ ...current, title: changeEvent.target.value }))}
+              value={eventDraft?.title ?? ""}
+            />
+          </label>
+          <label>
+            <span>일자</span>
+            <input
+              onChange={(changeEvent) => setEventDraft((current) => ({ ...current, date: changeEvent.target.value }))}
+              type="date"
+              value={eventDraft?.date ?? TODAY}
+            />
+          </label>
+          <label>
+            <span>일정 세부내용</span>
+            <textarea
+              onChange={(changeEvent) => setEventDraft((current) => ({ ...current, note: changeEvent.target.value }))}
+              rows={3}
+              value={eventDraft?.note ?? ""}
+            />
+          </label>
+          <div>
+            <button className="secondary-button small" onClick={() => setIsEditingEvent(false)} type="button">
+              취소
+            </button>
+            <button className="primary-button small" type="submit">
+              저장
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="calendar-event-detail-card">
           <div className="calendar-event-note-card">
             <span>일정 세부내용</span>
             <strong>{event.note || "등록된 세부 내용이 없습니다."}</strong>
@@ -3996,6 +4162,7 @@ function CalendarDetailPanel({
             </div>
           </dl>
         </div>
+      )}
     </aside>
   );
 }

@@ -8030,6 +8030,66 @@ body[data-page="team"] .briefing-panel {
   letter-spacing: 0 !important;
 }
 
+.calendar-event-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.calendar-event-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.calendar-event-actions .icon-button {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+}
+
+.calendar-event-edit-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.calendar-event-edit-form label {
+  display: grid;
+  gap: 5px;
+}
+
+.calendar-event-edit-form span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 560;
+}
+
+.calendar-event-edit-form input,
+.calendar-event-edit-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 10px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.calendar-event-edit-form textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+.calendar-event-edit-form > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 /* Compact weekly performance report rows. */
 .performance-person-header .role-text {
   display: inline;
@@ -10153,6 +10213,45 @@ body[data-page="team"] .briefing-panel {
   color: #64748b;
   font-size: 11px;
   font-weight: 520;
+}
+
+.profile-edit-form {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 0.75fr) auto auto;
+  align-items: end;
+  gap: 8px;
+  border: 1px solid #dbe7f3;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.profile-edit-form label {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.profile-edit-form small {
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 520;
+}
+
+.profile-edit-form input {
+  min-width: 0;
+  height: 34px;
+  border: 1px solid #dbe7f3;
+  border-radius: 9px;
+  padding: 0 10px;
+  color: #111827;
+  font-size: 12.5px;
+  font-weight: 560;
+}
+
+.profile-edit-form .profile-emoji-trigger,
+.profile-edit-form .secondary-button {
+  align-self: end;
 }
 
 .profile-emoji-trigger {

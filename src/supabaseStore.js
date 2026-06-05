@@ -301,6 +301,26 @@ async function signOut() {
   if (error) throw error;
 }
 
+async function updateProfile(userId, profile) {
+  if (!isUuid(userId)) return { skipped: true };
+  const patch = {};
+  if (profile.name?.trim()) patch.name = profile.name.trim();
+  if (profile.title?.trim()) patch.title = profile.title.trim();
+  if (profile.profileEmoji?.trim()) patch.profile_emoji = profile.profileEmoji.trim();
+  if (!Object.keys(patch).length) return false;
+  const client = requireSupabaseClient();
+  const { error } = await client
+    .from("users")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (error) throw error;
+  return true;
+}
+
+async function updateProfileEmoji(userId, emoji) {
+  return updateProfile(userId, { profileEmoji: emoji });
+}
+
 async function addTag(name) {
   const client = requireSupabaseClient();
   const currentUser = await readCurrentUser(client);
@@ -361,6 +381,10 @@ async function saveTask(task) {
   if (!currentUser || !canPersistTask(task)) return { skipped: true, reason: "requires-real-users" };
   const userMap = new Map();
   const row = toTaskRow({ ...task, creatorId: task.creatorId || currentUser.id }, userMap);
+  const previousTask = isUuid(task.id)
+    ? await client.from("tasks").select("due_date").eq("id", task.id).maybeSingle()
+    : { data: null, error: null };
+  if (previousTask.error) throw previousTask.error;
   const { data: savedTask, error: taskError } = await client
     .from("tasks")
     .upsert(row)
@@ -408,6 +432,18 @@ async function saveTask(task) {
         created_by: currentUser.id
       }))
     );
+    if (error) throw error;
+  }
+
+  if (previousTask.data?.due_date && previousTask.data.due_date !== task.dueDate) {
+    const { error } = await client.from("task_change_history").insert({
+      task_id: taskId,
+      change_type: "due_date",
+      from_value: previousTask.data.due_date,
+      to_value: task.dueDate,
+      actor_id: currentUser.id,
+      note: `마감일 변경: ${previousTask.data.due_date} → ${task.dueDate}`
+    });
     if (error) throw error;
   }
 
@@ -553,6 +589,36 @@ async function addCalendarEvent(event) {
   return { id: data.id };
 }
 
+async function updateCalendarEvent(event) {
+  if (!isUuid(event.id)) return { skipped: true };
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true };
+  const scope = event.scope === "personal" ? "personal" : "team";
+  const ownerId = isUuid(event.ownerId) ? event.ownerId : scope === "personal" ? currentUser.id : null;
+  const { error } = await client
+    .from("calendar_events")
+    .update({
+      title: event.title.trim(),
+      event_date: event.date || TODAY,
+      scope,
+      owner_id: ownerId,
+      note: event.note?.trim() || null,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", event.id);
+  if (error) throw error;
+  return true;
+}
+
+async function deleteCalendarEvent(eventId) {
+  if (!isUuid(eventId)) return { skipped: true };
+  const client = requireSupabaseClient();
+  const { error } = await client.from("calendar_events").delete().eq("id", eventId);
+  if (error) throw error;
+  return true;
+}
+
 function seedUserMap() {
   return new Map(people.map((person) => [person.id, person.id]));
 }
@@ -581,6 +647,10 @@ export const supabaseDashboardStore = {
     signUpWithPassword,
     signOut
   },
+  profiles: {
+    update: updateProfile,
+    updateEmoji: updateProfileEmoji
+  },
   tags: {
     add: addTag,
     rename: renameTag,
@@ -596,7 +666,9 @@ export const supabaseDashboardStore = {
     delete: deleteTask
   },
   events: {
-    add: addCalendarEvent
+    add: addCalendarEvent,
+    update: updateCalendarEvent,
+    delete: deleteCalendarEvent
   },
   mappers: {
     fromTaskRow,
