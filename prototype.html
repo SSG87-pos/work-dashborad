@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>연구기획그룹-전략 업무 대시보드 프로토타입</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+    <style>
+      .static-icon {
+        width: 18px;
+        height: 18px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 5px;
+        background: currentColor;
+        color: transparent;
+        mask-size: 16px;
+        mask-repeat: no-repeat;
+        mask-position: center;
+      }
+
+      .icon-dashboard { mask-image: radial-gradient(circle, #000 45%, transparent 46%); }
+      .icon-list { mask-image: linear-gradient(#000 0 0); }
+      .icon-calendar { mask-image: linear-gradient(#000 0 0); }
+      .icon-update { mask-image: radial-gradient(circle, #000 55%, transparent 56%); }
+      .prototype-note {
+        margin-bottom: 14px;
+        border: 1px solid rgba(37, 99, 235, 0.18);
+        background: rgba(239, 246, 255, 0.86);
+        color: #1e3a8a;
+        border-radius: var(--radius);
+        padding: 10px 12px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="주요 메뉴">
+        <div class="brand-block">
+          <div class="brand-mark">전</div>
+          <div>
+            <strong>연구기획그룹</strong>
+            <span>전략 업무 허브</span>
+          </div>
+        </div>
+        <nav class="nav-list">
+          <button class="nav-item active" data-page="my" onclick="setPage('my')" type="button"><span class="static-icon icon-dashboard"></span><span>오늘 브리핑</span></button>
+          <button class="nav-item" data-page="team" onclick="setPage('team')" type="button"><span class="static-icon icon-list"></span><span>전체 업무흐름</span></button>
+          <button class="nav-item" type="button"><span class="static-icon icon-calendar"></span><span>캘린더</span></button>
+          <button class="nav-item" type="button"><span class="static-icon icon-update"></span><span>보고서</span></button>
+        </nav>
+        <div class="team-stack" id="people"></div>
+      </aside>
+
+      <main class="workspace">
+        <div class="prototype-note">
+          이 파일은 초기 화면 확인용 레거시 프로토타입입니다. 최신 화면과 기능은 React/Vite 앱에서 관리합니다.
+        </div>
+        <header class="topbar">
+          <div>
+            <h1>연구기획그룹-전략 업무 대시보드</h1>
+            <p id="pageSubtitle">김서연님 기준으로 오늘 필요한 업무를 자동으로 정리합니다.</p>
+          </div>
+          <div class="top-actions">
+            <label class="search-box">
+              <span>⌕</span>
+              <input id="searchInput" aria-label="업무 검색" placeholder="업무, 태그, 자료 검색" />
+            </label>
+            <button class="icon-button" type="button" title="알림">!</button>
+            <button class="primary-button" id="addTaskBtn" type="button">+ 업무 추가</button>
+          </div>
+        </header>
+
+        <section class="dashboard-grid">
+          <div class="main-column">
+            <section class="briefing-panel">
+              <div class="section-heading">
+                <div>
+                  <span class="panel-label">오늘 브리핑</span>
+                  <h2 id="briefingTitle">김서연님에게 필요한 업무</h2>
+                </div>
+                <div class="briefing-chip" id="briefingCount">자동 선별 0건</div>
+              </div>
+              <div class="briefing-list" id="briefingList"></div>
+            </section>
+
+            <div class="control-row">
+              <div class="segmented" role="tablist" aria-label="보기 전환">
+                <button class="active" data-view="board" onclick="setView('board')" type="button">보드</button>
+                <button data-view="timeline" onclick="setView('timeline')" type="button">타임라인</button>
+                <button data-view="recurring" onclick="setView('recurring')" type="button">반복 업무</button>
+              </div>
+              <label class="filter-select">
+                <span>필터</span>
+                <select id="categoryFilter" aria-label="카테고리 필터"></select>
+              </label>
+            </div>
+
+            <section class="board-view" id="boardView"></section>
+            <section class="timeline-view" id="timelineView" hidden></section>
+            <section class="recurring-view" id="recurringView" hidden></section>
+          </div>
+
+          <aside class="right-column">
+            <section class="leader-panel">
+              <div class="section-heading compact">
+                <div>
+                  <span class="panel-label">공개 배정 패널</span>
+                  <h2>박도윤 팀장 업무 관리</h2>
+                </div>
+                <span>팀</span>
+              </div>
+              <div class="assignment-list" id="leaderList"></div>
+            </section>
+            <section class="detail-panel" id="detailPanel"></section>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <div id="modalRoot"></div>
+
+    <script>
+      const TODAY = "2026-06-04";
+      const statuses = ["계획", "진행중", "검토/대기", "완료", "보류"];
+      const categories = ["전체", "기획보고", "월간보고", "자료조사", "전략과제", "임원보고", "운영"];
+      const people = [
+        { id: "lead", name: "박도윤", role: "팀장", color: "#2563eb" },
+        { id: "seoyeon", name: "김서연", role: "책임", color: "#0f766e" },
+        { id: "junho", name: "이준호", role: "책임", color: "#7c3aed" },
+        { id: "minji", name: "최민지", role: "선임", color: "#c2410c" },
+        { id: "haram", name: "정하람", role: "선임", color: "#0369a1" },
+        { id: "taeseok", name: "윤태석", role: "매니저", color: "#4d7c0f" },
+        { id: "jieun", name: "오지은", role: "매니저", color: "#be185d" }
+      ];
+      let tasks = [
+        task("t-001", "상반기 전략과제 기획보고 초안", "연구기획그룹 전략과제의 상반기 추진 논리와 주요 실행안을 정리합니다.", "seoyeon", "진행중", "높음", "기획보고", ["전략과제", "임원보고"], "2026-06-03", "2026-06-10", 46, true, null),
+        task("t-002", "6월 월간보고 운영자료 취합", "팀별 진행률, 지연 이슈, 다음 달 계획을 월간보고 양식으로 취합합니다.", "junho", "진행중", "보통", "월간보고", ["KPI", "회의체"], "2026-06-01", "2026-06-04", 72, false, "매월"),
+        task("t-003", "AI 기반 연구기획 업무 활용사례 조사", "국내외 연구기획 업무의 AI 도입 사례와 적용 가능 업무를 정리합니다.", "minji", "계획", "보통", "자료조사", ["AI활용", "외부자료"], "2026-06-04", "2026-06-18", 8, true, null),
+        task("t-004", "탄소중립 기술 포트폴리오 업데이트", "주요 기술군의 투자 우선순위와 리스크를 최신 자료 기준으로 갱신합니다.", "haram", "검토/대기", "높음", "전략과제", ["탄소중립", "투자검토"], "2026-05-27", "2026-06-03", 88, false, null),
+        task("t-005", "임원보고 Q&A 예상질문 정리", "주요 보고 안건별 예상질문과 답변 방향을 짧게 정리합니다.", "taeseok", "계획", "높음", "임원보고", ["임원보고", "회의체"], "2026-06-06", "2026-06-12", 0, false, null),
+        task("t-006", "정책 변화 모니터링 메모", "신규 정부 정책과 연구지원 제도 변화를 요약해 팀 공유용 메모로 만듭니다.", "jieun", "진행중", "낮음", "자료조사", ["정책", "외부자료"], "2026-05-30", "2026-06-07", 55, false, "매월"),
+        task("t-007", "팀장 주간 업무 배정 정리", "이번 주 팀 업무 배정 현황과 병목 업무를 공개 패널에 정리합니다.", "lead", "진행중", "보통", "운영", ["회의체", "KPI"], "2026-06-04", "2026-06-05", 64, false, "매주"),
+        task("t-008", "기획보고 데이터 근거 검증", "보고서에 들어갈 수치와 출처를 확인하고 자료 링크를 보강합니다.", "seoyeon", "보류", "보통", "기획보고", ["외부자료", "KPI"], "2026-05-28", "2026-06-02", 34, false, null),
+        task("t-009", "지난 달 완료 업무 회고", "완료 업무의 산출물 링크와 재사용 가능한 템플릿을 정리합니다.", "minji", "완료", "낮음", "운영", ["KPI"], "2026-05-20", "2026-05-31", 100, false, "매월")
+      ];
+      let selectedPersonId = "seoyeon";
+      let selectedTaskId = "t-001";
+      let selectedBriefingKey = "";
+      let activeView = "board";
+      let activePage = "my";
+
+      function task(id, title, description, ownerId, status, priority, category, tags, startDate, dueDate, progress, isNewAssignment, recurring) {
+        return {
+          id, title, description, ownerId, assignerId: "lead", status, priority, category, tags, startDate, dueDate, progress, isNewAssignment, recurring,
+          links: [{ title: `${category} 자료`, url: "https://example.com", type: "링크" }],
+          updates: [{ authorId: ownerId, date: TODAY, text: "진행상황을 짧게 업데이트했습니다." }]
+        };
+      }
+
+      function toDate(value) { return new Date(`${value}T00:00:00+09:00`); }
+      function diffDays(a, b) { return Math.round((toDate(a) - toDate(b)) / 86400000); }
+      function personName(id) { return people.find((person) => person.id === id)?.name || "미지정"; }
+      function selectedTask() { return tasks.find((task) => task.id === selectedTaskId) || tasks[0]; }
+      function currentBriefingGroups() {
+        const source = activePage === "my" ? tasks.filter((item) => item.ownerId === selectedPersonId) : tasks;
+        return briefingGroups(source);
+      }
+      function selectedBriefingGroup() {
+        return currentBriefingGroups().find((group) => group.key === selectedBriefingKey);
+      }
+      function badges(task) {
+        const result = [];
+        const due = diffDays(task.dueDate, TODAY);
+        if (task.isNewAssignment) result.push(["새 배정", "blue"]);
+        if (diffDays(task.startDate, TODAY) === 0) result.push(["오늘 시작", "teal"]);
+        if (due === 0) result.push(["오늘 마감", "amber"]);
+        if (due < 0 && task.status !== "완료") result.push(["지연", "red"]);
+        if (due > 0 && due <= 3 && task.status !== "완료") result.push(["마감 임박", "amber"]);
+        if (task.recurring) result.push([task.recurring, "violet"]);
+        return result;
+      }
+      function filteredTasks() {
+        const category = document.querySelector("#categoryFilter").value || "전체";
+        const query = document.querySelector("#searchInput").value.trim().toLowerCase();
+        return tasks.filter((item) => {
+          const text = `${item.title} ${item.description} ${item.category} ${item.tags.join(" ")}`.toLowerCase();
+          const scopeMatch = activePage === "team" || item.ownerId === selectedPersonId;
+          return scopeMatch && (category === "전체" || item.category === category || item.tags.includes(category)) && text.includes(query);
+        });
+      }
+      function badgeHtml(task) {
+        return badges(task).map(([label, tone]) => `<span class="badge badge-${tone}">${label}</span>`).join("");
+      }
+      function progress(value) {
+        return `<div class="progress-wrap"><span style="width:${value}%"></span><small>${value}%</small></div>`;
+      }
+
+      function render() {
+        ensureSelectedTaskInScope();
+        renderPageMode();
+        renderPeople();
+        renderBriefing();
+        renderViews();
+        renderLeader();
+        renderDetail();
+      }
+
+      function renderPageMode() {
+        document.querySelectorAll("[data-page]").forEach((item) => item.classList.toggle("active", item.dataset.page === activePage));
+        const person = people.find((item) => item.id === selectedPersonId);
+        document.querySelector("#pageSubtitle").textContent = activePage === "my"
+          ? `${person.name}님 기준으로 오늘 필요한 업무, 본인 업무 카드, 본인 타임라인을 보여줍니다.`
+          : "팀장 배정 업무와 팀원 전체 업무카드, 타임라인을 함께 모아봅니다.";
+        document.body.dataset.page = activePage;
+      }
+
+      function renderPeople() {
+        document.querySelector("#people").innerHTML = `<span class="panel-label">팀 구성</span>` + people.map((person) => `
+          <button class="person-pill ${selectedPersonId === person.id ? "selected" : ""}" data-person="${person.id}" type="button">
+            <span class="avatar" style="--avatar:${person.color}">${person.name.slice(-2)}</span>
+            <span><strong>${person.name}</strong><small>${person.role}</small></span>
+          </button>
+        `).join("");
+        document.querySelectorAll("[data-person]").forEach((button) => {
+          button.onclick = () => {
+            selectedPersonId = button.dataset.person;
+            ensureSelectedTaskInScope();
+            render();
+          };
+        });
+      }
+
+      function ensureSelectedTaskInScope() {
+        if (selectedBriefingKey && !selectedBriefingGroup()) selectedBriefingKey = "";
+        if (activePage !== "my") return;
+        const isVisible = tasks.some((item) => item.id === selectedTaskId && item.ownerId === selectedPersonId);
+        if (!isVisible) {
+          selectedTaskId = tasks.find((item) => item.ownerId === selectedPersonId)?.id || tasks[0].id;
+          selectedBriefingKey = "";
+        }
+      }
+
+      function renderBriefing() {
+        const person = people.find((item) => item.id === selectedPersonId);
+        const items = currentBriefingGroups();
+        document.querySelector("#briefingTitle").textContent = activePage === "my" ? `${person.name}님, 좋은 아침입니다.` : "팀 전체 오늘 업무 흐름";
+        document.querySelector("#briefingCount").textContent = `자동 선별 ${items.reduce((sum, group) => sum + group.tasks.length, 0)}건`;
+        document.querySelector("#briefingList").innerHTML = items.map((group) => {
+          return `<button class="briefing-card briefing-row ${selectedBriefingKey === group.key ? "selected" : ""}" data-briefing="${group.key}" type="button">
+            <span class="briefing-symbol ${group.tone}">${group.icon}</span>
+            <span class="briefing-kind">
+              <strong>${group.title}</strong>
+              <small>${group.caption} · ${group.tasks.length}건</small>
+            </span>
+            <span class="briefing-copy">
+              ${group.tasks.map((item) => `<span>${activePage === "team" ? `<em>${personName(item.ownerId)}</em>` : ""}${item.category ? `[${item.category}] ` : ""}${item.title}</span>`).join("")}
+            </span>
+            <span class="briefing-due">${group.dueText}</span>
+          </button>`;
+        }).join("");
+        bindBriefingGroups();
+      }
+
+      function briefingGroups(source) {
+        const pool = source.filter((item) => item.status !== "완료");
+        const used = new Set();
+        const pick = (matcher, limit = 2) => pool
+          .filter((item) => !used.has(item.id) && matcher(item))
+          .sort((a, b) => diffDays(a.dueDate, b.dueDate))
+          .slice(0, limit)
+          .map((item) => {
+            used.add(item.id);
+            return item;
+          });
+        const overdue = pick((item) => diffDays(item.dueDate, TODAY) < 0, 2);
+        const dueToday = pick((item) => diffDays(item.dueDate, TODAY) === 0, 2);
+        const startToday = pick((item) => diffDays(item.startDate, TODAY) === 0, 2);
+        const newItems = pick((item) => item.isNewAssignment, 2);
+        const recurring = pick((item) => item.recurring, 2);
+        const focus = pick((item) => ["진행중", "계획"].includes(item.status), 2);
+        return [
+          group("오늘 시작할 업무", "오늘 첫 번째로 시작하는 업무", "🚀", "blue", startToday),
+          group("오늘 마감 업무", "오늘 마감인 업무", "⏰", "amber", dueToday),
+          group("지연 업무", "마감일이 지난 업무", "⚠️", "red", overdue),
+          group("새로 배정된 업무", "최근 3일 내 배정", "📌", "blue", newItems),
+          group("이번 달 반복 업무", "매월 진행하는 업무", "🔁", "green", recurring),
+          group("오늘 집중 업무", "먼저 확인하면 좋은 업무", "🎯", "teal", focus)
+        ].filter((item) => item.tasks.length);
+      }
+
+      function group(title, caption, icon, tone, tasks) {
+        const due = tasks.map((item) => diffDays(item.dueDate, TODAY)).sort((a, b) => a - b)[0];
+        const dueText = due < 0 ? `D+${Math.abs(due)}` : due === 0 ? "오늘" : due ? `D-${due}` : "";
+        return { key: title, title, caption, icon, tone, tasks, dueText };
+      }
+
+      function renderViews() {
+        const visible = filteredTasks();
+        const boardView = document.querySelector("#boardView");
+        const timelineView = document.querySelector("#timelineView");
+        const recurringView = document.querySelector("#recurringView");
+        boardView.hidden = activeView !== "board";
+        timelineView.hidden = activeView !== "timeline";
+        recurringView.hidden = activeView !== "recurring";
+        boardView.style.display = activeView === "board" ? "grid" : "none";
+        timelineView.style.display = activeView === "timeline" ? "block" : "none";
+        recurringView.style.display = activeView === "recurring" ? "block" : "none";
+        document.querySelector("#boardView").innerHTML = statuses.map((status) => {
+          const lane = visible.filter((item) => item.status === status);
+          return `<div class="status-lane">
+            <div class="lane-header"><span>${status}</span><small>${lane.length}</small></div>
+            <div class="lane-stack">${lane.map(taskCard).join("")}</div>
+          </div>`;
+        }).join("");
+        document.querySelector("#timelineView").innerHTML = timelineHtml(visible);
+        document.querySelector("#recurringView").innerHTML = visible.filter((item) => item.recurring).map((item) => `
+          <button class="recurring-row" data-select="${item.id}" type="button">
+            <span class="recurring-icon">↻</span>
+            <span><strong>${item.title}</strong><small>${item.recurring} 반복 · ${personName(item.ownerId)} · 다음 마감 ${item.dueDate}</small></span>
+            ${progress(item.progress)}
+          </button>
+        `).join("");
+        bindSelects();
+        document.querySelectorAll("[data-status-for]").forEach((select) => {
+          select.onchange = () => {
+            tasks = tasks.map((item) => item.id === select.dataset.statusFor ? { ...item, status: select.value, progress: select.value === "완료" ? 100 : item.progress } : item);
+            render();
+          };
+        });
+        document.querySelectorAll("[data-edit]").forEach((button) => {
+          button.onclick = () => openModal(tasks.find((item) => item.id === button.dataset.edit));
+        });
+      }
+
+      function taskCard(item) {
+        return `<article class="task-card ${selectedTaskId === item.id ? "selected" : ""}">
+          <button class="card-main" data-select="${item.id}" type="button">
+            <div class="card-title-row"><strong>${item.title}</strong><span class="priority priority-${item.priority}">${item.priority}</span></div>
+            <p>${item.description}</p>
+            <div class="meta-row"><span>${personName(item.ownerId)}</span><span>${item.startDate.slice(5)} - ${item.dueDate.slice(5)}</span></div>
+            <div class="badge-row">${badgeHtml(item)}</div>
+            ${progress(item.progress)}
+          </button>
+          <div class="card-actions">
+            <select data-status-for="${item.id}">${statuses.map((status) => `<option ${status === item.status ? "selected" : ""}>${status}</option>`).join("")}</select>
+            <button class="ghost-icon" data-edit="${item.id}" type="button">✎</button>
+          </div>
+        </article>`;
+      }
+
+      function timelineHtml(items) {
+        const axis = `<div class="timeline-axis"><span></span>${Array.from({ length: 21 }, (_, i) => `<small>${i + 1}</small>`).join("")}</div>`;
+        const rows = items.map((item) => {
+          const offset = Math.max(0, Math.min(20, diffDays(item.startDate, "2026-06-01")));
+          const span = Math.max(1, Math.min(21 - offset, diffDays(item.dueDate, item.startDate) + 1));
+          return `<button class="timeline-row" data-select="${item.id}" type="button">
+            <span class="timeline-title"><strong>${item.title}</strong><small>${personName(item.ownerId)}</small></span>
+            <span class="timeline-track"><span class="timeline-bar status-${item.status.replace("/", "")}" style="grid-column:${offset + 1} / span ${span}">${item.category}</span></span>
+          </button>`;
+        }).join("");
+        return axis + rows;
+      }
+
+      function renderLeader() {
+        const title = activePage === "team" ? "박도윤 팀장 업무 관리" : `${personName(selectedPersonId)} 업무 요약`;
+        const label = activePage === "team" ? "공개 배정 패널" : "내 업무 패널";
+        const list = activePage === "team" ? tasks.filter((item) => item.status !== "완료") : tasks.filter((item) => item.ownerId === selectedPersonId);
+        document.querySelector(".leader-panel").hidden = activePage === "my";
+        document.querySelector(".leader-panel .panel-label").textContent = label;
+        document.querySelector(".leader-panel h2").textContent = title;
+        document.querySelector("#leaderList").innerHTML = list.filter((item) => item.status !== "완료").slice(0, 6).map((item) => `
+          <button class="assignment-row" data-select="${item.id}" type="button">
+            <span class="status-dot" data-status="${item.status}"></span>
+            <span><strong>${item.title}</strong><small>${personName(item.ownerId)} · ${item.dueDate} · ${item.progress}%</small></span>
+          </button>
+        `).join("");
+        bindSelects();
+      }
+
+      function renderDetail() {
+        const group = selectedBriefingGroup();
+        if (group) {
+          renderBriefingDetail(group);
+          return;
+        }
+        const item = selectedTask();
+        const due = diffDays(item.dueDate, TODAY);
+        const nextAction = due < 0
+          ? "지연 사유와 조정 마감일을 업데이트하세요."
+          : due === 0
+            ? "오늘 완료 가능한 산출물과 남은 이슈를 정리하세요."
+            : item.progress < 50
+              ? "초안 또는 근거 자료를 먼저 올리고 진행률을 갱신하세요."
+              : "검토 요청 전 최종 산출물 링크를 확인하세요.";
+        document.querySelector("#detailPanel").innerHTML = `
+          <div class="detail-header">
+            <div><span class="panel-label">업무 상세</span><h2>${item.title}</h2></div>
+            <button class="icon-button" id="editCurrent" type="button">✎</button>
+          </div>
+          <p class="detail-description">${item.description}</p>
+          <div class="detail-grid">
+            <div class="info-item"><span>담당자</span><strong>${personName(item.ownerId)}</strong></div>
+            <div class="info-item"><span>배정자</span><strong>${personName(item.assignerId)}</strong></div>
+            <div class="info-item"><span>상태</span><strong>${item.status}</strong></div>
+            <div class="info-item"><span>우선순위</span><strong>${item.priority}</strong></div>
+            <div class="info-item wide"><span>기간</span><strong>${item.startDate} - ${item.dueDate}</strong></div>
+            <div class="info-item"><span>카테고리</span><strong>${item.category}</strong></div>
+            <div class="info-item"><span>반복</span><strong>${item.recurring || "없음"}</strong></div>
+          </div>
+          <div class="tag-row">${item.tags.map((tag) => `<span>${tag}</span>`).join("")}</div>
+          ${progress(item.progress)}
+          <div class="detail-callout"><span>다음 액션</span><strong>${nextAction}</strong></div>
+          <div class="detail-section"><h3>관련 링크</h3>${item.links.map((link) => `<a href="${link.url}" target="_blank" rel="noreferrer"><span>${link.title}</span><small>${link.type}</small></a>`).join("")}</div>
+          <div class="detail-section"><h3>업데이트 로그</h3>${item.updates.map((log) => `<div class="log-item"><strong>${personName(log.authorId)}</strong><small>${log.date}</small><p>${log.text}</p></div>`).join("")}</div>
+        `;
+        document.querySelector("#editCurrent").onclick = () => openModal(item);
+      }
+
+      function renderBriefingDetail(group) {
+        document.querySelector("#detailPanel").innerHTML = `
+          <div class="detail-header">
+            <div><span class="panel-label">브리핑 묶음</span><h2>${group.icon} ${group.title}</h2></div>
+            <span class="detail-count">${group.tasks.length}건</span>
+          </div>
+          <p class="detail-description">${group.caption}. ${activePage === "team" ? "담당자별로 함께 확인하고, 필요한 업무를 열어 상세 내용을 볼 수 있습니다." : "오늘 내 업무 중 같은 성격으로 묶인 항목입니다."}</p>
+          <div class="detail-task-list">
+            ${group.tasks.map((item) => `
+              <article class="detail-task-row ${selectedTaskId === item.id ? "selected" : ""}">
+                <button class="detail-task-main" data-select="${item.id}" type="button">
+                  <span class="status-dot" data-status="${item.status}"></span>
+                  <span>
+                    <strong>${item.title}</strong>
+                    <small>${activePage === "team" ? `${personName(item.ownerId)} · ` : ""}${item.category} · ${item.dueDate} · ${item.progress}%</small>
+                  </span>
+                </button>
+                ${progress(item.progress)}
+              </article>
+            `).join("")}
+          </div>
+          <div class="detail-callout"><span>확인 방식</span><strong>위 업무를 선택하면 오른쪽 패널이 개별 업무 상세로 전환됩니다.</strong></div>
+        `;
+        bindSelects();
+      }
+
+      function bindSelects() {
+        document.querySelectorAll("[data-select]").forEach((button) => {
+          button.onclick = () => { selectedTaskId = button.dataset.select; selectedBriefingKey = ""; render(); };
+        });
+      }
+
+      function bindBriefingGroups() {
+        document.querySelectorAll("[data-briefing]").forEach((button) => {
+          button.onclick = () => {
+            const group = currentBriefingGroups().find((item) => item.key === button.dataset.briefing);
+            selectedBriefingKey = button.dataset.briefing;
+            if (group?.tasks[0]) selectedTaskId = group.tasks[0].id;
+            render();
+          };
+        });
+      }
+
+      function openModal(item) {
+        const draft = item ? { ...item } : {
+          id: "", title: "", description: "", ownerId: selectedPersonId, assignerId: "lead", status: "계획", priority: "보통", category: "기획보고",
+          tags: [], startDate: TODAY, dueDate: TODAY, progress: 0, isNewAssignment: true, recurring: null, links: [], updates: []
+        };
+        document.querySelector("#modalRoot").innerHTML = `
+          <div class="modal-backdrop"><form class="task-modal" id="taskForm">
+            <div class="modal-header"><div><span class="panel-label">${draft.id ? "업무 수정" : "업무 추가"}</span><h2>${draft.id ? draft.title : "새 업무 만들기"}</h2></div><button class="icon-button" id="closeModal" type="button">×</button></div>
+            <label class="field wide"><span>업무명</span><input name="title" required value="${draft.title}"></label>
+            <label class="field wide"><span>설명</span><textarea name="description" rows="3">${draft.description}</textarea></label>
+            <div class="form-grid">
+              <label class="field"><span>담당자</span><select name="ownerId">${people.map((person) => `<option value="${person.id}" ${person.id === draft.ownerId ? "selected" : ""}>${person.name} ${person.role}</option>`).join("")}</select></label>
+              <label class="field"><span>상태</span><select name="status">${statuses.map((status) => `<option ${status === draft.status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
+              <label class="field"><span>시작일</span><input name="startDate" type="date" value="${draft.startDate}"></label>
+              <label class="field"><span>마감일</span><input name="dueDate" type="date" value="${draft.dueDate}"></label>
+              <label class="field"><span>카테고리</span><select name="category">${categories.filter((item) => item !== "전체").map((category) => `<option ${category === draft.category ? "selected" : ""}>${category}</option>`).join("")}</select></label>
+              <label class="field"><span>진행률</span><input name="progress" type="number" min="0" max="100" value="${draft.progress}"></label>
+            </div>
+            <label class="field wide"><span>태그</span><input name="tags" value="${draft.tags.join(", ")}"></label>
+            <div class="field wide"><span>관련 링크</span><div class="link-input-list">${linkRowsHtml(draft.links)}</div></div>
+            <label class="field wide"><span>업데이트 로그 추가</span><textarea name="updateText" rows="2"></textarea></label>
+            <div class="modal-actions"><label class="toggle-row"><input name="isNewAssignment" type="checkbox" ${draft.isNewAssignment ? "checked" : ""}>새 배정으로 표시</label><button class="secondary-button" id="cancelModal" type="button">취소</button><button class="primary-button" type="submit">저장</button></div>
+          </form></div>`;
+        document.querySelector("#closeModal").onclick = closeModal;
+        document.querySelector("#cancelModal").onclick = closeModal;
+        document.querySelector("#taskForm").onsubmit = (event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          const next = {
+            ...draft,
+            id: draft.id || `t-${Date.now()}`,
+            title: form.get("title"),
+            description: form.get("description"),
+            ownerId: form.get("ownerId"),
+            status: form.get("status"),
+            category: form.get("category"),
+            startDate: form.get("startDate"),
+            dueDate: form.get("dueDate"),
+            progress: Number(form.get("progress")),
+            tags: form.get("tags").split(",").map((tag) => tag.trim()).filter(Boolean),
+            links: parseLinkRows(form),
+            isNewAssignment: Boolean(form.get("isNewAssignment")),
+            updates: form.get("updateText") ? [{ authorId: form.get("ownerId"), date: TODAY, text: form.get("updateText") }, ...draft.updates] : draft.updates
+          };
+          tasks = draft.id ? tasks.map((item) => item.id === next.id ? next : item) : [next, ...tasks];
+          selectedTaskId = next.id;
+          closeModal();
+          render();
+        };
+      }
+      function closeModal() { document.querySelector("#modalRoot").innerHTML = ""; }
+      function linkRowsHtml(links) {
+        const rows = [...links, ...Array.from({ length: Math.max(1, 3 - links.length) }, () => ({ title: "", url: "", type: "" }))];
+        return rows.map((link, index) => `
+          <div class="link-input-row">
+            <input name="linkTitle" placeholder="링크 제목 ${index + 1}" value="${link.title || ""}">
+            <input name="linkUrl" placeholder="https://자료 주소" value="${link.url || ""}">
+            <input name="linkType" placeholder="문서/시트/드라이브" value="${link.type || ""}">
+          </div>
+        `).join("");
+      }
+      function parseLinkRows(form) {
+        const titles = form.getAll("linkTitle");
+        const urls = form.getAll("linkUrl");
+        const types = form.getAll("linkType");
+        return urls.map((url, index) => {
+          const rawTitle = String(titles[index] || "").trim();
+          const rawUrl = String(url || "").trim();
+          const rawType = String(types[index] || "").trim();
+          return {
+            title: rawTitle || "관련 링크",
+            url: rawUrl,
+            type: rawType || "링크"
+          };
+        }).filter((link, index) => String(titles[index] || "").trim() || String(urls[index] || "").trim());
+      }
+      function setPage(page) {
+        activePage = page;
+        if (page === "my" && !tasks.some((task) => task.id === selectedTaskId && task.ownerId === selectedPersonId)) {
+          selectedTaskId = tasks.find((task) => task.ownerId === selectedPersonId)?.id || tasks[0].id;
+        }
+        render();
+      }
+      function setView(view) {
+        activeView = view;
+        document.querySelectorAll("[data-view]").forEach((item) => item.classList.toggle("active", item.dataset.view === activeView));
+        renderViews();
+      }
+
+      document.querySelector("#categoryFilter").innerHTML = categories.map((category) => `<option>${category}</option>`).join("");
+      document.querySelector("#categoryFilter").onchange = render;
+      document.querySelector("#searchInput").oninput = render;
+      document.querySelector("#addTaskBtn").onclick = () => openModal(null);
+      document.querySelectorAll("[data-view]").forEach((button) => {
+        button.onclick = () => setView(button.dataset.view);
+      });
+      render();
+    </script>
+  </body>
+</html>

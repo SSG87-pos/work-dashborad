@@ -1,0 +1,349 @@
+# Backend API and Table Spec
+
+This spec is the concrete backend contract for the `연구기획그룹-전략` work dashboard. It is written to fit either a BaaS table API or a custom REST API.
+
+## Backend Route
+
+Recommended implementation route:
+
+1. Keep the React/Vite UI as the canonical product surface.
+2. Use the current `src/storage.js` localStorage adapter as the development store.
+3. Add an API-backed store behind the same state shape after the backend service is selected.
+4. Start with auth, users, tasks, subtasks, updates, links, tags, and calendar events.
+5. Add recurring generation and frozen report snapshots after shared task CRUD is stable.
+
+Open approval required:
+
+- Actual backend provider or internal API host.
+- Email/password versus internal SSO.
+- Production user list and initial admin account.
+
+Until those are approved, the local prototype remains the safe implementation path.
+
+## State Shape Used by the Frontend
+
+The current app persists one dashboard payload:
+
+```json
+{
+  "version": 1,
+  "tasks": [],
+  "availableTags": [],
+  "calendarEvents": [],
+  "isAuthenticated": true,
+  "selectedPersonId": "seoyeon",
+  "activePage": "my",
+  "activeView": "board",
+  "category": "전체",
+  "timelineMode": "month",
+  "timelineMonth": "2026-06",
+  "timelineYear": "2026",
+  "selectedTaskId": "t-001",
+  "personalNotes": {},
+  "profileOverrides": {}
+}
+```
+
+Backend integration should not store view-only fields as team data. Treat these as per-user preferences:
+
+- `selectedPersonId`
+- `activePage`
+- `activeView`
+- `category`
+- `timelineMode`
+- `timelineMonth`
+- `timelineYear`
+- `selectedTaskId`
+
+## Tables
+
+### users
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable app user id. |
+| email | text unique | yes | Login id. |
+| name | text | yes | Display name. |
+| title | text | yes | Team title. |
+| team | text | yes | Default `연구기획그룹-전략`. |
+| profile_emoji | text | yes | User-selected avatar mark. |
+| permission_role | enum | yes | `admin`, `lead`, `member`. |
+| is_team_member | boolean | yes | False for admin/system accounts hidden from team list. |
+| is_active | boolean | yes | Inactive users remain available for historical rows. |
+| created_at | timestamp | yes | Audit. |
+| updated_at | timestamp | yes | Audit. |
+
+### tasks
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable task id. |
+| title | text | yes | Task name. |
+| description | text | no | Detail body. |
+| owner_id | text fk users.id | yes | Accountable assignee. |
+| assigner_type | enum | yes | `원장님`, `소장님`, `그룹장님`, `팀장님`, `개인`, `기타`. |
+| assigner_id | text fk users.id | no | Internal assigner when known. |
+| creator_id | text fk users.id | yes | User who entered the task. |
+| status | enum | yes | `검토/대기`, `계획`, `진행중`, `완료`, `보류`. |
+| priority | enum | yes | `높음`, `보통`, `낮음`. |
+| start_date | date | yes | Planned start. |
+| due_date | date | yes | Planned deadline. Changes must be appended to task change history. |
+| completed_at | date | no | Actual completion date. Set when status first enters `완료`; clear when completion is cancelled. |
+| completed_by | text fk users.id | no | User who marked the task complete. |
+| progress_before_complete | integer | no | Manual-progress fallback used when accidental completion is cancelled. |
+| progress | integer | yes | Manual progress only when no subtasks exist. |
+| archived_at | timestamp | no | Main board/timeline hide flag. |
+| archived_by | text fk users.id | no | Audit. |
+| recurring_template_id | text fk recurring_task_templates.id | no | Source template for generated instances. |
+| created_at | timestamp | yes | Audit. |
+| updated_at | timestamp | yes | Audit. |
+
+### subtasks
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable subtask id. |
+| task_id | text fk tasks.id | yes | Parent task. |
+| title | text | yes | Checklist label. |
+| done | boolean | yes | Completion state. |
+| done_at | timestamp | no | Set when checked. |
+| done_by | text fk users.id | no | User who checked it. |
+| sort_order | integer | yes | Display order. |
+
+Progress rule:
+
+- If a task has subtasks, progress is `done subtasks / total subtasks`.
+- If a task has no subtasks, use `tasks.progress`.
+- When a task enters `완료`, set `completed_at`, `completed_by`, preserve `progress_before_complete`, and set progress to 100.
+- When a task leaves `완료`, clear `completed_at` and `completed_by`; restore `progress_before_complete` only for no-subtask manual-progress tasks.
+- Reports must use `completed_at` as the actual completion date. `due_date` remains the planned deadline and is only a fallback for legacy completed rows.
+
+### task_change_history
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable change id. |
+| task_id | text fk tasks.id | yes | Parent task. |
+| change_type | enum | yes | `status`, `due_date`. |
+| from_value | text | no | Previous status or due date. |
+| to_value | text | yes | New status or due date. |
+| actor_id | text fk users.id | yes | User who changed the status. |
+| note | text | no | Example: `완료 처리`, `완료 처리 취소`, `마감일 변경: 2026-06-04 → 2026-06-07`. |
+| created_at | timestamp | yes | Change timestamp. |
+
+Task changes should be append-only. Accidental completion or deadline changes should be represented by later change-history rows instead of editing the previous row.
+
+### task_updates
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable update id. |
+| task_id | text fk tasks.id | yes | Parent task. |
+| author_id | text fk users.id | yes | Writer. |
+| body | text | yes | Short update. |
+| update_type | enum | no | `note`, `issue`, `decision`, `request`, `completion`. |
+| created_at | timestamp | yes | Sort newest first. |
+
+Updates are append-first. Edit/delete should be admin-only or disabled at launch.
+
+### task_links
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable link id. |
+| task_id | text fk tasks.id | yes | Parent task. |
+| title | text | yes | Label. |
+| url | text | yes | Internal or external URL. |
+| link_type | text | yes | `문서`, `보고서`, `자료`, `드라이브`, `회의록`, `링크`. |
+| created_at | timestamp | yes | Audit. |
+
+### tags and task_tags
+
+| Table | Column | Type | Notes |
+| --- | --- | --- | --- |
+| tags | id | text pk | Stable tag id. |
+| tags | name | text unique | Display tag. |
+| tags | tone | text | Optional visual tone. |
+| tags | created_by | text fk users.id | Audit. |
+| task_tags | task_id | text fk tasks.id | Parent task. |
+| task_tags | tag_id | text fk tags.id | Applied tag. |
+
+Tasks should have one or more tags. All users can create and apply tags, but only admin can rename or delete shared tags.
+
+### calendar_events
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable event id. |
+| title | text | yes | Event title. |
+| event_date | date | yes | Calendar date. |
+| scope | enum | yes | `team`, `personal`. |
+| owner_id | text fk users.id | no | Required for personal events. |
+| note | text | no | Primary event detail. |
+| created_by | text fk users.id | yes | Audit. |
+| created_at | timestamp | yes | Audit. |
+| updated_at | timestamp | yes | Audit. |
+
+Task due items are derived from `tasks.due_date`, not duplicated as events.
+
+### personal_notes
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable note id. |
+| owner_id | text fk users.id | yes | Note owner. |
+| note_date | date | yes | Daily note key. |
+| body | text | no | Free memo. |
+| updated_at | timestamp | yes | Audit. |
+
+### recurring_task_templates
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable template id. |
+| title | text | yes | Base task title. |
+| owner_id | text fk users.id | yes | Default owner. |
+| frequency | enum | yes | `weekly`, `monthly`, `quarterly`. |
+| interval | integer | yes | Repeat every N weeks/months/quarters. |
+| weekdays | integer[] | no | Weekly repeat days, where 0=Sunday and 1=Monday. |
+| start_date | date | yes | Repeat rule start date. |
+| end_date | date | no | Repeat rule end date. |
+| no_end | boolean | yes | True when the rule continues indefinitely. |
+| rule_detail | text | yes | Human-readable summary such as `5주마다 화요일, 목요일`. |
+| duration_days | integer | yes | Length of each generated instance. |
+| next_due_date | date | yes | Next generation anchor. |
+| is_active | boolean | yes | Stops future generation when false. |
+| created_by | text fk users.id | yes | Audit. |
+| created_at | timestamp | yes | Audit. |
+
+Generated recurring instances are normal `tasks` rows linked by `recurring_template_id`.
+
+### user_preferences
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| user_id | text pk fk users.id | yes | Preference owner. |
+| active_page | text | no | Last selected page scope. |
+| active_view | text | no | Last nav view. |
+| selected_tag | text | no | Last tag filter. |
+| timeline_mode | text | no | `month` or `year`. |
+| timeline_month | text | no | `YYYY-MM`. |
+| timeline_year | text | no | `YYYY`. |
+| selected_task_id | text | no | Last selected task. |
+| updated_at | timestamp | yes | Audit. |
+
+## API Endpoints
+
+Use `/api/v1` as the initial namespace.
+
+### Auth and Session
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| POST | `/auth/login` | public | Email/password or SSO callback. |
+| POST | `/auth/logout` | user | End session. |
+| GET | `/me` | user | Current user, role, profile, preferences. |
+| PATCH | `/me/profile` | user | Update own profile emoji. |
+
+### Users
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| GET | `/users` | user | Team list; admin can include hidden users. |
+| POST | `/users` | admin | Create account. |
+| PATCH | `/users/:id` | admin | Update role/title/active state. |
+
+### Tasks
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| GET | `/tasks` | user | Role-filtered list, supports `scope`, `ownerId`, `status`, `tag`, `archived`. |
+| POST | `/tasks` | user | Create own task; lead/admin can assign anyone. |
+| GET | `/tasks/:id` | user | Read visible task detail. |
+| PATCH | `/tasks/:id` | owner/lead/admin | Update metadata, links, tags, dates, priority, status. |
+| PATCH | `/tasks/:id/status` | owner/lead/admin | Board drag/drop and status quick changes. |
+| PATCH | `/tasks/:id/archive` | owner/lead/admin | Archive or restore completed/held work. |
+| POST | `/tasks/:id/subtasks` | owner/lead/admin | Add subtask. |
+| PATCH | `/subtasks/:id` | owner/lead/admin | Toggle or rename subtask. |
+| POST | `/tasks/:id/updates` | visible user | Add update log. |
+| POST | `/tasks/:id/links` | owner/lead/admin | Add related link. |
+
+### Tags
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| GET | `/tags` | user | Shared tag dictionary. |
+| POST | `/tags` | user | Add tag. |
+| PATCH | `/tags/:id` | admin | Rename or retone tag. |
+| DELETE | `/tags/:id` | admin | Remove tag relation from tasks, keep tasks. |
+
+### Calendar and Notes
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| GET | `/calendar/events` | user | Team events plus own personal events. |
+| POST | `/calendar/events` | user | Create team event if allowed, or own personal event. |
+| PATCH | `/calendar/events/:id` | owner/lead/admin | Edit event by scope rules. |
+| DELETE | `/calendar/events/:id` | owner/lead/admin | Delete event by scope rules. |
+| GET | `/notes/today` | user | Own note for current date. |
+| PUT | `/notes/:date` | user | Upsert own note. |
+
+### Recurring Work
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| GET | `/recurring/templates` | user | Visible templates. |
+| POST | `/recurring/templates` | owner/lead/admin | Create template. |
+| PATCH | `/recurring/templates/:id` | owner/lead/admin | Update rule or deactivate. |
+| POST | `/recurring/templates/:id/generate` | owner/lead/admin | Materialize next N task instances. |
+
+### Reports
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| GET | `/reports/performance` | user | Query by `periodType`, `periodStart`, `periodEnd`, optional `userId`. |
+| POST | `/reports/performance/snapshots` | lead/admin | Freeze a generated report. |
+| GET | `/reports/performance/snapshots/:id` | visible user | Read frozen report. |
+
+## Permission Enforcement
+
+Server must enforce the same rules as `docs/permission-rules.md`.
+
+Minimum rules:
+
+- Members only edit tasks where they are `owner_id` or `creator_id`.
+- Members can append updates to any visible team task.
+- Lead/admin can edit all team tasks.
+- Personal notes are readable only by owner and admin.
+- Personal events are readable only by owner and admin.
+- Shared tag creation is allowed for all users.
+- Shared tag rename/delete is admin-only.
+- Archived tasks remain report-readable.
+
+## Migration from Prototype JSON
+
+The current `JSON 내보내기` payload can seed the backend.
+
+Migration order:
+
+1. Upsert `users` from `src/data.js` or approved real user list.
+2. Upsert `tags` from `availableTags`.
+3. Insert each task into `tasks`.
+4. Insert task subtasks into `subtasks`.
+5. Insert task links into `task_links`.
+6. Insert task updates into `task_updates`.
+7. Insert task tag relations into `task_tags`.
+8. Insert `calendarEvents` into `calendar_events`.
+9. Insert `personalNotes` into `personal_notes`, keyed by owner and current date if no date exists.
+10. Insert profile overrides into `users.profile_emoji`.
+
+Validation after migration:
+
+- Two different users see shared team tasks.
+- Personal notes do not appear to other members.
+- Team calendar events appear to all members.
+- Personal calendar events appear only to the owner.
+- Drag/drop board status changes persist after reload and another browser login.
+- Subtask completion updates progress.
+- Update logs sort newest first.
+- Archived completed/held tasks disappear from default board but remain in archive and reports.
