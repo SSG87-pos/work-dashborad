@@ -1449,6 +1449,12 @@
   font-weight: 800;
 }
 
+.tag-picker-help {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 520;
+}
+
 .tag-compose-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -6156,27 +6156,21 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
 
         <div className="field wide tag-picker task-modal-full-field">
           <span>태그</span>
-          <div className="selected-tag-list">
-            {selectedDraftTags().map((tag) => (
-              <button className={`tag-tone-${tagTone(tag)}`} key={tag} onClick={() => toggleDraftTag(tag)} type="button">
-                {tag}
-                <X size={12} />
-              </button>
-            ))}
-            {!selectedDraftTags().length && <small>업무를 모아볼 기준 태그를 1개 이상 선택하세요.</small>}
-          </div>
           <div className="tag-option-grid">
             {availableTags.map((tag) => (
               <button
+                aria-pressed={selectedDraftTags().includes(tag)}
                 className={`tag-tone-${tagTone(tag)} ${selectedDraftTags().includes(tag) ? "selected" : ""}`}
                 key={tag}
                 onClick={() => toggleDraftTag(tag)}
+                title={selectedDraftTags().includes(tag) ? `${tag} 태그 선택 해제` : `${tag} 태그 선택`}
                 type="button"
               >
                 {tag}
               </button>
             ))}
           </div>
+          {!selectedDraftTags().length && <small className="tag-picker-help">업무를 모아볼 기준 태그를 1개 이상 선택하세요.</small>}
           <div className="tag-compose-row">
             <input
               list="tag-options"
