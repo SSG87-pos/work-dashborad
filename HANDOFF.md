@@ -21,8 +21,13 @@ Last updated: 2026-06-05
   - `TODO.md`
 - Package manager: `/Users/seulgi/Library/pnpm/bin/pnpm`.
 - Build command: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
-- Current git state: no commits yet on `main`; repository contents are untracked.
-- Persistence is prototype-only through localStorage key `research-strategy-dashboard:v1`.
+- GitHub remote: `https://github.com/SSG87-pos/work-dashborad.git`.
+- Current backend branch: `codex/supabase-integration`.
+- Persistence is hybrid during the transition:
+  - localStorage key `research-strategy-dashboard:v1` remains the prototype fallback.
+  - Supabase is active when `.env.local` contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+  - login/session/profile/preferences/shared memos/shared tags and first UUID-backed task/calendar write paths are now connected to Supabase.
+  - prototype tasks assigned to temporary local people remain local until those people sign up and have real auth UUID profiles.
 - User-facing design direction: keep the first screen personal-first, but let all members access public team workflow.
 
 Key product decisions now in the prototype:
@@ -89,6 +94,11 @@ Key product decisions now in the prototype:
   - future company internal login/SSO should map into the same `public.users` profile model
   - initial schema draft: `supabase/migrations/001_initial_dashboard_schema.sql`
   - setup guide: `docs/supabase-start-guide.md`
+- Live Supabase project:
+  - URL: `https://nbefvcrcfwacvnohtsmy.supabase.co`
+  - first admin email: `seulgis@posco.com`
+  - `seulgis@posco.com` has been promoted to `permission_role = 'admin'`, `title = '관리자'`, `is_team_member = false`.
+  - Data API table grants are applied manually because automatic table exposure was disabled.
 
 Recent UI/UX refinements from the latest session:
 
@@ -155,6 +165,14 @@ Recent UI/UX refinements from the latest session:
   - popover content is rendered through a portal so it does not get clipped inside cards, modals, or scroll panels
   - calendar-side task-detail action buttons and the `읽기 전용` badge are compact only within the calendar right panel
   - removed the unused legacy `.emoji-picker-grid` CSS block.
+- Started live Supabase data sync:
+  - `src/App.jsx` now hydrates the dashboard from `supabaseDashboardStore.read()` after login/session restore.
+  - Empty Supabase task/calendar tables preserve the local prototype data so the app does not suddenly become blank during migration.
+  - Page/view/tag/timeline preferences and page-scoped shared memos are written back to Supabase.
+  - Shared tags write through Supabase with add open to all users and rename/delete admin-only.
+  - UUID-backed tasks can be saved to Supabase with subtasks, links, and tag joins; status/update/link/archive/delete/subtask-progress have first write paths.
+  - Calendar event creation writes team/personal events to Supabase; personal events are tied to a real user UUID.
+  - Important transition guardrail: static sample people like `lead`, `seoyeon`, and `junho` are not auth users, so their prototype tasks intentionally remain local until those people sign up.
 
 ## Completed Work
 

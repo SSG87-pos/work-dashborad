@@ -164,25 +164,28 @@ After that, add recurring automation and report snapshots.
 
 ## Open Decisions Requiring User Confirmation
 
-- Supabase project URL and anon key.
-- First administrator email.
 - Whether members can create tasks assigned to other members.
 - Whether lead can edit member profile emoji/title, or only work data.
 - Whether performance report export should be Markdown only first, or also PDF/DOCX later.
 
 ## Immediate Next Technical Step
 
-After the Supabase project connection details are available:
+After the first admin login and initial Supabase connection:
 
-1. Apply `supabase/migrations/001_initial_dashboard_schema.sql`.
-2. Add `@supabase/supabase-js` and a Supabase client.
-3. Add a Supabase store beside `src/storage.js`, matching the `localDashboardStore` read/write/clear boundary.
-4. Load users, tasks, tags, calendar events, notes, and preferences from API on login.
+1. Add a team-member onboarding flow so real users can join with auth UUID profiles.
+2. Replace temporary sample task ownership with real user IDs as members sign up.
+3. Finish full task CRUD parity for due-date edits, recurring templates, calendar edits/deletes, profile edits, and profile emoji persistence.
+4. Add an admin/import path for moving approved prototype data into Supabase once real team users exist.
 5. Keep JSON export/import as an admin backup and migration tool.
 
 ## Current Integration State
 
 - `@supabase/supabase-js` is installed.
 - `src/supabaseClient.js` reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-- `src/supabaseStore.js` contains the first read/auth/preference adapter scaffold.
-- The React UI still uses the local prototype store until a real Supabase project URL and anon key are provided.
+- `src/supabaseStore.js` contains auth/read/preference/memo/tag/task/calendar adapters.
+- Live project URL is configured locally in ignored `.env.local`.
+- Initial Supabase schema, RLS policies, manual Data API grants, and first admin promotion have been applied.
+- Login/session restore hydrates profile/preferences/memos/tags/events/tasks from Supabase.
+- Empty Supabase task/calendar tables preserve prototype data during migration so the UI remains usable.
+- First write paths exist for shared tags, page-scoped memos, UUID-backed tasks, task status, update logs, links, archive/delete, subtask progress, and calendar event creation.
+- Transition limitation: static sample people are not auth users. Their prototype tasks remain local until those people sign up and receive real UUID profiles.

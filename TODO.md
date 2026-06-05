@@ -202,6 +202,16 @@
   - Done: applied live migration `promote_first_admin`, setting `permission_role = 'admin'`, `title = '관리자'`, and `is_team_member = false`.
   - Verification: Supabase migration list includes `promote_first_admin`.
 
+- [x] Start real Supabase dashboard data sync.
+  - Files: `src/App.jsx`, `src/supabaseStore.js`.
+  - Done: login/session restore now reads `supabaseDashboardStore.read()` and hydrates profile/preferences/memos/tags/events/tasks when DB data exists; empty task DB keeps the existing prototype data visible during transition.
+  - Done: page/view/tag/timeline preferences and page-scoped shared memos write back to Supabase after login.
+  - Done: shared tag add/rename/delete calls Supabase with the product rule preserved: everyone can add, admin can rename/delete.
+  - Done: actual UUID-backed tasks can be saved to Supabase with subtasks, links, and tag joins; status changes, update logs, related links, archive/delete, and subtask check progress have first DB write paths.
+  - Done: team/personal calendar event creation writes to Supabase, with personal events tied to a real user when available.
+  - Guardrail: prototype tasks assigned to temporary local users remain local until those people create real accounts, because Supabase task ownership is auth-user UUID based.
+  - Build: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed.
+
 ## Later
 
 - [x] Connect to an actual Supabase project.
@@ -209,10 +219,10 @@
   - Done: project URL and publishable key were configured in ignored `.env.local`; initial schema/RLS migration applied.
   - Still needed from 슬기님: sign up once with `seulgis@posco.com`, then promote that user to admin.
 
-- [ ] Implement server-side permission enforcement after backend choice.
+- [x] Implement initial server-side permission enforcement after backend choice.
   - UI-only restrictions currently exist but are not secure.
-  - Enforce admin/lead/member rules in API/table policies.
-  - Include audit fields for status, due date, archive, delete, recurring stop, and update logs.
+  - Done: Supabase RLS policies and Data API grants are applied for users, tags, tasks, task relations, calendar events, memos, recurring templates, and preferences.
+  - Remaining: broaden audit handling for every edit path and validate lead/member edge cases with multiple real accounts.
 
 - [ ] Convert localStorage JSON data to backend migration/import flow.
   - Current adapter: `src/storage.js`.

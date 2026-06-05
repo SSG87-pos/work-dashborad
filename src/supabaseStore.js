@@ -12,21 +12,25 @@ function toTaskRow(task, userMap) {
     description: task.description || null,
     owner_id: userMap.get(task.ownerId) ?? task.ownerId,
     assigner_type: task.assignerType || "개인",
-    assigner_id: userMap.get(task.assignerId) ?? null,
+    assigner_id: isUuid(task.assignerId) ? userMap.get(task.assignerId) ?? task.assignerId : null,
     creator_id: userMap.get(task.creatorId) ?? userMap.get(task.ownerId) ?? task.creatorId,
     status: task.status || "계획",
     priority: task.priority || "보통",
     start_date: task.startDate || TODAY,
     due_date: task.dueDate || task.startDate || TODAY,
     completed_at: task.completedAt || null,
-    completed_by: task.completedBy ? userMap.get(task.completedBy) ?? task.completedBy : null,
+    completed_by: isUuid(task.completedBy) ? userMap.get(task.completedBy) ?? task.completedBy : null,
     progress_before_complete: task.progressBeforeComplete ?? null,
     progress: Number.isFinite(Number(task.progress)) ? Number(task.progress) : 0,
     archived_at: task.archived ? new Date().toISOString() : null,
-    recurring_template_id: task.recurringTemplateId ?? null
+    recurring_template_id: isUuid(task.recurringTemplateId) ? task.recurringTemplateId : null
   };
   if (isUuid(task.id)) row.id = task.id;
   return row;
+}
+
+function canPersistTask(task) {
+  return isUuid(task.ownerId) && isUuid(task.creatorId || task.ownerId);
 }
 
 function fromTaskRow(row, relations = {}) {
@@ -232,18 +236,39 @@ async function writeUserPreferences(state) {
   const client = requireSupabaseClient();
   const currentUser = await readCurrentUser(client);
   if (!currentUser) return false;
-  const { error } = await client.from("user_preferences").upsert({
-    user_id: currentUser.id,
-    active_page: state.activePage,
-    active_view: state.activeView,
-    selected_tag: state.category,
-    timeline_mode: state.timelineMode,
-    timeline_month: state.timelineMonth,
-    timeline_year: state.timelineYear,
-    selected_task_id: state.selectedTaskId || null,
-    updated_at: new Date().toISOString()
+  const now = new Date().toISOString();
+  const selectedTaskId = isUuid(state.selectedTaskId) ? state.selectedTaskId : null;
+  const writes = [
+    client.from("user_preferences").upsert({
+      user_id: currentUser.id,
+      active_page: state.activePage,
+      active_view: state.activeView,
+      selected_tag: state.category,
+      timeline_mode: state.timelineMode,
+      timeline_month: state.timelineMonth,
+      timeline_year: state.timelineYear,
+      selected_task_id: selectedTaskId,
+      updated_at: now
+    })
+  ];
+
+  if (state.memoByPage) {
+    writes.push(
+      client.from("dashboard_memos").upsert(
+        Object.entries(state.memoByPage).map(([pageKey, body]) => ({
+          page_key: pageKey,
+          body: body ?? "",
+          updated_by: currentUser.id,
+          updated_at: now
+        }))
+      )
+    );
+  }
+
+  const results = await Promise.all(writes);
+  results.forEach((result) => {
+    if (result.error) throw result.error;
   });
-  if (error) throw error;
   return true;
 }
 
@@ -276,6 +301,258 @@ async function signOut() {
   if (error) throw error;
 }
 
+async function addTag(name) {
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return false;
+  const cleanName = name.trim();
+  if (!cleanName) return false;
+  const { error } = await client
+    .from("tags")
+    .upsert(
+      { name: cleanName, created_by: currentUser.id },
+      { onConflict: "name", ignoreDuplicates: true }
+    );
+  if (error) throw error;
+  return true;
+}
+
+async function renameTag(oldName, nextName) {
+  const client = requireSupabaseClient();
+  const cleanName = nextName.trim();
+  if (!oldName || !cleanName || oldName === cleanName) return false;
+  const { error } = await client
+    .from("tags")
+    .update({ name: cleanName, updated_at: new Date().toISOString() })
+    .eq("name", oldName);
+  if (error) throw error;
+  return true;
+}
+
+async function deleteTag(name) {
+  const client = requireSupabaseClient();
+  if (!name) return false;
+  const { error } = await client.from("tags").delete().eq("name", name);
+  if (error) throw error;
+  return true;
+}
+
+async function ensureTags(client, names, userId) {
+  const cleanNames = Array.from(new Set(names.map((name) => name.trim()).filter(Boolean)));
+  if (!cleanNames.length) return [];
+  const results = await Promise.all(
+    cleanNames.map((name) =>
+      client
+        .from("tags")
+        .upsert({ name, created_by: userId }, { onConflict: "name", ignoreDuplicates: true })
+    )
+  );
+  results.forEach((result) => {
+    if (result.error) throw result.error;
+  });
+  const { data, error } = await client.from("tags").select("id, name").in("name", cleanNames);
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function saveTask(task) {
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser || !canPersistTask(task)) return { skipped: true, reason: "requires-real-users" };
+  const userMap = new Map();
+  const row = toTaskRow({ ...task, creatorId: task.creatorId || currentUser.id }, userMap);
+  const { data: savedTask, error: taskError } = await client
+    .from("tasks")
+    .upsert(row)
+    .select("id")
+    .single();
+  if (taskError) throw taskError;
+
+  const taskId = savedTask.id;
+  const subtasks = (task.subtasks ?? []).filter((subtask) => subtask.title?.trim());
+  await client.from("subtasks").delete().eq("task_id", taskId);
+  if (subtasks.length) {
+    const { error } = await client.from("subtasks").insert(
+      subtasks.map((subtask, index) => ({
+        task_id: taskId,
+        title: subtask.title.trim(),
+        done: Boolean(subtask.done),
+        sort_order: index
+      }))
+    );
+    if (error) throw error;
+  }
+
+  const links = (task.links ?? []).filter((link) => link.url?.trim());
+  await client.from("task_links").delete().eq("task_id", taskId);
+  if (links.length) {
+    const { error } = await client.from("task_links").insert(
+      links.map((link) => ({
+        task_id: taskId,
+        title: link.title?.trim() || "관련 링크",
+        url: link.url.trim(),
+        link_type: link.type?.trim() || "자료",
+        created_by: currentUser.id
+      }))
+    );
+    if (error) throw error;
+  }
+
+  const tagRows = await ensureTags(client, task.tags ?? [], currentUser.id);
+  await client.from("task_tags").delete().eq("task_id", taskId);
+  if (tagRows.length) {
+    const { error } = await client.from("task_tags").insert(
+      tagRows.map((tag) => ({
+        task_id: taskId,
+        tag_id: tag.id,
+        created_by: currentUser.id
+      }))
+    );
+    if (error) throw error;
+  }
+
+  return { id: taskId };
+}
+
+async function updateTaskStatus(taskId, status) {
+  if (!isUuid(taskId)) return { skipped: true };
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true };
+  const { data: previous, error: previousError } = await client
+    .from("tasks")
+    .select("status")
+    .eq("id", taskId)
+    .single();
+  if (previousError) throw previousError;
+  const completedPatch = status === "완료"
+    ? { completed_at: TODAY, completed_by: currentUser.id, progress: 100 }
+    : { completed_at: null, completed_by: null };
+  const { error } = await client
+    .from("tasks")
+    .update({ status, archived_at: null, ...completedPatch })
+    .eq("id", taskId);
+  if (error) throw error;
+  if (previous?.status !== status) {
+    const { error: historyError } = await client.from("task_change_history").insert({
+      task_id: taskId,
+      change_type: "status",
+      from_value: previous?.status ?? "",
+      to_value: status,
+      actor_id: currentUser.id
+    });
+    if (historyError) throw historyError;
+  }
+  return true;
+}
+
+async function addTaskUpdate(taskId, text) {
+  if (!isUuid(taskId)) return { skipped: true };
+  const cleanText = text.trim();
+  if (!cleanText) return false;
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true };
+  const { error } = await client.from("task_updates").insert({
+    task_id: taskId,
+    author_id: currentUser.id,
+    body: cleanText
+  });
+  if (error) throw error;
+  return true;
+}
+
+async function addTaskLink(taskId, link) {
+  if (!isUuid(taskId)) return { skipped: true };
+  const url = link.url?.trim();
+  if (!url) return false;
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true };
+  const { error } = await client.from("task_links").insert({
+    task_id: taskId,
+    title: link.title?.trim() || "관련 링크",
+    url,
+    link_type: link.type?.trim() || "자료",
+    created_by: currentUser.id
+  });
+  if (error) throw error;
+  return true;
+}
+
+async function setTaskArchived(taskId, archived) {
+  if (!isUuid(taskId)) return { skipped: true };
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true };
+  const { error } = await client
+    .from("tasks")
+    .update({
+      archived_at: archived ? new Date().toISOString() : null,
+      archived_by: archived ? currentUser.id : null
+    })
+    .eq("id", taskId);
+  if (error) throw error;
+  return true;
+}
+
+async function setSubtaskDone(subtaskId, done, taskProgress) {
+  if (!isUuid(subtaskId)) return { skipped: true };
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true };
+  const { data: subtask, error: subtaskError } = await client
+    .from("subtasks")
+    .select("task_id")
+    .eq("id", subtaskId)
+    .single();
+  if (subtaskError) throw subtaskError;
+  const { error } = await client
+    .from("subtasks")
+    .update({
+      done,
+      done_at: done ? new Date().toISOString() : null,
+      done_by: done ? currentUser.id : null
+    })
+    .eq("id", subtaskId);
+  if (error) throw error;
+  if (subtask?.task_id && Number.isFinite(Number(taskProgress))) {
+    const { error: taskError } = await client
+      .from("tasks")
+      .update({ progress: Number(taskProgress) })
+      .eq("id", subtask.task_id);
+    if (taskError) throw taskError;
+  }
+  return true;
+}
+
+async function deleteTask(taskId) {
+  if (!isUuid(taskId)) return { skipped: true };
+  const client = requireSupabaseClient();
+  const { error } = await client.from("tasks").delete().eq("id", taskId);
+  if (error) throw error;
+  return true;
+}
+
+async function addCalendarEvent(event) {
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true };
+  const scope = event.scope === "personal" ? "personal" : "team";
+  const ownerId = isUuid(event.ownerId) ? event.ownerId : scope === "personal" ? currentUser.id : null;
+  const row = {
+    title: event.title.trim(),
+    event_date: event.date || TODAY,
+    scope,
+    owner_id: ownerId,
+    note: event.note?.trim() || null,
+    created_by: currentUser.id
+  };
+  const { data, error } = await client.from("calendar_events").insert(row).select("id").single();
+  if (error) throw error;
+  return { id: data.id };
+}
+
 function seedUserMap() {
   return new Map(people.map((person) => [person.id, person.id]));
 }
@@ -303,6 +580,23 @@ export const supabaseDashboardStore = {
     signInWithPassword,
     signUpWithPassword,
     signOut
+  },
+  tags: {
+    add: addTag,
+    rename: renameTag,
+    delete: deleteTag
+  },
+  tasks: {
+    save: saveTask,
+    updateStatus: updateTaskStatus,
+    addUpdate: addTaskUpdate,
+    addLink: addTaskLink,
+    setArchived: setTaskArchived,
+    setSubtaskDone,
+    delete: deleteTask
+  },
+  events: {
+    add: addCalendarEvent
   },
   mappers: {
     fromTaskRow,

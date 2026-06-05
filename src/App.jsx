@@ -1562,6 +1562,8 @@ function App() {
   const briefingFeedbackTimerRef = useRef(null);
   const navigationScrollRef = useRef({ page: activePage, view: activeView });
   const workflowDetailColumnRef = useRef(null);
+  const supabaseHydratedRef = useRef(false);
+  const supabaseWriteTimerRef = useRef(null);
 
   const directory = useMemo(
     () => {
@@ -1592,6 +1594,62 @@ function App() {
     () => todayAgendaFor(tasks, calendarEvents, selectedPersonId, activePage === "team"),
     [activePage, calendarEvents, selectedPersonId, tasks]
   );
+
+  function applySupabaseSnapshot(snapshot, options = {}) {
+    const preservePrototypeTasks = Boolean(options.preservePrototypeTasks);
+    if (!snapshot) return;
+    if (Array.isArray(snapshot.tasks) && (!preservePrototypeTasks || snapshot.tasks.length > 0)) {
+      setTasks(snapshot.tasks);
+    }
+    if (Array.isArray(snapshot.availableTags) && snapshot.availableTags.length > 0) {
+      setAvailableTags(normalizeTags(snapshot.availableTags));
+    }
+    if (Array.isArray(snapshot.calendarEvents) && (!preservePrototypeTasks || snapshot.calendarEvents.length > 0)) {
+      setCalendarEvents(snapshot.calendarEvents);
+    }
+    if (snapshot.memoByPage) {
+      setMemoByPage((current) => ({ ...current, ...snapshot.memoByPage }));
+    }
+    if (snapshot.profileOverrides) {
+      setProfileOverrides((current) => ({ ...current, ...snapshot.profileOverrides }));
+    }
+    const snapshotProfile = snapshot.profileOverrides?.[snapshot.selectedPersonId];
+    const shouldUseTeamPage = snapshotProfile?.permissionRole === "admin" && snapshotProfile?.isTeamMember === false;
+    if (snapshot.selectedPersonId) setSelectedPersonId(snapshot.selectedPersonId);
+    if (shouldUseTeamPage) {
+      setActivePage("team");
+    } else if (snapshot.activePage && pageOptions.includes(snapshot.activePage)) {
+      setActivePage(snapshot.activePage);
+    }
+    if (snapshot.activeView && viewOptions.includes(snapshot.activeView)) setActiveView(snapshot.activeView);
+    if (snapshot.category) setCategory(snapshot.category);
+    if (snapshot.timelineMode && timelineModeOptions.includes(snapshot.timelineMode)) setTimelineMode(snapshot.timelineMode);
+    if (snapshot.timelineMonth) setTimelineMonth(snapshot.timelineMonth);
+    if (snapshot.timelineYear) setTimelineYear(snapshot.timelineYear);
+    if (snapshot.selectedTaskId) setSelectedTaskId(snapshot.selectedTaskId);
+  }
+
+  function persistTaskToSupabase(task, previousLocalId = task.id) {
+    if (!isSupabaseReady || !isAuthenticated) return;
+    supabaseDashboardStore.tasks.save(task)
+      .then((result) => {
+        if (!result?.id || result.id === previousLocalId) return;
+        setTasks((current) =>
+          current.map((item) =>
+            item.id === previousLocalId
+              ? {
+                  ...item,
+                  id: result.id
+                }
+              : item
+          )
+        );
+        setSelectedTaskId((current) => (current === previousLocalId ? result.id : current));
+      })
+      .catch((error) => {
+        console.warn("Supabase 업무 저장에 실패했습니다.", error);
+      });
+  }
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -1670,22 +1728,22 @@ function App() {
     if (!isSupabaseReady) return undefined;
     let cancelled = false;
     setAuthStatus("checking");
-    supabaseDashboardStore.auth.getCurrentProfile()
-      .then((profile) => {
+    supabaseDashboardStore.read()
+      .then((snapshot) => {
         if (cancelled) return;
-        if (!profile) {
+        if (!snapshot?.isAuthenticated) {
           setIsAuthenticated(false);
           setAuthStatus("signed-out");
           return;
         }
+        applySupabaseSnapshot(snapshot, { preservePrototypeTasks: true });
         setProfileOverrides((current) => ({
           ...current,
-          [profile.id]: profile
+          ...snapshot.profileOverrides
         }));
-        setSelectedPersonId(profile.id);
-        setActivePage("team");
         setIsAuthenticated(true);
         setAuthStatus("signed-in");
+        supabaseHydratedRef.current = true;
       })
       .catch((error) => {
         if (cancelled) return;
@@ -1698,6 +1756,51 @@ function App() {
       cancelled = true;
     };
   }, [isSupabaseReady]);
+
+  useEffect(() => () => {
+    if (supabaseWriteTimerRef.current) {
+      window.clearTimeout(supabaseWriteTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isSupabaseReady || !isAuthenticated || authStatus !== "signed-in" || !supabaseHydratedRef.current) return undefined;
+    if (supabaseWriteTimerRef.current) {
+      window.clearTimeout(supabaseWriteTimerRef.current);
+    }
+    const nextState = {
+      activePage,
+      activeView,
+      category,
+      timelineMode,
+      timelineMonth,
+      timelineYear,
+      selectedTaskId,
+      memoByPage
+    };
+    supabaseWriteTimerRef.current = window.setTimeout(() => {
+      supabaseDashboardStore.write(nextState).catch((error) => {
+        console.warn("Supabase 선호값 저장에 실패했습니다.", error);
+      });
+    }, 450);
+    return () => {
+      if (supabaseWriteTimerRef.current) {
+        window.clearTimeout(supabaseWriteTimerRef.current);
+      }
+    };
+  }, [
+    activePage,
+    activeView,
+    authStatus,
+    category,
+    isAuthenticated,
+    isSupabaseReady,
+    memoByPage,
+    selectedTaskId,
+    timelineMode,
+    timelineMonth,
+    timelineYear
+  ]);
 
   useEffect(() => {
     document.body.dataset.page = activePage;
@@ -1772,6 +1875,7 @@ function App() {
         return applyStatusTransition(taskWithHistory, item, selectedPersonId);
       });
     });
+    persistTaskToSupabase(nextTask, nextTask.id);
     setSelectedBriefingKey("");
     setSelectedTaskId(nextTask.id);
     setEditingTask(null);
@@ -1785,6 +1889,11 @@ function App() {
           : task
       )
     );
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.updateStatus(taskId, nextStatus).catch((error) => {
+        console.warn("Supabase 상태 변경 저장에 실패했습니다.", error);
+      });
+    }
   }
 
   function addTaskUpdate(taskId, text) {
@@ -1800,6 +1909,11 @@ function App() {
           : task
       )
     );
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.addUpdate(taskId, cleanText).catch((error) => {
+        console.warn("Supabase 업데이트 로그 저장에 실패했습니다.", error);
+      });
+    }
   }
 
   function addTaskLink(taskId, link) {
@@ -1817,26 +1931,61 @@ function App() {
           : task
       )
     );
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.addLink(taskId, { title, url, type }).catch((error) => {
+        console.warn("Supabase 링크 저장에 실패했습니다.", error);
+      });
+    }
   }
 
   function toggleSubtask(taskId, subtaskId) {
+    const currentTask = tasks.find((task) => task.id === taskId);
+    const nextSubtasks = (currentTask?.subtasks ?? []).map((subtask) =>
+      subtask.id === subtaskId ? { ...subtask, done: !subtask.done } : subtask
+    );
+    const nextDone = nextSubtasks.find((subtask) => subtask.id === subtaskId)?.done ?? false;
+    const nextProgress = currentTask ? taskProgress({ ...currentTask, subtasks: nextSubtasks }) : 0;
     setTasks((current) =>
       current.map((task) => {
         if (task.id !== taskId) return task;
         const subtasks = (task.subtasks ?? []).map((subtask) =>
           subtask.id === subtaskId ? { ...subtask, done: !subtask.done } : subtask
         );
-        return { ...task, subtasks, progress: taskProgress({ ...task, subtasks }) };
+        const nextTask = { ...task, subtasks };
+        return { ...nextTask, progress: nextProgress };
       })
     );
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.setSubtaskDone(subtaskId, nextDone, nextProgress).catch((error) => {
+        console.warn("Supabase 상세 업무 체크 저장에 실패했습니다.", error);
+      });
+    }
   }
 
   function addCalendarEvent(event) {
-    setCalendarEvents((current) => [{ ...event, id: event.id || `e-${Date.now()}` }, ...current]);
+    const nextEvent = { ...event, id: event.id || `e-${Date.now()}` };
+    setCalendarEvents((current) => [nextEvent, ...current]);
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.events.add(nextEvent)
+        .then((result) => {
+          if (!result?.id || result.id === nextEvent.id) return;
+          setCalendarEvents((current) =>
+            current.map((item) => (item.id === nextEvent.id ? { ...item, id: result.id } : item))
+          );
+        })
+        .catch((error) => {
+          console.warn("Supabase 일정 저장에 실패했습니다.", error);
+        });
+    }
   }
 
   function toggleArchive(taskId, archived) {
     setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, archived } : task)));
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.setArchived(taskId, archived).catch((error) => {
+        console.warn("Supabase 보관 상태 저장에 실패했습니다.", error);
+      });
+    }
     setSelectedBriefingKey("");
     if (archived && selectedTaskId === taskId) {
       setIsDetailOpen(false);
@@ -1882,6 +2031,11 @@ function App() {
     if (!confirmed) return;
     const nextTasks = tasks.filter((item) => item.id !== taskId && item.recurringTemplateId !== taskId);
     setTasks(nextTasks);
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.delete(taskId).catch((error) => {
+        console.warn("Supabase 업무 삭제에 실패했습니다.", error);
+      });
+    }
     setSelectedBriefingKey("");
     setIsDetailOpen(false);
     if (!nextTasks.some((item) => item.id === selectedTaskId)) {
@@ -1895,6 +2049,11 @@ function App() {
     const nextTag = tag.trim();
     if (!nextTag) return;
     setAvailableTags((current) => normalizeTags([...current, nextTag]));
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tags.add(nextTag).catch((error) => {
+        console.warn("Supabase 태그 추가에 실패했습니다.", error);
+      });
+    }
   }
 
   function renameTag(oldTag, nextTag) {
@@ -1909,6 +2068,11 @@ function App() {
       }))
     );
     if (category === oldTag) setCategory(cleanTag);
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tags.rename(oldTag, cleanTag).catch((error) => {
+        console.warn("Supabase 태그 수정에 실패했습니다.", error);
+      });
+    }
   }
 
   function deleteTag(tagToDelete) {
@@ -1918,6 +2082,11 @@ function App() {
       current.map((task) => ({ ...task, tags: task.tags.filter((tag) => tag !== tagToDelete) }))
     );
     if (category === tagToDelete) setCategory("전체");
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tags.delete(tagToDelete).catch((error) => {
+        console.warn("Supabase 태그 삭제에 실패했습니다.", error);
+      });
+    }
   }
 
   function changePage(page) {
@@ -1967,17 +2136,19 @@ function App() {
       } else {
         await supabaseDashboardStore.auth.signInWithPassword(payload.email, payload.password);
       }
-      const profile = await supabaseDashboardStore.auth.getCurrentProfile();
-      if (profile) {
-        setProfileOverrides((current) => ({
-          ...current,
-          [profile.id]: profile
-        }));
-        setSelectedPersonId(profile.id);
-        setActivePage("team");
-        setActiveView("board");
+      const snapshot = await supabaseDashboardStore.read();
+      if (snapshot?.isAuthenticated) {
+        applySupabaseSnapshot(
+          {
+            ...snapshot,
+            activePage: snapshot.activePage || "team",
+            activeView: snapshot.activeView || "board"
+          },
+          { preservePrototypeTasks: true }
+        );
         setIsAuthenticated(true);
         setAuthStatus("signed-in");
+        supabaseHydratedRef.current = true;
         return;
       }
       setIsAuthenticated(false);
