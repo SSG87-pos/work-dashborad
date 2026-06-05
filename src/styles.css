@@ -2755,11 +2755,32 @@ h1 {
 }
 
 .recurring-edit-warning {
-  margin: -2px 0 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  max-width: min(820px, 100%);
+  margin: 7px 0 0;
   color: #be123c;
   font-size: 12px;
-  font-weight: 560;
+  font-weight: 540;
   line-height: 1.45;
+  word-break: keep-all;
+}
+
+.recurring-edit-warning span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin-top: 1px;
+  border: 1.5px solid #fb7185;
+  border-radius: 999px;
+  color: #e11d48;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
 }
 
 .leader-panel,
@@ -10818,6 +10839,10 @@ body[data-page="team"] .briefing-panel {
 
 .task-modal .modal-header {
   margin-bottom: 14px;
+}
+
+.task-modal .modal-header > div {
+  min-width: 0;
 }
 
 .task-modal .modal-header h2 {
