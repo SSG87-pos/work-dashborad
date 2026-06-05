@@ -3896,7 +3896,7 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
       )}
       <div className="tag-library-body">
         <button
-          className={`tag-filter-chip ${activeTag === "전체" ? "active" : ""}`}
+          className={`tag-filter-chip tag-filter-home ${activeTag === "전체" ? "active" : ""}`}
           onClick={() => selectTag("전체")}
           type="button"
         >

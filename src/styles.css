@@ -9592,6 +9592,14 @@ body[data-page="team"] .briefing-panel {
   font-weight: 560 !important;
 }
 
+.tag-filter-chip.tag-filter-home {
+  min-height: 25px !important;
+  border-width: 1.5px !important;
+  padding: 0 9px !important;
+  font-size: 11.5px !important;
+  font-weight: 620 !important;
+}
+
 .task-card .card-tag-row span,
 .task-card .task-status-chip,
 .task-card .status-chip {
