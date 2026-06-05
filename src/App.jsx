@@ -4426,7 +4426,7 @@ function CalendarView({
           </button>
         </div>
       </div>
-      <form className="calendar-add-form" onSubmit={submitEvent}>
+      <form className={`calendar-add-form ${draftEvent.scope === "personal" ? "has-target" : ""}`} onSubmit={submitEvent}>
         <label className="calendar-form-field">
           <span>시작일</span>
           <input
@@ -4473,7 +4473,7 @@ function CalendarView({
           </select>
         </label>
         {draftEvent.scope === "personal" && (
-          <label className="calendar-form-field">
+          <label className="calendar-form-field calendar-target-field">
             <span>대상자</span>
             <select
               aria-label="개인일정 대상자"
@@ -4571,11 +4571,11 @@ function CalendarView({
                         className={`calendar-event ${event.scope} ${selectedCalendarItem?.type === "event" && selectedCalendarItem.id === event.id ? "selected" : ""}`}
                         key={`${date}-${event.id}`}
                         onClick={() => setSelectedCalendarItem({ type: "event", id: event.id, event })}
-                        title={`${event.title} · ${eventRangeLabel(event)}`}
+                        title={`${event.scope === "personal" ? `${personName(event.ownerId)} · ` : ""}${event.title} · ${eventRangeLabel(event)}`}
                         type="button"
                       >
                         <i />
-                        <b>{event.title}</b>
+                        <b>{event.scope === "personal" ? `${personName(event.ownerId)} · ${event.title}` : event.title}</b>
                         {eventStartDate(event) !== eventEndDate(event) && <em>{eventRangeLabel(event)}</em>}
                       </button>
                     ))}
@@ -5940,7 +5940,7 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
         <div className="modal-header">
           <div>
             <span className="panel-label">{isRecurringRuleMode ? "미수행 반복 일정 수정" : task.id ? "업무 수정" : "업무 추가"}</span>
-            <h2>{task.id ? task.title : "새 업무 만들기"}</h2>
+            <h2>{!isRecurringRuleMode && (task.recurring || task.recurringTemplateId) ? "🔁 " : ""}{task.id ? task.title : "새 업무 만들기"}</h2>
           </div>
           <button className="icon-button" onClick={onClose} type="button" title="닫기">
             <X size={18} />
@@ -5953,15 +5953,6 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
             <p>아직 시작하지 않은 회차의 반복 일정만 조정합니다. 업무명, 상세 업무 내용, 링크와 로그는 그대로 유지됩니다.</p>
           </div>
         )}
-        {!isRecurringRuleMode && (task.recurring || task.recurringTemplateId) && (
-          <div className="recurring-edit-warning">
-            <span>🔁 반복 업무</span>
-            <p>
-              이 화면에서는 선택한 회차의 업무명, 기간, 상세 업무 내용만 수정합니다. 반복 주기와 앞으로의 일정은 반복 업무 탭에서 수정하세요.
-            </p>
-          </div>
-        )}
-
         <label className="field wide task-modal-full-field">
           <span>업무명</span>
           <input required value={draft.title} onChange={(event) => update("title", event.target.value)} />
@@ -6050,6 +6041,11 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
             <span>마감일</span>
             <input type="date" value={draft.dueDate} onChange={(event) => update("dueDate", event.target.value)} />
           </label>
+          {!isRecurringRuleMode && (task.recurring || task.recurringTemplateId) && (
+            <p className="recurring-edit-warning task-modal-full-field">
+              ! 반복업무 내용으로 본 화면에서는 선택한 회차의 업무명, 기간, 상세 업무 내용만 수정합니다. 반복 주기와 앞으로의 일정은 반복 업무 탭에서 수정하세요.
+            </p>
+          )}
           <label className={`field task-modal-full-field ${!canEditRecurringFields ? "recurring-instance-hidden-field" : ""}`}>
             <span>반복 여부</span>
             <select value={draft.recurring || ""} onChange={(event) => changeRecurring(event.target.value)}>
