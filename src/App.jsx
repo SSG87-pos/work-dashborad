@@ -421,15 +421,6 @@ function eventRangeLabel(event) {
   return start === end ? formatDate(start) : `${formatDate(start)} - ${formatDate(end)}`;
 }
 
-function calendarEventRangeClass(event, date) {
-  const start = eventStartDate(event);
-  const end = eventEndDate(event);
-  if (start === end) return "single";
-  if (date === start) return "range-start";
-  if (date === end) return "range-end";
-  return "range-middle";
-}
-
 function weekdayOf(value) {
   return toDate(value).getDay();
 }
@@ -4487,24 +4478,18 @@ function CalendarView({
                       </button>
                     ))}
                     {dayEvents.map((event) => (
-                      (() => {
-                        const rangeClass = calendarEventRangeClass(event, date);
-                        const isMiddle = rangeClass === "range-middle";
-                        return (
-                          <button
-                            className={`calendar-event ${event.scope} ${rangeClass} ${selectedCalendarItem?.type === "event" && selectedCalendarItem.id === event.id ? "selected" : ""}`}
-                            key={`${date}-${event.id}`}
-                            onClick={() => setSelectedCalendarItem({ type: "event", id: event.id, event })}
-                            title={`${event.title} · ${eventRangeLabel(event)}`}
-                            type="button"
-                          >
-                            <i />
-                            <b>{isMiddle ? "\u00A0" : event.title}</b>
-                            {eventStartDate(event) !== eventEndDate(event) && !isMiddle && <em>{eventRangeLabel(event)}</em>}
-                          </button>
-                        );
-                      })()
-                  ))}
+                      <button
+                        className={`calendar-event ${event.scope} ${selectedCalendarItem?.type === "event" && selectedCalendarItem.id === event.id ? "selected" : ""}`}
+                        key={`${date}-${event.id}`}
+                        onClick={() => setSelectedCalendarItem({ type: "event", id: event.id, event })}
+                        title={`${event.title} · ${eventRangeLabel(event)}`}
+                        type="button"
+                      >
+                        <i />
+                        <b>{event.title}</b>
+                        {eventStartDate(event) !== eventEndDate(event) && <em>{eventRangeLabel(event)}</em>}
+                      </button>
+                    ))}
                     {date && events.filter((event) => eventSpansDate(event, date)).length + tasks.filter((task) => task.dueDate === date).length > 5 && (
                       <small>+ 더보기</small>
                     )}
@@ -4616,17 +4601,19 @@ function CalendarDetailPanel({
           <span className="panel-label">{event.scope === "team" ? "팀 일정" : "개인 일정"}</span>
           <h3>{event.title}</h3>
         </div>
-        <div className="calendar-event-actions">
-          <button className="icon-button" onClick={() => setIsEditingEvent((current) => !current)} type="button" title="일정 수정">
-            <Edit3 size={14} />
-          </button>
-          <button className="icon-button danger-icon" onClick={() => onDeleteEvent(event.id)} type="button" title="일정 삭제">
-            <Trash2 size={14} />
-          </button>
-          <button className="icon-button" onClick={onClose} type="button" title="일정 상세 닫기">
-            <X size={15} />
-          </button>
-        </div>
+        {!isEditingEvent && (
+          <div className="calendar-event-actions">
+            <button className="icon-button" onClick={() => setIsEditingEvent(true)} type="button" title="일정 수정">
+              <Edit3 size={14} />
+            </button>
+            <button className="icon-button danger-icon" onClick={() => onDeleteEvent(event.id)} type="button" title="일정 삭제">
+              <Trash2 size={14} />
+            </button>
+            <button className="icon-button" onClick={onClose} type="button" title="일정 상세 닫기">
+              <X size={15} />
+            </button>
+          </div>
+        )}
       </div>
       {isEditingEvent ? (
         <form className="calendar-event-edit-form" onSubmit={submitEventUpdate}>
@@ -4694,6 +4681,12 @@ function CalendarDetailPanel({
               <dt>구분</dt>
               <dd>{event.scope === "team" ? "팀 공유" : "개인 일정"}</dd>
             </div>
+            {event.scope === "team" && (
+              <div>
+                <dt>등록자</dt>
+                <dd>{personName(event.ownerId)}</dd>
+              </div>
+            )}
           </dl>
         </div>
       )}
