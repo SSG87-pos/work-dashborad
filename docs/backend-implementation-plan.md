@@ -188,4 +188,6 @@ After the first admin login and initial Supabase connection:
 - Login/session restore hydrates profile/preferences/memos/tags/events/tasks from Supabase.
 - Empty Supabase task/calendar tables preserve prototype data during migration so the UI remains usable.
 - First write paths exist for shared tags, page-scoped memos, profile name/title/emoji, UUID-backed tasks, task status, due-date change history, update logs, links, archive/delete, subtask progress, and calendar event create/edit/delete.
+- Admin user-management UI exists for permission role, team-list visibility, and active-state changes.
+- Local migration `supabase/migrations/002_admin_user_management.sql` grants the additional `users` update columns required by admin user-management. Apply it to the live Supabase project before relying on those admin updates in production.
 - Transition limitation: static sample people are not auth users. Their prototype tasks remain local until those people sign up and receive real UUID profiles.

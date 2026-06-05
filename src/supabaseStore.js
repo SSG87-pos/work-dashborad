@@ -81,7 +81,8 @@ function fromUserRow(row) {
     permissionRole: row.permission_role,
     color: "#2563eb",
     emoji: row.profile_emoji,
-    isTeamMember: row.is_team_member
+    isTeamMember: row.is_team_member,
+    isActive: row.is_active
   };
 }
 
@@ -94,7 +95,8 @@ function toProfileOverrides(users) {
         role: user.role,
         permissionRole: user.permissionRole,
         emoji: user.emoji,
-        isTeamMember: user.isTeamMember
+        isTeamMember: user.isTeamMember,
+        isActive: user.isActive
       }
     ])
   );
@@ -142,7 +144,9 @@ async function readDashboardState() {
     memosResult,
     preferencesResult
   ] = await Promise.all([
-    client.from("users").select("*").eq("is_active", true).order("name", { ascending: true }),
+    (currentUser.permissionRole === "admin"
+      ? client.from("users").select("*").order("name", { ascending: true })
+      : client.from("users").select("*").eq("is_active", true).order("name", { ascending: true })),
     client.from("tags").select("*").order("name", { ascending: true }),
     client.from("tasks").select("*").order("due_date", { ascending: true }),
     client.from("subtasks").select("*").order("sort_order", { ascending: true }),
@@ -319,6 +323,22 @@ async function updateProfile(userId, profile) {
 
 async function updateProfileEmoji(userId, emoji) {
   return updateProfile(userId, { profileEmoji: emoji });
+}
+
+async function updateUserAdministration(userId, adminPatch) {
+  if (!isUuid(userId)) return { skipped: true };
+  const patch = {};
+  if (adminPatch.permissionRole) patch.permission_role = adminPatch.permissionRole;
+  if (typeof adminPatch.isTeamMember === "boolean") patch.is_team_member = adminPatch.isTeamMember;
+  if (typeof adminPatch.isActive === "boolean") patch.is_active = adminPatch.isActive;
+  if (!Object.keys(patch).length) return false;
+  const client = requireSupabaseClient();
+  const { error } = await client
+    .from("users")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (error) throw error;
+  return true;
 }
 
 async function addTag(name) {
@@ -649,7 +669,8 @@ export const supabaseDashboardStore = {
   },
   profiles: {
     update: updateProfile,
-    updateEmoji: updateProfileEmoji
+    updateEmoji: updateProfileEmoji,
+    updateAdministration: updateUserAdministration
   },
   tags: {
     add: addTag,

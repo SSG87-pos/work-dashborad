@@ -211,6 +211,8 @@
   - Done: due-date edits on UUID-backed tasks append Supabase change-history rows.
   - Done: team/personal calendar event creation, edit, and delete write to Supabase, with personal events tied to a real user when available.
   - Done: profile name/title/emoji editing writes to Supabase when the current person is a real auth user.
+  - Done: admin user-management UI can change permission role, team-list visibility, and active state; local migration `002_admin_user_management.sql` grants the required update columns.
+  - Pending live DB step: apply `supabase/migrations/002_admin_user_management.sql` to the Supabase project before expecting admin permission/team/active updates to persist in production.
   - Guardrail: prototype tasks assigned to temporary local users remain local until those people create real accounts, because Supabase task ownership is auth-user UUID based.
   - Build: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed.
 
@@ -231,8 +233,8 @@
   - Target: replace storage boundary without mixing network calls directly into view components.
 
 - [ ] Finish remaining Supabase CRUD parity.
-  - Done already: auth/session, profile name/title/emoji, preferences, page memos, tags, first task writes, status/log/link/archive/delete/subtask progress, calendar event create/edit/delete.
-  - Next scope: recurring template persistence, profile/admin permission management, calendar event permission feedback, and approved prototype-data import once real team accounts exist.
+  - Done already: auth/session, profile name/title/emoji, preferences, page memos, tags, first task writes, status/log/link/archive/delete/subtask progress, calendar event create/edit/delete, and admin user-management UI.
+  - Next scope: apply live admin-management migration, recurring template persistence, calendar event permission feedback, and approved prototype-data import once real team accounts exist.
 
 - [ ] Decide internal login/SSO timeline.
   - Email/password is active for the first version.

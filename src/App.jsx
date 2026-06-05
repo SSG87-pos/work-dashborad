@@ -728,7 +728,7 @@ function teamCompositionOrder(members) {
 }
 
 function teamAssignablePeople(directory = peopleDirectory) {
-  return directory.filter((person) => person.isTeamMember !== false);
+  return directory.filter((person) => person.isTeamMember !== false && person.isActive !== false);
 }
 
 function permissionRole(id) {
@@ -2260,6 +2260,23 @@ function App() {
     }
   }
 
+  function updateUserAdministration(personId, patch) {
+    setProfileOverrides((current) => ({
+      ...current,
+      [personId]: {
+        ...(current[personId] ?? {}),
+        ...(patch.permissionRole ? { permissionRole: patch.permissionRole } : {}),
+        ...(typeof patch.isTeamMember === "boolean" ? { isTeamMember: patch.isTeamMember } : {}),
+        ...(typeof patch.isActive === "boolean" ? { isActive: patch.isActive } : {})
+      }
+    }));
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.profiles.updateAdministration(personId, patch).catch((error) => {
+        console.warn("Supabase 사용자 권한 저장에 실패했습니다.", error);
+      });
+    }
+  }
+
   function selectTask(taskId, context = "workflow") {
     if (context === "briefing" && activeView !== "board") {
       setActiveView("board");
@@ -2805,6 +2822,7 @@ function App() {
           onLogin={loginAs}
           onLogout={logout}
           onUpdateProfile={updateProfile}
+          onUpdateUserAdministration={updateUserAdministration}
           onUpdateEmoji={updateProfileEmoji}
           people={directory}
         />
@@ -3068,10 +3086,10 @@ function LoginScreen({ authMessage, authStatus, isSupabaseReady, onLogin, onSupa
   );
 }
 
-function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmoji, onUpdateProfile, people }) {
+function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmoji, onUpdateProfile, onUpdateUserAdministration, people }) {
   const currentPerson = people.find((person) => person.id === currentPersonId) ?? people[0];
   const isAdmin = currentPerson.permissionRole === "admin";
-  const teamMembers = teamCompositionOrder(teamAssignablePeople(people));
+  const adminManageablePeople = orderedAccounts(people);
   const [profileDraft, setProfileDraft] = useState({
     name: currentPerson.name,
     role: currentPerson.role,
@@ -3189,16 +3207,45 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
                 <ShieldCheck size={14} />
                 관리자 설정
               </span>
-              <strong>사용자와 권한을 확인하는 관리자 전용 영역입니다.</strong>
+              <strong>권한, 팀 표시, 활성 상태를 관리합니다.</strong>
             </div>
             <div className="admin-user-list">
-              {teamMembers.map((person) => (
+              {adminManageablePeople.map((person) => (
                 <div className="admin-user-row" key={person.id}>
                   <span className="profile-emoji" style={avatarStyle(person)}>
                     {person.emoji}
                   </span>
-                  <strong>{person.name}</strong>
-                  <small>{person.role}</small>
+                  <span className="admin-user-identity">
+                    <strong>{person.name}</strong>
+                    <small>{person.role}</small>
+                  </span>
+                  <label>
+                    <small>권한</small>
+                    <select
+                      onChange={(event) => onUpdateUserAdministration(person.id, { permissionRole: event.target.value })}
+                      value={person.permissionRole ?? "member"}
+                    >
+                      <option value="member">팀원</option>
+                      <option value="lead">팀장</option>
+                      <option value="admin">관리자</option>
+                    </select>
+                  </label>
+                  <label className="admin-mini-toggle">
+                    <input
+                      checked={person.isTeamMember !== false}
+                      onChange={(event) => onUpdateUserAdministration(person.id, { isTeamMember: event.target.checked })}
+                      type="checkbox"
+                    />
+                    팀 표시
+                  </label>
+                  <label className="admin-mini-toggle">
+                    <input
+                      checked={person.isActive !== false}
+                      onChange={(event) => onUpdateUserAdministration(person.id, { isActive: event.target.checked })}
+                      type="checkbox"
+                    />
+                    활성
+                  </label>
                 </div>
               ))}
             </div>
