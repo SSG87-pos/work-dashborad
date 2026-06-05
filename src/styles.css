@@ -2573,7 +2573,7 @@ h1 {
   align-items: center;
   min-width: 0;
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
   border: 0;
   background: transparent;
   color: inherit;
@@ -2622,12 +2622,14 @@ h1 {
   margin-top: 6px;
   max-width: 100%;
   overflow: hidden;
+  padding: 1px 0 3px;
 }
 
 .recurring-upcoming > span,
 .recurring-upcoming > button {
   flex: 0 0 126px;
   display: grid;
+  place-items: center;
   gap: 2px;
   width: 126px;
   min-width: 0;
@@ -2635,7 +2637,7 @@ h1 {
   border-radius: 7px;
   background: #fbfdff;
   padding: 4px 7px;
-  text-align: left;
+  text-align: center;
 }
 
 .recurring-upcoming > button {
@@ -2646,7 +2648,7 @@ h1 {
 .recurring-upcoming > button:hover {
   border-color: #9bbcff;
   box-shadow: 0 6px 14px rgba(37, 99, 235, 0.08);
-  transform: translateY(-1px);
+  transform: none;
 }
 
 .recurring-upcoming > .recurring-more-chip {
@@ -2667,10 +2669,10 @@ h1 {
 
 .recurring-upcoming small {
   overflow: hidden;
-  color: #64748b;
-  font-size: 10px;
-  font-weight: 850;
-  line-height: 1.25;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2690,10 +2692,20 @@ h1 {
 
 .recurring-row-actions {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  justify-self: end;
   gap: 6px;
+}
+
+.recurring-row-actions .recurring-stop-button {
+  width: 100%;
+  justify-content: center;
+}
+
+.recurring-instance-hidden-field {
+  display: none !important;
 }
 
 .task-modal.recurring-rule-mode {
@@ -4753,7 +4765,7 @@ body[data-page="team"] .briefing-panel {
 
 .tag-preset-chip {
   min-height: 25px;
-  border: 1px solid #dbe5f0;
+  border: 1.5px solid #dbe5f0;
   border-radius: 999px;
   background: #f8fafc;
   color: #556375;

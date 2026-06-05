@@ -2247,6 +2247,11 @@ function App() {
     const cleanTag = nextTag.trim();
     if (!cleanTag || cleanTag === oldTag) return;
     setAvailableTags((current) => normalizeTags(current.map((tag) => (tag === oldTag ? cleanTag : tag))));
+    const nextGroups = tagGroups.map((group) => ({
+      ...group,
+      tags: normalizeTags(group.tags.map((tag) => (tag === oldTag ? cleanTag : tag)))
+    }));
+    setTagGroups(nextGroups);
     setTasks((current) =>
       current.map((task) => ({
         ...task,
@@ -2259,12 +2264,24 @@ function App() {
         console.warn("Supabase 태그 수정에 실패했습니다.", error);
         showSyncNotice("태그 수정을 Supabase에 반영하지 못했습니다.");
       });
+      nextGroups
+        .filter((group) => group.tags.includes(cleanTag))
+        .forEach((group) => {
+          supabaseDashboardStore.tags.saveGroup(group).catch((error) => {
+            console.warn("Supabase 태그 Category 갱신에 실패했습니다.", error);
+          });
+        });
     }
   }
 
   function deleteTag(tagToDelete) {
     if (!canManageTagsFor(selectedPersonId)) return;
     setAvailableTags((current) => current.filter((tag) => tag !== tagToDelete));
+    const nextGroups = tagGroups.map((group) => ({
+      ...group,
+      tags: group.tags.filter((tag) => tag !== tagToDelete)
+    }));
+    setTagGroups(nextGroups);
     setTasks((current) =>
       current.map((task) => ({ ...task, tags: task.tags.filter((tag) => tag !== tagToDelete) }))
     );
@@ -2274,6 +2291,13 @@ function App() {
         console.warn("Supabase 태그 삭제에 실패했습니다.", error);
         showSyncNotice("태그 삭제를 Supabase에 반영하지 못했습니다.");
       });
+      nextGroups
+        .filter((group) => group.tags.length)
+        .forEach((group) => {
+          supabaseDashboardStore.tags.saveGroup(group).catch((error) => {
+            console.warn("Supabase 태그 Category 갱신에 실패했습니다.", error);
+          });
+        });
     }
   }
 
@@ -5888,7 +5912,7 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
             <span>마감일</span>
             <input type="date" value={draft.dueDate} onChange={(event) => update("dueDate", event.target.value)} />
           </label>
-          <label className="field task-modal-full-field">
+          <label className={`field task-modal-full-field ${draft.recurringTemplateId ? "recurring-instance-hidden-field" : ""}`}>
             <span>반복 여부</span>
             <select value={draft.recurring || ""} onChange={(event) => changeRecurring(event.target.value)}>
               <option value="">없음</option>
