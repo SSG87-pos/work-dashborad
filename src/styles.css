@@ -1593,8 +1593,34 @@ button {
 }
 
 .workspace {
+  position: relative;
   padding: 24px;
   min-width: 0;
+}
+
+.sync-notice {
+  position: sticky;
+  top: 10px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: min(520px, 100%);
+  margin: 0 0 10px auto;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: rgba(239, 246, 255, 0.96);
+  color: #1e40af;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 520;
+  line-height: 1.35;
+  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.12);
+}
+
+.sync-notice svg {
+  flex: 0 0 auto;
 }
 
 .topbar {

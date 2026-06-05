@@ -1564,6 +1564,8 @@ function App() {
   const workflowDetailColumnRef = useRef(null);
   const supabaseHydratedRef = useRef(false);
   const supabaseWriteTimerRef = useRef(null);
+  const syncNoticeTimerRef = useRef(null);
+  const [syncNotice, setSyncNotice] = useState("");
 
   const directory = useMemo(
     () => {
@@ -1629,10 +1631,28 @@ function App() {
     if (snapshot.selectedTaskId) setSelectedTaskId(snapshot.selectedTaskId);
   }
 
+  function showSyncNotice(message) {
+    if (syncNoticeTimerRef.current) {
+      window.clearTimeout(syncNoticeTimerRef.current);
+    }
+    setSyncNotice(message);
+    syncNoticeTimerRef.current = window.setTimeout(() => {
+      setSyncNotice("");
+      syncNoticeTimerRef.current = null;
+    }, 3600);
+  }
+
+  function handleSupabaseWriteResult(result, skippedMessage) {
+    if (result?.skipped && skippedMessage) {
+      showSyncNotice(skippedMessage);
+    }
+  }
+
   function persistTaskToSupabase(task, previousLocalId = task.id) {
     if (!isSupabaseReady || !isAuthenticated) return;
     supabaseDashboardStore.tasks.save(task)
       .then((result) => {
+        handleSupabaseWriteResult(result, "아직 실제 계정과 연결되지 않은 샘플 업무라 로컬에만 저장됐습니다.");
         if (!result?.id || result.id === previousLocalId) return;
         setTasks((current) =>
           current.map((item) =>
@@ -1648,6 +1668,7 @@ function App() {
       })
       .catch((error) => {
         console.warn("Supabase 업무 저장에 실패했습니다.", error);
+        showSyncNotice("업무 저장을 Supabase에 반영하지 못했습니다. 화면에는 임시로 유지됩니다.");
       });
   }
 
@@ -1760,6 +1781,12 @@ function App() {
   useEffect(() => () => {
     if (supabaseWriteTimerRef.current) {
       window.clearTimeout(supabaseWriteTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => () => {
+    if (syncNoticeTimerRef.current) {
+      window.clearTimeout(syncNoticeTimerRef.current);
     }
   }, []);
 
@@ -1890,8 +1917,11 @@ function App() {
       )
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.updateStatus(taskId, nextStatus).catch((error) => {
+      supabaseDashboardStore.tasks.updateStatus(taskId, nextStatus).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 업무 상태는 로컬에만 저장됐습니다.");
+      }).catch((error) => {
         console.warn("Supabase 상태 변경 저장에 실패했습니다.", error);
+        showSyncNotice("상태 변경을 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -1910,8 +1940,11 @@ function App() {
       )
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.addUpdate(taskId, cleanText).catch((error) => {
+      supabaseDashboardStore.tasks.addUpdate(taskId, cleanText).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 업무의 업데이트 로그는 로컬에만 저장됐습니다.");
+      }).catch((error) => {
         console.warn("Supabase 업데이트 로그 저장에 실패했습니다.", error);
+        showSyncNotice("업데이트 로그를 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -1932,8 +1965,11 @@ function App() {
       )
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.addLink(taskId, { title, url, type }).catch((error) => {
+      supabaseDashboardStore.tasks.addLink(taskId, { title, url, type }).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 업무의 관련 링크는 로컬에만 저장됐습니다.");
+      }).catch((error) => {
         console.warn("Supabase 링크 저장에 실패했습니다.", error);
+        showSyncNotice("관련 링크를 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -1956,8 +1992,11 @@ function App() {
       })
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.setSubtaskDone(subtaskId, nextDone, nextProgress).catch((error) => {
+      supabaseDashboardStore.tasks.setSubtaskDone(subtaskId, nextDone, nextProgress).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 업무의 상세 업무 체크는 로컬에만 저장됐습니다.");
+      }).catch((error) => {
         console.warn("Supabase 상세 업무 체크 저장에 실패했습니다.", error);
+        showSyncNotice("상세 업무 체크를 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -1968,6 +2007,7 @@ function App() {
     if (isSupabaseReady && isAuthenticated) {
       supabaseDashboardStore.events.add(nextEvent)
         .then((result) => {
+          handleSupabaseWriteResult(result, "일정은 현재 로컬에만 저장됐습니다.");
           if (!result?.id || result.id === nextEvent.id) return;
           setCalendarEvents((current) =>
             current.map((item) => (item.id === nextEvent.id ? { ...item, id: result.id } : item))
@@ -1975,6 +2015,7 @@ function App() {
         })
         .catch((error) => {
           console.warn("Supabase 일정 저장에 실패했습니다.", error);
+          showSyncNotice("일정을 Supabase에 저장하지 못했습니다. 화면에는 임시로 유지됩니다.");
         });
     }
   }
@@ -1988,8 +2029,11 @@ function App() {
     if (!nextEvent.title) return;
     setCalendarEvents((current) => current.map((item) => (item.id === nextEvent.id ? nextEvent : item)));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.events.update(nextEvent).catch((error) => {
+      supabaseDashboardStore.events.update(nextEvent).then((result) => {
+        handleSupabaseWriteResult(result, "일정 수정은 현재 로컬에만 저장됐습니다.");
+      }).catch((error) => {
         console.warn("Supabase 일정 수정에 실패했습니다.", error);
+        showSyncNotice("일정 수정을 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -2001,8 +2045,11 @@ function App() {
     if (!confirmed) return;
     setCalendarEvents((current) => current.filter((event) => event.id !== eventId));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.events.delete(eventId).catch((error) => {
+      supabaseDashboardStore.events.delete(eventId).then((result) => {
+        handleSupabaseWriteResult(result, "일정 삭제는 현재 로컬에만 반영됐습니다.");
+      }).catch((error) => {
         console.warn("Supabase 일정 삭제에 실패했습니다.", error);
+        showSyncNotice("일정 삭제를 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -2010,8 +2057,11 @@ function App() {
   function toggleArchive(taskId, archived) {
     setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, archived } : task)));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.setArchived(taskId, archived).catch((error) => {
+      supabaseDashboardStore.tasks.setArchived(taskId, archived).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 업무의 보관 상태는 로컬에만 저장됐습니다.");
+      }).catch((error) => {
         console.warn("Supabase 보관 상태 저장에 실패했습니다.", error);
+        showSyncNotice("보관 상태를 Supabase에 반영하지 못했습니다.");
       });
     }
     setSelectedBriefingKey("");
@@ -2027,23 +2077,25 @@ function App() {
     if (!task || !task.recurring || !canManageTaskFor(task, selectedPersonId)) return;
     const confirmed = window.confirm("미수행 반복 일정을 삭제할까요? 시작 전 미래 회차는 제거하고, 이미 진행된 기록은 유지됩니다.");
     if (!confirmed) return;
+    const stoppedTask = {
+      ...task,
+      recurring: null,
+      recurringDetail: "",
+      recurringInterval: 1,
+      recurringWeekdays: [],
+      recurringEndDate: "",
+      recurringNoEnd: false,
+      statusHistory: [recurringStopHistoryEntry(selectedPersonId), ...(task.statusHistory ?? [])]
+    };
     const nextTasks = tasks
       .filter((item) => !(item.recurringTemplateId === taskId && diffDays(item.startDate, TODAY) > 0))
       .map((item) =>
         item.id === taskId
-          ? {
-              ...item,
-              recurring: null,
-              recurringDetail: "",
-              recurringInterval: 1,
-              recurringWeekdays: [],
-              recurringEndDate: "",
-              recurringNoEnd: false,
-              statusHistory: [recurringStopHistoryEntry(selectedPersonId), ...(item.statusHistory ?? [])]
-            }
+          ? stoppedTask
           : item
       );
     setTasks(nextTasks);
+    persistTaskToSupabase(stoppedTask, stoppedTask.id);
     setSelectedBriefingKey("");
     setIsDetailOpen(false);
     if (!nextTasks.some((item) => item.id === selectedTaskId)) {
@@ -2060,8 +2112,11 @@ function App() {
     const nextTasks = tasks.filter((item) => item.id !== taskId && item.recurringTemplateId !== taskId);
     setTasks(nextTasks);
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.delete(taskId).catch((error) => {
+      supabaseDashboardStore.tasks.delete(taskId).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 업무 삭제는 로컬에만 반영됐습니다.");
+      }).catch((error) => {
         console.warn("Supabase 업무 삭제에 실패했습니다.", error);
+        showSyncNotice("업무 삭제를 Supabase에 반영하지 못했습니다.");
       });
     }
     setSelectedBriefingKey("");
@@ -2080,6 +2135,7 @@ function App() {
     if (isSupabaseReady && isAuthenticated) {
       supabaseDashboardStore.tags.add(nextTag).catch((error) => {
         console.warn("Supabase 태그 추가에 실패했습니다.", error);
+        showSyncNotice("태그 추가를 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -2099,6 +2155,7 @@ function App() {
     if (isSupabaseReady && isAuthenticated) {
       supabaseDashboardStore.tags.rename(oldTag, cleanTag).catch((error) => {
         console.warn("Supabase 태그 수정에 실패했습니다.", error);
+        showSyncNotice("태그 수정을 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -2113,6 +2170,7 @@ function App() {
     if (isSupabaseReady && isAuthenticated) {
       supabaseDashboardStore.tags.delete(tagToDelete).catch((error) => {
         console.warn("Supabase 태그 삭제에 실패했습니다.", error);
+        showSyncNotice("태그 삭제를 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -2228,8 +2286,11 @@ function App() {
       }
     }));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.profiles.updateEmoji(personId, emoji).catch((error) => {
+      supabaseDashboardStore.profiles.updateEmoji(personId, emoji).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 계정 이모지는 로컬에만 저장됐습니다.");
+      }).catch((error) => {
         console.warn("Supabase 프로필 이모지 저장에 실패했습니다.", error);
+        showSyncNotice("프로필 이모지를 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -2254,8 +2315,11 @@ function App() {
         name: cleanProfile.name,
         title: cleanProfile.role,
         profileEmoji: cleanProfile.emoji
+      }).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 계정 프로필은 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 프로필 저장에 실패했습니다.", error);
+        showSyncNotice("프로필 변경을 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -2271,8 +2335,11 @@ function App() {
       }
     }));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.profiles.updateAdministration(personId, patch).catch((error) => {
+      supabaseDashboardStore.profiles.updateAdministration(personId, patch).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 계정 권한 변경은 로컬에만 저장됐습니다.");
+      }).catch((error) => {
         console.warn("Supabase 사용자 권한 저장에 실패했습니다.", error);
+        showSyncNotice("사용자 권한 변경을 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -2531,6 +2598,12 @@ function App() {
       </aside>
 
       <main className="workspace">
+        {syncNotice && (
+          <div className="sync-notice" role="status">
+            <Info size={14} />
+            <span>{syncNotice}</span>
+          </div>
+        )}
         <header className="topbar">
           <div>
             <h1>연구기획그룹-전략 업무 대시보드</h1>

@@ -175,8 +175,10 @@ Recent UI/UX refinements from the latest session:
   - Calendar event create/edit/delete writes team/personal events to Supabase; personal events are tied to a real user UUID.
   - Profile name/title/emoji editing writes to Supabase for real auth users.
   - Admin user-management UI can edit permission role, team-list visibility, and active state.
-  - Local migration `supabase/migrations/002_admin_user_management.sql` grants the additional `users` update columns required by that admin UI.
-  - Pending live DB step: apply `002_admin_user_management.sql` to the Supabase project. The connector currently exposed migration listing but not migration application in this turn.
+  - Live migration `admin_user_management_grants` is applied; the matching local file is `supabase/migrations/002_admin_user_management.sql`.
+  - Live migration `task_recurring_columns` is applied; the matching local file is `supabase/migrations/003_task_recurring_columns.sql`.
+  - Visible recurring source tasks now round-trip their recurrence rule directly through `tasks` columns, while future generated instances can still use `recurring_template_id`.
+  - The app shows a short top-of-workspace sync notice when Supabase writes fail or when sample-only prototype records remain local.
   - Important transition guardrail: static sample people like `lead`, `seoyeon`, and `junho` are not auth users, so their prototype tasks intentionally remain local until those people sign up.
 
 ## Completed Work

@@ -95,6 +95,14 @@ Backend integration should not store view-only fields as team data. Treat these 
 | archived_at | timestamp | no | Main board/timeline hide flag. |
 | archived_by | text fk users.id | no | Audit. |
 | recurring_template_id | text fk recurring_task_templates.id | no | Source template for generated instances. |
+| recurring_frequency | enum | no | Visible recurring source task rule: `weekly`, `monthly`, `quarterly`. |
+| recurring_interval | integer | no | Repeat every N weeks/months/quarters. |
+| recurring_weekdays | integer[] | no | Weekly repeat days. Empty for monthly/quarterly rules. |
+| recurring_start_date | date | no | Repeat rule start date for the visible source task. |
+| recurring_end_date | date | no | Repeat rule end date unless `recurring_no_end` is true. |
+| recurring_no_end | boolean | yes | True when the recurring rule continues indefinitely. |
+| recurring_rule_detail | text | no | Human-readable recurrence summary. |
+| recurring_duration_days | integer | yes | Planned work duration for each recurrence. |
 | created_at | timestamp | yes | Audit. |
 | updated_at | timestamp | yes | Audit. |
 

@@ -189,5 +189,7 @@ After the first admin login and initial Supabase connection:
 - Empty Supabase task/calendar tables preserve prototype data during migration so the UI remains usable.
 - First write paths exist for shared tags, page-scoped memos, profile name/title/emoji, UUID-backed tasks, task status, due-date change history, update logs, links, archive/delete, subtask progress, and calendar event create/edit/delete.
 - Admin user-management UI exists for permission role, team-list visibility, and active-state changes.
-- Local migration `supabase/migrations/002_admin_user_management.sql` grants the additional `users` update columns required by admin user-management. Apply it to the live Supabase project before relying on those admin updates in production.
+- Live migration `admin_user_management_grants` has been applied. The matching local file is `supabase/migrations/002_admin_user_management.sql`, which grants the additional `users` update columns required by admin user-management.
+- Live migration `task_recurring_columns` has been applied. The matching local file is `supabase/migrations/003_task_recurring_columns.sql`, which stores the visible recurring task rule directly on `tasks` so the existing board/timeline/recurring UI can round-trip rules without a separate worker.
+- The UI now shows a short in-app sync notice when a Supabase write fails or when a prototype-only sample item is kept local.
 - Transition limitation: static sample people are not auth users. Their prototype tasks remain local until those people sign up and receive real UUID profiles.

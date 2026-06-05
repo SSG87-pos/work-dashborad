@@ -58,6 +58,14 @@ create table public.tasks (
   archived_at timestamptz,
   archived_by uuid references public.users(id),
   recurring_template_id uuid,
+  recurring_frequency public.recurring_frequency,
+  recurring_interval integer check (recurring_interval >= 1),
+  recurring_weekdays integer[] not null default '{}',
+  recurring_start_date date,
+  recurring_end_date date,
+  recurring_no_end boolean not null default false,
+  recurring_rule_detail text,
+  recurring_duration_days integer not null default 1 check (recurring_duration_days between 1 and 31),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -184,6 +192,7 @@ create index tasks_owner_status_idx on public.tasks(owner_id, status);
 create index tasks_due_date_idx on public.tasks(due_date);
 create index tasks_start_date_idx on public.tasks(start_date);
 create index tasks_archived_at_idx on public.tasks(archived_at) where archived_at is not null;
+create index tasks_recurring_frequency_idx on public.tasks(recurring_frequency) where recurring_frequency is not null;
 create index subtasks_task_sort_idx on public.subtasks(task_id, sort_order);
 create index task_updates_task_created_idx on public.task_updates(task_id, created_at desc);
 create index task_updates_author_created_idx on public.task_updates(author_id, created_at desc);

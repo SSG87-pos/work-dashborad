@@ -6,7 +6,22 @@ function isUuid(value) {
   return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+function recurringFrequencyToDb(value) {
+  if (value === "매주") return "weekly";
+  if (value === "매월") return "monthly";
+  if (value === "분기") return "quarterly";
+  return null;
+}
+
+function recurringFrequencyFromDb(value) {
+  if (value === "weekly") return "매주";
+  if (value === "monthly") return "매월";
+  if (value === "quarterly") return "분기";
+  return null;
+}
+
 function toTaskRow(task, userMap) {
+  const recurringFrequency = recurringFrequencyToDb(task.recurring);
   const row = {
     title: task.title,
     description: task.description || null,
@@ -23,7 +38,15 @@ function toTaskRow(task, userMap) {
     progress_before_complete: task.progressBeforeComplete ?? null,
     progress: Number.isFinite(Number(task.progress)) ? Number(task.progress) : 0,
     archived_at: task.archived ? new Date().toISOString() : null,
-    recurring_template_id: isUuid(task.recurringTemplateId) ? task.recurringTemplateId : null
+    recurring_template_id: isUuid(task.recurringTemplateId) ? task.recurringTemplateId : null,
+    recurring_frequency: recurringFrequency,
+    recurring_interval: recurringFrequency ? Math.max(1, Number(task.recurringInterval) || 1) : null,
+    recurring_weekdays: recurringFrequency === "weekly" ? (task.recurringWeekdays ?? []) : [],
+    recurring_start_date: recurringFrequency ? task.recurringStartDate || task.startDate || TODAY : null,
+    recurring_end_date: recurringFrequency && !task.recurringNoEnd ? task.recurringEndDate || task.dueDate || null : null,
+    recurring_no_end: Boolean(recurringFrequency && task.recurringNoEnd),
+    recurring_rule_detail: recurringFrequency ? task.recurringDetail || null : null,
+    recurring_duration_days: recurringFrequency ? Math.max(1, Number(task.recurringDurationDays) || 1) : 1
   };
   if (isUuid(task.id)) row.id = task.id;
   return row;
@@ -35,6 +58,7 @@ function canPersistTask(task) {
 
 function fromTaskRow(row, relations = {}) {
   const tags = relations.tags ?? [];
+  const recurring = recurringFrequencyFromDb(row.recurring_frequency);
   return {
     id: row.id,
     title: row.title,
@@ -57,14 +81,14 @@ function fromTaskRow(row, relations = {}) {
     archived: Boolean(row.archived_at),
     createdAt: row.created_at?.slice(0, 10) ?? row.start_date,
     isNewAssignment: false,
-    recurring: null,
-    recurringDetail: "",
-    recurringInterval: 1,
-    recurringWeekdays: [],
-    recurringStartDate: row.start_date,
-    recurringEndDate: "",
-    recurringNoEnd: false,
-    recurringDurationDays: 1,
+    recurring,
+    recurringDetail: row.recurring_rule_detail ?? "",
+    recurringInterval: row.recurring_interval ?? 1,
+    recurringWeekdays: row.recurring_weekdays ?? [],
+    recurringStartDate: row.recurring_start_date ?? row.start_date,
+    recurringEndDate: row.recurring_end_date ?? "",
+    recurringNoEnd: Boolean(row.recurring_no_end),
+    recurringDurationDays: row.recurring_duration_days ?? 1,
     isRecurringInstance: Boolean(row.recurring_template_id),
     recurringTemplateId: row.recurring_template_id ?? undefined,
     links: relations.links ?? [],

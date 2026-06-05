@@ -190,9 +190,11 @@ Privacy rule: personal notes are visible only to owner_id and admin.
 
 ## Recurring Work
 
+The current app keeps the visible recurring source item in `tasks` and stores its repeat rule on that same task row (`recurring_frequency`, interval, weekdays, start/end, no-end, rule detail, duration). Future generated instances can still point back to a source through `recurring_template_id`.
+
 ### recurring_task_templates
 
-Stores the repeat definition separate from generated task instances.
+Reserved for a later automation worker if recurring generation needs a separate scheduler-managed template table.
 
 | Field | Type | Notes |
 | --- | --- | --- |
