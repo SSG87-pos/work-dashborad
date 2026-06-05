@@ -8680,7 +8680,12 @@ body[data-page="team"] .briefing-panel {
   height: auto !important;
   max-height: none;
   overflow: visible !important;
+  border-radius: var(--radius) !important;
   scrollbar-gutter: auto;
+}
+
+.timeline-toolbar {
+  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
 }
 
 .timeline-grid {
@@ -8688,6 +8693,7 @@ body[data-page="team"] .briefing-panel {
   overflow-y: visible;
   scrollbar-gutter: auto;
   background: #fff;
+  border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px);
   padding-top: 0;
 }
 
@@ -8718,6 +8724,14 @@ body[data-page="team"] .briefing-panel {
 
 .timeline-axis + .timeline-row {
   margin-top: 2px;
+}
+
+.timeline-grid > .timeline-empty {
+  margin: 14px 14px 16px !important;
+  border: 1px solid #e6edf5;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 16px 18px;
 }
 
 .timeline-track {
