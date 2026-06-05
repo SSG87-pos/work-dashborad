@@ -197,6 +197,11 @@
   - Done: applied live migration `grant_data_api_table_access` and added the same grant section to the local migration file.
   - Note: RLS still controls row access; the grants only allow the Data API role to reach the tables.
 
+- [x] Promote the first administrator after signup.
+  - First admin email: `seulgis@posco.com`.
+  - Done: applied live migration `promote_first_admin`, setting `permission_role = 'admin'`, `title = '관리자'`, and `is_team_member = false`.
+  - Verification: Supabase migration list includes `promote_first_admin`.
+
 ## Later
 
 - [x] Connect to an actual Supabase project.
@@ -204,22 +209,22 @@
   - Done: project URL and publishable key were configured in ignored `.env.local`; initial schema/RLS migration applied.
   - Still needed from 슬기님: sign up once with `seulgis@posco.com`, then promote that user to admin.
 
-- [ ] Promote the first administrator after signup.
-  - First admin email: `seulgis@posco.com`.
-  - Verify: signup creates the user as `member`, then admin promotion changes `public.users.permission_role` to `admin`.
-
 - [ ] Implement server-side permission enforcement after backend choice.
   - UI-only restrictions currently exist but are not secure.
   - Enforce admin/lead/member rules in API/table policies.
   - Include audit fields for status, due date, archive, delete, recurring stop, and update logs.
 
-- [ ] Build real authentication.
-  - Decide email/password vs internal SSO.
-  - Preserve current account/profile/emoji/admin concepts as UX references.
-
 - [ ] Convert localStorage JSON data to backend migration/import flow.
   - Current adapter: `src/storage.js`.
   - Target: replace storage boundary without mixing network calls directly into view components.
+
+- [ ] Wire shared task, tag, calendar, memo CRUD to Supabase.
+  - Current state: real auth/session works, but the dashboard still renders prototype/local task data.
+  - Next scope: load users/tags/tasks/calendar/memos from Supabase after login, then replace write paths incrementally.
+
+- [ ] Decide internal login/SSO timeline.
+  - Email/password is active for the first version.
+  - Future company login can map into the same `public.users` profile table.
 
 - [ ] Decide long-term fate of `prototype.html`.
   - Options: keep as legacy reference, move to `legacy/`, or remove before production handoff.

@@ -447,6 +447,7 @@ Validation notes:
     - `20260605105710 initial_dashboard_core_schema`
     - `20260605105800 initial_dashboard_rls_policies`
     - `grant_data_api_table_access` was later applied to manually grant Data API table privileges because automatic table exposure was disabled
+    - `promote_first_admin` promoted `seulgis@posco.com` to admin after signup
   - real Supabase login/signup UI now appears when env values are configured
   - browser check confirmed the login/signup tabs render and missing-session state no longer shows an error
 
@@ -458,7 +459,7 @@ Validation notes:
 - Current persistence is browser-local only. It is not multi-user yet.
 - Supabase schema/RLS is applied, but CRUD wiring is not complete yet.
 - Manual Data API grants are applied; keep `supabase/migrations/001_initial_dashboard_schema.sql` grant section in sync if new tables are added while automatic table exposure stays disabled.
-- First admin account still needs a real signup with `seulgis@posco.com`, followed by admin promotion.
+- First admin account `seulgis@posco.com` has been promoted to admin.
 - Supabase store is partially wired for auth/session only; task CRUD still uses the local prototype state.
 - Full emoji support is not installed yet. The current picker is a prototype; install and wire `emoji-picker-react` during the production implementation stage after dependency approval.
 - `prototype.html` is not feature parity and should not drive future implementation.
@@ -476,5 +477,5 @@ AGENTS.md, HANDOFF.md, TODO.md에서 계속 진행에 필요한 부분만 확인
 
 프로젝트는 `/Users/seulgi/Documents/work-dashboard`의 `연구기획그룹-전략` 업무 대시보드 React/Vite 프로토타입이다. 대표 구현은 `src/App.jsx`, `src/data.js`, `src/styles.css`, `src/storage.js`이며, `prototype.html`은 레거시 참고용이다.
 
-다음 우선순위는 슬기님이 `seulgis@posco.com`으로 회원가입을 완료한 뒤 해당 계정을 admin으로 승격하고, task/tags/calendar CRUD를 Supabase 테이블에 연결하는 것이다. 그 전까지는 localStorage fallback과 현재 UI 동작을 유지해야 한다. 변경 후 `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`와 가능한 브라우저 시각 검증을 수행해줘. 실제 프로덕션 전에는 별도로 수동 키보드 QA도 진행해야 한다.
+다음 우선순위는 task/tags/calendar/memo CRUD를 Supabase 테이블에 연결하는 것이다. 현재는 실제 auth/session과 admin 승격까지 완료됐고, 대시보드 업무 데이터는 아직 localStorage/prototype 상태를 사용한다. localStorage fallback과 현재 UI 동작을 유지하면서 Supabase read path부터 연결하고, 변경 후 `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`와 가능한 브라우저 시각 검증을 수행해줘. 실제 프로덕션 전에는 별도로 수동 키보드 QA도 진행해야 한다.
 ```
