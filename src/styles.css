@@ -10156,6 +10156,20 @@ body[data-page="team"] .briefing-panel {
   justify-self: end;
 }
 
+.agenda-date-chip {
+  overflow: hidden;
+  justify-self: end;
+  max-width: 124px;
+  color: #64748b;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 560;
+  line-height: 1.2;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .agenda-status-chip.status-risk {
   border-color: #ffd6de;
   background: #fff5f7;
@@ -10238,6 +10252,11 @@ body[data-page="team"] .briefing-panel {
   padding: 0 5px !important;
   font-size: 9.5px !important;
   font-weight: 560 !important;
+}
+
+.agenda-date-chip {
+  font-size: 10px !important;
+  font-weight: 540 !important;
 }
 
 .calendar-legend {

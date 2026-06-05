@@ -645,7 +645,9 @@ function todayAgendaFor(tasks, events, personId, isTeam) {
       label: "팀",
       title: event.title,
       actor: "공유",
-      meta: eventStartDate(event) === eventEndDate(event) ? event.note || "팀 공유 일정" : eventRangeLabel(event)
+      dateText: eventRangeLabel(event),
+      isRange: eventStartDate(event) !== eventEndDate(event),
+      meta: event.note || ""
     }));
   const personalEvents = events
     .filter((event) => eventSpansDate(event, TODAY) && event.scope === "personal" && event.ownerId === personId)
@@ -655,7 +657,9 @@ function todayAgendaFor(tasks, events, personId, isTeam) {
       label: "개인",
       title: event.title,
       actor: personName(event.ownerId),
-      meta: eventStartDate(event) === eventEndDate(event) ? event.note || "개인 일정" : eventRangeLabel(event)
+      dateText: eventRangeLabel(event),
+      isRange: eventStartDate(event) !== eventEndDate(event),
+      meta: event.note || ""
     }));
   return [...todayTasks, ...teamEvents, ...personalEvents].slice(0, 6);
 }
@@ -3739,9 +3743,10 @@ function BriefingPanel({ briefing, briefingFeedbackKey, isTeam, note, onNoteChan
                   <span className="agenda-item-top">
                     <small>{item.actor ? `${item.label}/${item.actor}` : item.label}</small>
                     {item.status && <b className={`agenda-status-chip status-${item.statusTone}`}>{item.statusLabel}</b>}
+                    {!item.status && item.isRange && item.dateText && <em className="agenda-date-chip">{item.dateText}</em>}
                   </span>
                   <strong>{item.title}</strong>
-                  {!item.status && <em>{item.meta}</em>}
+                  {!item.status && !item.isRange && item.meta && <em>{item.meta}</em>}
                 </div>
               ))
             ) : (
