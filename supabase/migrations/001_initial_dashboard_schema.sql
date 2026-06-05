@@ -513,3 +513,25 @@ create policy preferences_owner on public.user_preferences
 insert into public.dashboard_memos (page_key, body)
 values ('my', ''), ('team', '')
 on conflict (page_key) do nothing;
+
+-- Data API table grants are manual because "Automatically expose new tables" is disabled.
+-- RLS policies above still decide which rows each authenticated user can access.
+grant usage on schema public to anon, authenticated;
+
+grant select on public.users to authenticated;
+grant update (name, title, profile_emoji, updated_at) on public.users to authenticated;
+
+grant select, insert on public.tags to authenticated;
+grant update, delete on public.tags to authenticated;
+
+grant select, insert, update, delete on public.tasks to authenticated;
+grant select, insert, update, delete on public.subtasks to authenticated;
+grant select, insert on public.task_change_history to authenticated;
+grant select, insert on public.task_updates to authenticated;
+grant select, insert, update, delete on public.task_links to authenticated;
+grant select, insert, update, delete on public.task_tags to authenticated;
+grant select, insert, update, delete on public.calendar_events to authenticated;
+grant select, insert, update, delete on public.dashboard_memos to authenticated;
+grant select, insert, update, delete on public.personal_notes to authenticated;
+grant select, insert, update, delete on public.recurring_task_templates to authenticated;
+grant select, insert, update, delete on public.user_preferences to authenticated;

@@ -88,6 +88,9 @@ Current local project values:
 - Applied live migrations:
   - `20260605105710 initial_dashboard_core_schema`
   - `20260605105800 initial_dashboard_rls_policies`
+  - `grant_data_api_table_access`
+
+Because `Automatically expose new tables` is disabled, every new public table that should be available through `supabase-js` needs explicit grants for the Data API roles. RLS policies still control row-level access after those grants.
 
 ## Permission Notes
 

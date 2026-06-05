@@ -446,6 +446,7 @@ Validation notes:
   - applied two live migrations through the Supabase connector:
     - `20260605105710 initial_dashboard_core_schema`
     - `20260605105800 initial_dashboard_rls_policies`
+    - `grant_data_api_table_access` was later applied to manually grant Data API table privileges because automatic table exposure was disabled
   - real Supabase login/signup UI now appears when env values are configured
   - browser check confirmed the login/signup tabs render and missing-session state no longer shows an error
 
@@ -456,6 +457,7 @@ Validation notes:
 - Current auth/admin/permission behavior is UI-only and localStorage-backed until the Supabase project is connected. It is not secure yet.
 - Current persistence is browser-local only. It is not multi-user yet.
 - Supabase schema/RLS is applied, but CRUD wiring is not complete yet.
+- Manual Data API grants are applied; keep `supabase/migrations/001_initial_dashboard_schema.sql` grant section in sync if new tables are added while automatic table exposure stays disabled.
 - First admin account still needs a real signup with `seulgis@posco.com`, followed by admin promotion.
 - Supabase store is partially wired for auth/session only; task CRUD still uses the local prototype state.
 - Full emoji support is not installed yet. The current picker is a prototype; install and wire `emoji-picker-react` during the production implementation stage after dependency approval.

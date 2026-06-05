@@ -192,6 +192,11 @@
   - Done: added `.env.local` locally and excluded env files in `.gitignore`; applied Supabase migrations `initial_dashboard_core_schema` and `initial_dashboard_rls_policies`; added real email/password login and signup UI when Supabase env values are present.
   - Verification: Supabase migration list shows both migrations; browser showed the real login/signup form without a missing-session error; build passed.
 
+- [x] Fix Supabase Data API grants after disabling automatic table exposure.
+  - Issue: signup/login reached `permission denied for table users` because RLS policies existed but the `authenticated` API role had not been granted table privileges.
+  - Done: applied live migration `grant_data_api_table_access` and added the same grant section to the local migration file.
+  - Note: RLS still controls row access; the grants only allow the Data API role to reach the tables.
+
 ## Later
 
 - [x] Connect to an actual Supabase project.
