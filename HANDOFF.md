@@ -177,9 +177,12 @@ Recent UI/UX refinements from the latest session:
   - Admin user-management UI can edit permission role, team-list visibility, and active state.
   - Live migration `admin_user_management_grants` is applied; the matching local file is `supabase/migrations/002_admin_user_management.sql`.
   - Live migration `task_recurring_columns` is applied; the matching local file is `supabase/migrations/003_task_recurring_columns.sql`.
+  - Live migration `team_roster_pre_auth` is applied; the matching local file is `supabase/migrations/004_team_roster_pre_auth.sql`.
+  - Live migration `roster_task_permissions` is applied; the matching local file is `supabase/migrations/005_roster_task_permissions.sql`.
+  - Admins can maintain assignee roster rows with expected signup emails before teammates have accounts. Tasks and calendar events can save against roster assignees, and later signup with the matching email links the roster to the real auth user.
   - Visible recurring source tasks now round-trip their recurrence rule directly through `tasks` columns, while future generated instances can still use `recurring_template_id`.
   - The app shows a short top-of-workspace sync notice when Supabase writes fail or when sample-only prototype records remain local.
-  - Important transition guardrail: static sample people like `lead`, `seoyeon`, and `junho` are not auth users, so their prototype tasks intentionally remain local until those people sign up.
+  - Important transition guardrail: roster-assigned tasks use the signed-in admin/lead as the auth owner for RLS while displaying/filtering by roster id until the teammate signs up.
 
 ## Completed Work
 

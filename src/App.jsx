@@ -1580,7 +1580,10 @@ function App() {
           permissionRole: profile.permissionRole ?? "member",
           color: profile.color ?? "#2563eb",
           emoji: profile.emoji ?? "🌿",
-          isTeamMember: profile.isTeamMember ?? true
+          isTeamMember: profile.isTeamMember ?? true,
+          isActive: profile.isActive ?? true,
+          expectedEmail: profile.expectedEmail ?? "",
+          authUserId: profile.authUserId ?? ""
         }));
       return [...base, ...extras];
     },
@@ -1902,7 +1905,7 @@ function App() {
         return applyStatusTransition(taskWithHistory, item, selectedPersonId);
       });
     });
-    persistTaskToSupabase(nextTask, nextTask.id);
+    persistTaskToSupabase({ ...nextTask, peopleDirectory: directory }, nextTask.id);
     setSelectedBriefingKey("");
     setSelectedTaskId(nextTask.id);
     setEditingTask(null);
@@ -2005,7 +2008,7 @@ function App() {
     const nextEvent = { ...event, id: event.id || `e-${Date.now()}` };
     setCalendarEvents((current) => [nextEvent, ...current]);
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.events.add(nextEvent)
+      supabaseDashboardStore.events.add({ ...nextEvent, peopleDirectory: directory })
         .then((result) => {
           handleSupabaseWriteResult(result, "일정은 현재 로컬에만 저장됐습니다.");
           if (!result?.id || result.id === nextEvent.id) return;
@@ -2029,7 +2032,7 @@ function App() {
     if (!nextEvent.title) return;
     setCalendarEvents((current) => current.map((item) => (item.id === nextEvent.id ? nextEvent : item)));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.events.update(nextEvent).then((result) => {
+      supabaseDashboardStore.events.update({ ...nextEvent, peopleDirectory: directory }).then((result) => {
         handleSupabaseWriteResult(result, "일정 수정은 현재 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 일정 수정에 실패했습니다.", error);
@@ -2095,7 +2098,7 @@ function App() {
           : item
       );
     setTasks(nextTasks);
-    persistTaskToSupabase(stoppedTask, stoppedTask.id);
+    persistTaskToSupabase({ ...stoppedTask, peopleDirectory: directory }, stoppedTask.id);
     setSelectedBriefingKey("");
     setIsDetailOpen(false);
     if (!nextTasks.some((item) => item.id === selectedTaskId)) {
@@ -2325,17 +2328,31 @@ function App() {
   }
 
   function updateUserAdministration(personId, patch) {
+    const person = directory.find((item) => item.id === personId);
+    const nextPatch = {
+      ...patch,
+      name: patch.name ?? person?.name,
+      title: patch.title ?? person?.role,
+      profileEmoji: patch.profileEmoji ?? person?.emoji,
+      permissionRole: patch.permissionRole ?? person?.permissionRole,
+      isTeamMember: typeof patch.isTeamMember === "boolean" ? patch.isTeamMember : person?.isTeamMember,
+      isActive: typeof patch.isActive === "boolean" ? patch.isActive : person?.isActive,
+      expectedEmail: patch.expectedEmail ?? person?.expectedEmail,
+      authUserId: patch.authUserId ?? person?.authUserId
+    };
     setProfileOverrides((current) => ({
       ...current,
       [personId]: {
         ...(current[personId] ?? {}),
-        ...(patch.permissionRole ? { permissionRole: patch.permissionRole } : {}),
-        ...(typeof patch.isTeamMember === "boolean" ? { isTeamMember: patch.isTeamMember } : {}),
-        ...(typeof patch.isActive === "boolean" ? { isActive: patch.isActive } : {})
+        ...(nextPatch.permissionRole ? { permissionRole: nextPatch.permissionRole } : {}),
+        ...(typeof nextPatch.isTeamMember === "boolean" ? { isTeamMember: nextPatch.isTeamMember } : {}),
+        ...(typeof nextPatch.isActive === "boolean" ? { isActive: nextPatch.isActive } : {}),
+        ...(typeof nextPatch.expectedEmail === "string" ? { expectedEmail: nextPatch.expectedEmail } : {}),
+        ...(typeof nextPatch.authUserId === "string" ? { authUserId: nextPatch.authUserId } : {})
       }
     }));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.profiles.updateAdministration(personId, patch).then((result) => {
+      supabaseDashboardStore.profiles.updateAdministration(personId, nextPatch).then((result) => {
         handleSupabaseWriteResult(result, "샘플 계정 권한 변경은 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 사용자 권한 저장에 실패했습니다.", error);
@@ -3292,6 +3309,20 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
                     <strong>{person.name}</strong>
                     <small>{person.role}</small>
                   </span>
+                  <label className="admin-email-field">
+                    <small>예정 이메일</small>
+                    <input
+                      onBlur={(event) => onUpdateUserAdministration(person.id, { expectedEmail: event.target.value })}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.currentTarget.blur();
+                        }
+                      }}
+                      placeholder="가입 예정 이메일"
+                      type="email"
+                      defaultValue={person.expectedEmail ?? ""}
+                    />
+                  </label>
                   <label>
                     <small>권한</small>
                     <select

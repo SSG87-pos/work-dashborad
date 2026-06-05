@@ -30,6 +30,20 @@ create table public.users (
   updated_at timestamptz not null default now()
 );
 
+create table public.team_roster (
+  id text primary key,
+  expected_email text unique,
+  auth_user_id uuid unique references public.users(id) on delete set null,
+  name text not null,
+  title text not null default '팀원',
+  profile_emoji text not null default '🌿',
+  permission_role public.permission_role not null default 'member',
+  is_team_member boolean not null default true,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table public.tags (
   id uuid primary key default gen_random_uuid(),
   name text unique not null,
@@ -66,6 +80,9 @@ create table public.tasks (
   recurring_no_end boolean not null default false,
   recurring_rule_detail text,
   recurring_duration_days integer not null default 1 check (recurring_duration_days between 1 and 31),
+  owner_roster_id text references public.team_roster(id),
+  assigner_roster_id text references public.team_roster(id),
+  creator_roster_id text references public.team_roster(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -126,6 +143,7 @@ create table public.calendar_events (
   event_date date not null,
   scope public.calendar_scope not null default 'team',
   owner_id uuid references public.users(id),
+  owner_roster_id text references public.team_roster(id),
   note text,
   created_by uuid not null references public.users(id),
   created_at timestamptz not null default now(),
@@ -188,7 +206,10 @@ create table public.user_preferences (
 );
 
 create index users_permission_role_idx on public.users(permission_role);
+create index team_roster_expected_email_idx on public.team_roster(lower(expected_email)) where expected_email is not null;
+create index team_roster_auth_user_idx on public.team_roster(auth_user_id) where auth_user_id is not null;
 create index tasks_owner_status_idx on public.tasks(owner_id, status);
+create index tasks_owner_roster_status_idx on public.tasks(owner_roster_id, status) where owner_roster_id is not null;
 create index tasks_due_date_idx on public.tasks(due_date);
 create index tasks_start_date_idx on public.tasks(start_date);
 create index tasks_archived_at_idx on public.tasks(archived_at) where archived_at is not null;
@@ -212,6 +233,8 @@ end;
 $$;
 
 create trigger users_touch_updated_at before update on public.users
+  for each row execute function public.touch_updated_at();
+create trigger team_roster_touch_updated_at before update on public.team_roster
   for each row execute function public.touch_updated_at();
 create trigger tags_touch_updated_at before update on public.tags
   for each row execute function public.touch_updated_at();
@@ -278,7 +301,13 @@ as $$
   select coalesce(
     public.is_lead_or_admin()
     or task_row.owner_id = auth.uid()
-    or task_row.creator_id = auth.uid(),
+    or task_row.creator_id = auth.uid()
+    or exists (
+      select 1
+      from public.team_roster r
+      where r.id in (task_row.owner_roster_id, task_row.creator_roster_id)
+        and r.auth_user_id = auth.uid()
+    ),
     false
   )
 $$;
@@ -310,6 +339,13 @@ begin
   )
   on conflict (id) do nothing;
 
+  update public.team_roster
+  set auth_user_id = new.id,
+      updated_at = now()
+  where expected_email is not null
+    and lower(expected_email) = lower(new.email)
+    and auth_user_id is null;
+
   return new;
 end;
 $$;
@@ -319,6 +355,7 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_auth_user();
 
 alter table public.users enable row level security;
+alter table public.team_roster enable row level security;
 alter table public.tags enable row level security;
 alter table public.tasks enable row level security;
 alter table public.subtasks enable row level security;
@@ -347,6 +384,23 @@ create policy users_update_self_profile on public.users
       and is_active = public.current_user_is_active()
     )
   );
+
+create policy team_roster_read_active on public.team_roster
+  for select to authenticated
+  using (is_active or public.is_admin());
+
+create policy team_roster_insert_admin on public.team_roster
+  for insert to authenticated
+  with check (public.is_admin());
+
+create policy team_roster_update_admin on public.team_roster
+  for update to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+create policy team_roster_delete_admin on public.team_roster
+  for delete to authenticated
+  using (public.is_admin());
 
 create policy tags_read_all on public.tags
   for select to authenticated
@@ -529,6 +583,7 @@ grant usage on schema public to anon, authenticated;
 
 grant select on public.users to authenticated;
 grant update (name, title, profile_emoji, updated_at) on public.users to authenticated;
+grant select, insert, update, delete on public.team_roster to authenticated;
 
 grant select, insert on public.tags to authenticated;
 grant update, delete on public.tags to authenticated;

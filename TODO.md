@@ -215,7 +215,9 @@
   - Done: applied live Supabase migration `admin_user_management_grants`, so admin permission/team/active updates can persist through the Data API.
   - Done: added a short in-app sync notice for Supabase write failures and prototype-only local saves across task, tag, calendar, profile, and admin update paths.
   - Done: applied live Supabase migration `task_recurring_columns` and wired `src/supabaseStore.js` so visible recurring source tasks can save/read interval, weekdays, start/end, no-end, rule detail, and duration.
-  - Guardrail: prototype tasks assigned to temporary local users remain local until those people create real accounts, because Supabase task ownership is auth-user UUID based.
+  - Done: applied live Supabase migration `team_roster_pre_auth`; admins can maintain pre-signup assignee roster rows with expected signup emails, and tasks/calendar events can save against those roster assignees before teammates create login accounts.
+  - Done: applied live Supabase migration `roster_task_permissions`; after a signup email links to a roster row, that teammate can manage tasks pre-created for their roster identity.
+  - Guardrail: roster-assigned tasks use the signed-in admin/lead as the auth owner for RLS while displaying and filtering by `owner_roster_id`; future signup with matching email links the roster row to the real auth user.
   - Build: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed.
 
 ## Later
@@ -235,8 +237,8 @@
   - Target: replace storage boundary without mixing network calls directly into view components.
 
 - [ ] Finish remaining Supabase CRUD parity.
-  - Done already: auth/session, profile name/title/emoji, preferences, page memos, tags, first task writes, recurring rule persistence on visible source tasks, status/log/link/archive/delete/subtask progress, calendar event create/edit/delete, admin user-management UI, live admin-management grants, and user-facing sync feedback.
-  - Next scope: generated recurring instance persistence/automation, calendar event permission nuance/role testing with multiple real accounts, and approved prototype-data import once real team accounts exist.
+  - Done already: auth/session, pre-signup team roster, profile name/title/emoji, preferences, page memos, tags, first task writes, recurring rule persistence on visible source tasks, status/log/link/archive/delete/subtask progress, calendar event create/edit/delete, admin user-management UI, live admin-management grants, and user-facing sync feedback.
+  - Next scope: richer roster management UI, generated recurring instance persistence/automation, calendar event permission nuance/role testing with multiple real accounts, and approved prototype-data import if needed.
 
 - [ ] Decide internal login/SSO timeline.
   - Email/password is active for the first version.

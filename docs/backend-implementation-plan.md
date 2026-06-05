@@ -191,5 +191,7 @@ After the first admin login and initial Supabase connection:
 - Admin user-management UI exists for permission role, team-list visibility, and active-state changes.
 - Live migration `admin_user_management_grants` has been applied. The matching local file is `supabase/migrations/002_admin_user_management.sql`, which grants the additional `users` update columns required by admin user-management.
 - Live migration `task_recurring_columns` has been applied. The matching local file is `supabase/migrations/003_task_recurring_columns.sql`, which stores the visible recurring task rule directly on `tasks` so the existing board/timeline/recurring UI can round-trip rules without a separate worker.
+- Live migration `team_roster_pre_auth` has been applied. The matching local file is `supabase/migrations/004_team_roster_pre_auth.sql`, which lets admins create assignee roster rows with expected signup emails before teammates have accounts.
+- Live migration `roster_task_permissions` has been applied. The matching local file is `supabase/migrations/005_roster_task_permissions.sql`, which lets a linked teammate manage pre-created tasks assigned to their roster row.
 - The UI now shows a short in-app sync notice when a Supabase write fails or when a prototype-only sample item is kept local.
-- Transition limitation: static sample people are not auth users. Their prototype tasks remain local until those people sign up and receive real UUID profiles.
+- Transition note: tasks can now save against roster assignees before signup. When a teammate signs up with the expected email, the roster row links to the real auth user automatically.

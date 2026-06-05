@@ -22,6 +22,24 @@ Stores login identity and profile information.
 | created_at | datetime | Audit field. |
 | updated_at | datetime | Audit field. |
 
+### team_roster
+
+Stores team members before or after signup. This lets the dashboard run with real assignees before every teammate has a login account.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| id | string | Stable roster id used by existing task data, such as `seoyeon`. |
+| expected_email | string nullable | Email the person is expected to use when signing up. |
+| auth_user_id | user id nullable | Linked `users.id` after signup. |
+| name | string | Display name. |
+| title | string | Team title. |
+| profile_emoji | string | Emoji avatar. |
+| permission_role | enum | admin, lead, member. |
+| is_team_member | boolean | Whether to show in team composition and assignee lists. |
+| is_active | boolean | Inactive roster rows remain available for history. |
+
+If a teammate signs up with an email matching `expected_email`, the auth trigger links `team_roster.auth_user_id` automatically.
+
 ### role_permissions
 
 Can be static config at first.
@@ -58,6 +76,9 @@ One row is one accountable unit of work. When two or more people share work, cre
 | archived_at | datetime nullable | Hidden from main board when set. |
 | archived_by | user id nullable | Audit field. |
 | recurring_template_id | string nullable | Links generated recurring instances. |
+| owner_roster_id | roster id nullable | Main assignee before or after signup. Takes display precedence over owner_id. |
+| assigner_roster_id | roster id nullable | Internal roster assigner when known. |
+| creator_roster_id | roster id nullable | Roster person who registered the task. |
 | created_at | datetime | Audit field. |
 | updated_at | datetime | Audit field. |
 

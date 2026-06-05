@@ -20,15 +20,21 @@ function recurringFrequencyFromDb(value) {
   return null;
 }
 
-function toTaskRow(task, userMap) {
+function toTaskRow(task, currentUserId) {
   const recurringFrequency = recurringFrequencyToDb(task.recurring);
+  const ownerIsUser = isUuid(task.ownerId);
+  const creatorIsUser = isUuid(task.creatorId);
+  const assignerIsUser = isUuid(task.assignerId);
   const row = {
     title: task.title,
     description: task.description || null,
-    owner_id: userMap.get(task.ownerId) ?? task.ownerId,
+    owner_id: ownerIsUser ? task.ownerId : currentUserId,
+    owner_roster_id: ownerIsUser ? null : task.ownerId,
     assigner_type: task.assignerType || "개인",
-    assigner_id: isUuid(task.assignerId) ? userMap.get(task.assignerId) ?? task.assignerId : null,
-    creator_id: userMap.get(task.creatorId) ?? userMap.get(task.ownerId) ?? task.creatorId,
+    assigner_id: assignerIsUser ? task.assignerId : null,
+    assigner_roster_id: assignerIsUser ? null : task.assignerId || null,
+    creator_id: creatorIsUser ? task.creatorId : currentUserId,
+    creator_roster_id: creatorIsUser ? null : task.creatorId || task.ownerId,
     status: task.status || "계획",
     priority: task.priority || "보통",
     start_date: task.startDate || TODAY,
@@ -53,7 +59,7 @@ function toTaskRow(task, userMap) {
 }
 
 function canPersistTask(task) {
-  return isUuid(task.ownerId) && isUuid(task.creatorId || task.ownerId);
+  return Boolean(task.ownerId);
 }
 
 function fromTaskRow(row, relations = {}) {
@@ -63,10 +69,10 @@ function fromTaskRow(row, relations = {}) {
     id: row.id,
     title: row.title,
     description: row.description ?? "",
-    ownerId: row.owner_id,
+    ownerId: row.owner_roster_id ?? row.owner_id,
     assignerType: row.assigner_type,
-    assignerId: row.assigner_id ?? row.owner_id,
-    creatorId: row.creator_id,
+    assignerId: row.assigner_roster_id ?? row.assigner_id ?? row.owner_roster_id ?? row.owner_id,
+    creatorId: row.creator_roster_id ?? row.creator_id,
     status: row.status,
     priority: row.priority,
     category: tags[0] ?? "운영",
@@ -110,6 +116,21 @@ function fromUserRow(row) {
   };
 }
 
+function fromRosterRow(row) {
+  return {
+    id: row.id,
+    authUserId: row.auth_user_id ?? "",
+    expectedEmail: row.expected_email ?? "",
+    name: row.name,
+    role: row.title,
+    permissionRole: row.permission_role,
+    color: "#2563eb",
+    emoji: row.profile_emoji,
+    isTeamMember: row.is_team_member,
+    isActive: row.is_active
+  };
+}
+
 function toProfileOverrides(users) {
   return Object.fromEntries(
     users.map((user) => [
@@ -120,10 +141,37 @@ function toProfileOverrides(users) {
         permissionRole: user.permissionRole,
         emoji: user.emoji,
         isTeamMember: user.isTeamMember,
-        isActive: user.isActive
+        isActive: user.isActive,
+        expectedEmail: user.expectedEmail,
+        authUserId: user.authUserId
       }
     ])
   );
+}
+
+function rosterIdFor(personId) {
+  return isUuid(personId) ? null : personId;
+}
+
+async function ensureRosterPeople(client, ids, directory = [], currentUser) {
+  const rosterIds = Array.from(new Set(ids.map(rosterIdFor).filter(Boolean)));
+  if (!rosterIds.length || currentUser?.permissionRole !== "admin") return;
+  const rows = rosterIds.map((id) => {
+    const person = directory.find((item) => item.id === id);
+    return {
+      id,
+      expected_email: person?.expectedEmail?.trim() || null,
+      auth_user_id: isUuid(person?.authUserId) ? person.authUserId : null,
+      name: person?.name || id,
+      title: person?.role || "팀원",
+      profile_emoji: person?.emoji || "🌿",
+      permission_role: person?.permissionRole || "member",
+      is_team_member: person?.isTeamMember !== false,
+      is_active: person?.isActive !== false
+    };
+  });
+  const { error } = await client.from("team_roster").upsert(rows, { onConflict: "id" });
+  if (error) throw error;
 }
 
 async function readCurrentUser(client) {
@@ -157,6 +205,7 @@ async function readDashboardState() {
 
   const [
     usersResult,
+    rosterResult,
     tagsResult,
     tasksResult,
     subtasksResult,
@@ -171,6 +220,9 @@ async function readDashboardState() {
     (currentUser.permissionRole === "admin"
       ? client.from("users").select("*").order("name", { ascending: true })
       : client.from("users").select("*").eq("is_active", true).order("name", { ascending: true })),
+    (currentUser.permissionRole === "admin"
+      ? client.from("team_roster").select("*").order("name", { ascending: true })
+      : client.from("team_roster").select("*").eq("is_active", true).order("name", { ascending: true })),
     client.from("tags").select("*").order("name", { ascending: true }),
     client.from("tasks").select("*").order("due_date", { ascending: true }),
     client.from("subtasks").select("*").order("sort_order", { ascending: true }),
@@ -183,7 +235,7 @@ async function readDashboardState() {
     client.from("user_preferences").select("*").eq("user_id", currentUser.id).maybeSingle()
   ]);
 
-  [usersResult, tagsResult, tasksResult, subtasksResult, updatesResult, linksResult, historyResult, taskTagsResult, eventsResult, memosResult].forEach((result) => {
+  [usersResult, rosterResult, tagsResult, tasksResult, subtasksResult, updatesResult, linksResult, historyResult, taskTagsResult, eventsResult, memosResult].forEach((result) => {
     if (result.error) throw result.error;
   });
   if (preferencesResult.error) throw preferencesResult.error;
@@ -233,6 +285,13 @@ async function readDashboardState() {
   });
 
   const preferences = preferencesResult.data ?? {};
+  const rosterProfiles = rosterResult.data.map(fromRosterRow);
+  const userProfiles = usersResult.data.map(fromUserRow);
+  const linkedRosterAuthIds = new Set(rosterProfiles.map((person) => person.authUserId).filter(Boolean));
+  const mergedProfiles = [
+    ...rosterProfiles,
+    ...userProfiles.filter((person) => !linkedRosterAuthIds.has(person.id))
+  ];
   return createDashboardSnapshot({
     tasks: tasksResult.data.map((task) => fromTaskRow(task, ensureRelations(task.id))),
     availableTags: tagsResult.data.map((tag) => tag.name),
@@ -241,7 +300,7 @@ async function readDashboardState() {
       title: event.title,
       date: event.event_date,
       scope: event.scope,
-      ownerId: event.owner_id,
+      ownerId: event.owner_roster_id ?? event.owner_id,
       note: event.note ?? ""
     })),
     isAuthenticated: true,
@@ -255,7 +314,7 @@ async function readDashboardState() {
     timelineYear: preferences.timeline_year ?? TODAY.slice(0, 4),
     selectedTaskId: preferences.selected_task_id ?? "",
     memoByPage: Object.fromEntries(memosResult.data.map((memo) => [memo.page_key, memo.body])),
-    profileOverrides: toProfileOverrides(usersResult.data.map(fromUserRow))
+    profileOverrides: toProfileOverrides(mergedProfiles)
   });
 }
 
@@ -350,7 +409,25 @@ async function updateProfileEmoji(userId, emoji) {
 }
 
 async function updateUserAdministration(userId, adminPatch) {
-  if (!isUuid(userId)) return { skipped: true };
+  if (!isUuid(userId)) {
+    const client = requireSupabaseClient();
+    const currentUser = await readCurrentUser(client);
+    if (!currentUser || currentUser.permissionRole !== "admin") return { skipped: true };
+    const patch = {
+      id: userId,
+      name: adminPatch.name?.trim() || userId,
+      title: adminPatch.title?.trim() || "팀원",
+      profile_emoji: adminPatch.profileEmoji?.trim() || "🌿",
+      permission_role: adminPatch.permissionRole || "member",
+      is_team_member: typeof adminPatch.isTeamMember === "boolean" ? adminPatch.isTeamMember : true,
+      is_active: typeof adminPatch.isActive === "boolean" ? adminPatch.isActive : true,
+      expected_email: adminPatch.expectedEmail?.trim() || null,
+      auth_user_id: isUuid(adminPatch.authUserId) ? adminPatch.authUserId : null
+    };
+    const { error } = await client.from("team_roster").upsert(patch, { onConflict: "id" });
+    if (error) throw error;
+    return true;
+  }
   const patch = {};
   if (adminPatch.permissionRole) patch.permission_role = adminPatch.permissionRole;
   if (typeof adminPatch.isTeamMember === "boolean") patch.is_team_member = adminPatch.isTeamMember;
@@ -423,8 +500,13 @@ async function saveTask(task) {
   const client = requireSupabaseClient();
   const currentUser = await readCurrentUser(client);
   if (!currentUser || !canPersistTask(task)) return { skipped: true, reason: "requires-real-users" };
-  const userMap = new Map();
-  const row = toTaskRow({ ...task, creatorId: task.creatorId || currentUser.id }, userMap);
+  await ensureRosterPeople(
+    client,
+    [task.ownerId, task.creatorId, task.assignerId],
+    task.peopleDirectory ?? [],
+    currentUser
+  );
+  const row = toTaskRow({ ...task, creatorId: task.creatorId || currentUser.id }, currentUser.id);
   const previousTask = isUuid(task.id)
     ? await client.from("tasks").select("due_date").eq("id", task.id).maybeSingle()
     : { data: null, error: null };
@@ -619,12 +701,14 @@ async function addCalendarEvent(event) {
   const currentUser = await readCurrentUser(client);
   if (!currentUser) return { skipped: true };
   const scope = event.scope === "personal" ? "personal" : "team";
+  await ensureRosterPeople(client, [event.ownerId], event.peopleDirectory ?? [], currentUser);
   const ownerId = isUuid(event.ownerId) ? event.ownerId : scope === "personal" ? currentUser.id : null;
   const row = {
     title: event.title.trim(),
     event_date: event.date || TODAY,
     scope,
     owner_id: ownerId,
+    owner_roster_id: rosterIdFor(event.ownerId),
     note: event.note?.trim() || null,
     created_by: currentUser.id
   };
@@ -639,6 +723,7 @@ async function updateCalendarEvent(event) {
   const currentUser = await readCurrentUser(client);
   if (!currentUser) return { skipped: true };
   const scope = event.scope === "personal" ? "personal" : "team";
+  await ensureRosterPeople(client, [event.ownerId], event.peopleDirectory ?? [], currentUser);
   const ownerId = isUuid(event.ownerId) ? event.ownerId : scope === "personal" ? currentUser.id : null;
   const { error } = await client
     .from("calendar_events")
@@ -647,6 +732,7 @@ async function updateCalendarEvent(event) {
       event_date: event.date || TODAY,
       scope,
       owner_id: ownerId,
+      owner_roster_id: rosterIdFor(event.ownerId),
       note: event.note?.trim() || null,
       updated_at: new Date().toISOString()
     })

@@ -73,6 +73,22 @@ Backend integration should not store view-only fields as team data. Treat these 
 | created_at | timestamp | yes | Audit. |
 | updated_at | timestamp | yes | Audit. |
 
+### team_roster
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable roster id that can exist before signup. |
+| expected_email | text unique | no | Email expected for future signup and automatic linking. |
+| auth_user_id | text fk users.id | no | Linked login profile after signup. |
+| name | text | yes | Display name. |
+| title | text | yes | Team title. |
+| profile_emoji | text | yes | Emoji avatar. |
+| permission_role | enum | yes | `admin`, `lead`, `member`. |
+| is_team_member | boolean | yes | False for non-team/admin-only entries. |
+| is_active | boolean | yes | Inactive roster rows remain available for history. |
+| created_at | timestamp | yes | Audit. |
+| updated_at | timestamp | yes | Audit. |
+
 ### tasks
 
 | Column | Type | Required | Notes |
@@ -103,6 +119,9 @@ Backend integration should not store view-only fields as team data. Treat these 
 | recurring_no_end | boolean | yes | True when the recurring rule continues indefinitely. |
 | recurring_rule_detail | text | no | Human-readable recurrence summary. |
 | recurring_duration_days | integer | yes | Planned work duration for each recurrence. |
+| owner_roster_id | text fk team_roster.id | no | Display assignee before/after signup. |
+| assigner_roster_id | text fk team_roster.id | no | Roster assigner before/after signup. |
+| creator_roster_id | text fk team_roster.id | no | Roster creator before/after signup. |
 | created_at | timestamp | yes | Audit. |
 | updated_at | timestamp | yes | Audit. |
 
