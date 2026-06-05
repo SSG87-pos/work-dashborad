@@ -8965,6 +8965,58 @@ body[data-page="team"] .briefing-panel {
   font-weight: 680;
 }
 
+.tag-filter-chip.tag-category-member {
+  position: relative;
+  padding-left: 12px;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), #f8fafc 42%);
+}
+
+.tag-filter-chip.tag-category-member::before {
+  content: "";
+  width: 4px;
+  align-self: stretch;
+  min-height: 15px;
+  border-radius: 999px;
+  background: #93c5fd;
+  margin-left: -4px;
+}
+
+.tag-filter-chip.tag-category-member.preset-report {
+  border-color: #a9c5f4;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.1), #f8fafc 44%);
+}
+
+.tag-filter-chip.tag-category-member.preset-report::before {
+  background: #60a5fa;
+}
+
+.tag-filter-chip.tag-category-member.preset-strategy {
+  border-color: #cdb8f0;
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.1), #f8fafc 44%);
+}
+
+.tag-filter-chip.tag-category-member.preset-strategy::before {
+  background: #a78bfa;
+}
+
+.tag-filter-chip.tag-category-member.preset-research {
+  border-color: #9ed9b8;
+  background: linear-gradient(90deg, rgba(22, 163, 74, 0.1), #f8fafc 44%);
+}
+
+.tag-filter-chip.tag-category-member.preset-research::before {
+  background: #22c55e;
+}
+
+.tag-filter-chip.tag-category-member.preset-operations {
+  border-color: #efc987;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.11), #f8fafc 44%);
+}
+
+.tag-filter-chip.tag-category-member.preset-operations::before {
+  background: #f59e0b;
+}
+
 .tag-name-button {
   font-weight: 720;
 }
@@ -10984,7 +11036,7 @@ body[data-page="team"] .briefing-panel {
 }
 
 .tag-preset-edit-panel {
-  grid-template-columns: auto minmax(150px, 220px) minmax(220px, 1fr) auto auto;
+  grid-template-columns: auto minmax(150px, 220px) minmax(220px, 1fr) auto auto auto;
 }
 
 .tag-preset-edit-panel input {

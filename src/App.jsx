@@ -75,9 +75,9 @@ const statusStickerLabels = {
 const defaultAvailableTags = normalizeTags([...categories.filter((item) => item !== "전체"), ...tagOptions]);
 const defaultTagFilterPresets = [
   { id: "preset:planning-report", label: "기획/임원보고", tags: ["기획보고", "임원보고"], tone: "report" },
-  { id: "preset:strategy", label: "전략/투자 묶음", tags: ["전략과제", "투자검토", "시장동향"], tone: "strategy" },
-  { id: "preset:research", label: "조사/근거 묶음", tags: ["자료조사", "외부자료", "정책"], tone: "research" },
-  { id: "preset:operations", label: "운영/KPI 묶음", tags: ["월간보고", "회의체", "운영", "KPI"], tone: "operations" }
+  { id: "preset:strategy", label: "전략/투자", tags: ["전략과제", "투자검토", "시장동향"], tone: "strategy" },
+  { id: "preset:research", label: "조사/근거", tags: ["자료조사", "외부자료", "정책"], tone: "research" },
+  { id: "preset:operations", label: "운영/KPI", tags: ["월간보고", "회의체", "운영", "KPI"], tone: "operations" }
 ];
 const viewOptions = ["board", "timeline", "calendar", "recurring", "archive", "updates", "performance"];
 const fullPageViews = ["calendar", "updates", "performance"];
@@ -1930,7 +1930,9 @@ function App() {
 
   function saveTask(task, options = {}) {
     const isNew = !task.id;
-    const shouldChooseRecurringScope = !isNew && task.recurring && !options.recurringScope;
+    const previousTask = isNew ? null : tasks.find((item) => item.id === task.id);
+    const isRecurringRuleEdit = Boolean(task.recurring || previousTask?.recurring) && !task.recurringTemplateId;
+    const shouldChooseRecurringScope = !isNew && isRecurringRuleEdit && !options.recurringScope;
     if (shouldChooseRecurringScope) {
       setPendingRecurringSave({ task });
       return;
@@ -2283,8 +2285,8 @@ function App() {
     });
     if (isSupabaseReady && isAuthenticated) {
       supabaseDashboardStore.tags.saveGroup(nextGroup).catch((error) => {
-        console.warn("Supabase 태그 묶음 저장에 실패했습니다.", error);
-        showSyncNotice("태그 묶음 저장은 마이그레이션 적용 후 Supabase에 반영됩니다.");
+        console.warn("Supabase 태그 Category 저장에 실패했습니다.", error);
+        showSyncNotice("태그 Category 저장은 마이그레이션 적용 후 Supabase에 반영됩니다.");
       });
     }
   }
@@ -2295,8 +2297,8 @@ function App() {
     if (category === groupId) setCategory("전체");
     if (isSupabaseReady && isAuthenticated) {
       supabaseDashboardStore.tags.deleteGroup(groupId).catch((error) => {
-        console.warn("Supabase 태그 묶음 삭제에 실패했습니다.", error);
-        showSyncNotice("태그 묶음 삭제는 마이그레이션 적용 후 Supabase에 반영됩니다.");
+        console.warn("Supabase 태그 Category 삭제에 실패했습니다.", error);
+        showSyncNotice("태그 Category 삭제는 마이그레이션 적용 후 Supabase에 반영됩니다.");
       });
     }
   }
@@ -2914,9 +2916,9 @@ function App() {
                   <Filter size={16} />
                   <select aria-label="태그 필터" onChange={(event) => setCategory(event.target.value)} value={category}>
                     <option value="전체">태그: 전체</option>
-                    <optgroup label="묶음">
+                    <optgroup label="Category">
                       {tagGroups.map((preset) => (
-                        <option key={preset.id} value={preset.id}>묶음: {preset.label}</option>
+                        <option key={preset.id} value={preset.id}>Category: {preset.label}</option>
                       ))}
                     </optgroup>
                     <optgroup label="태그">
@@ -3687,6 +3689,7 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
   const [isAddingPreset, setIsAddingPreset] = useState(false);
   const [presetDraft, setPresetDraft] = useState({ id: "", label: "", tagsText: "" });
   const activePreset = presets.find((preset) => preset.id === activeTag);
+  const presetForTag = (tag) => presets.find((preset) => preset.tags.includes(tag));
 
   function submitTag(event) {
     event.preventDefault();
@@ -3704,6 +3707,12 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
     if (preset) {
       setPresetDraft({ id: preset.id, label: preset.label, tagsText: preset.tags.join(", ") });
     }
+  }
+
+  function closePresetEditor() {
+    setIsAddingPreset(false);
+    setPresetDraft({ id: "", label: "", tagsText: "" });
+    onFilter("전체");
   }
 
   function submitEdit(event) {
@@ -3740,8 +3749,8 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
           태그 추가는 모두 가능하고, 수정/삭제는 관리자만 가능합니다.
         </small>
       </div>
-      <div className="tag-preset-row" aria-label="태그 묶음">
-        <small>묶음</small>
+      <div className="tag-preset-row" aria-label="태그 Category">
+        <small>Category</small>
         {presets.map((preset) => (
           <button
             className={`tag-preset-chip preset-${preset.tone} ${activeTag === preset.id ? "active" : ""}`}
@@ -3764,27 +3773,27 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
             type="button"
           >
             <Plus size={13} />
-            묶음
+            Category
           </button>
         )}
       </div>
       {canManageTags && isAddingPreset && (
         <form className="tag-edit-panel tag-preset-edit-panel" onSubmit={submitPreset}>
-          <span>새 묶음</span>
+          <span>새 Category</span>
           <input
-            aria-label="태그 묶음 이름"
+            aria-label="태그 Category 이름"
             onChange={(event) => setPresetDraft((current) => ({ ...current, label: event.target.value }))}
-            placeholder="묶음 이름"
+            placeholder="Category 이름"
             value={presetDraft.label}
           />
           <input
-            aria-label="묶음 포함 태그"
+            aria-label="Category 포함 태그"
             onChange={(event) => setPresetDraft((current) => ({ ...current, tagsText: event.target.value }))}
             placeholder="기획보고, 임원보고"
             value={presetDraft.tagsText}
           />
           <button type="submit">저장</button>
-          <button onClick={() => setIsAddingPreset(false)} type="button">취소</button>
+          <button onClick={closePresetEditor} type="button">닫기</button>
         </form>
       )}
       <div className="tag-library-body">
@@ -3797,9 +3806,10 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
         </button>
         {tags.map((tag) => (
           <button
-            className={`tag-filter-chip tag-tone-${tagTone(tag)} ${activeTag === tag ? "active" : ""}`}
+            className={`tag-filter-chip tag-tone-${tagTone(tag)} ${presetForTag(tag) ? `tag-category-member preset-${presetForTag(tag).tone}` : ""} ${activeTag === tag ? "active" : ""}`}
             key={tag}
             onClick={() => selectTag(tag)}
+            title={presetForTag(tag) ? `Category: ${presetForTag(tag).label}` : tag}
             type="button"
           >
             {tag}
@@ -3853,9 +3863,9 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
       )}
       {canManageTags && activePreset && (
         <form className="tag-edit-panel tag-preset-edit-panel" onSubmit={submitPreset}>
-          <span>선택한 묶음</span>
+          <span>선택한 Category</span>
           <input
-            aria-label={`${activePreset.label} 묶음 이름 수정`}
+            aria-label={`${activePreset.label} Category 이름 수정`}
             onChange={(event) => setPresetDraft((current) => ({ ...current, id: activePreset.id, tagsText: current.tagsText || activePreset.tags.join(", "), label: event.target.value }))}
             value={presetDraft.id === activePreset.id ? presetDraft.label : activePreset.label}
           />
@@ -3876,6 +3886,7 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
           >
             삭제
           </button>
+          <button onClick={closePresetEditor} type="button">닫기</button>
         </form>
       )}
     </section>
