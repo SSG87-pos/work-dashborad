@@ -440,6 +440,14 @@ Validation notes:
   - added a top-bar status pill: `로컬 저장` when env values are missing, `Supabase 준비` when present
   - updated `vite.config.js` to split `supabase` and `vendor` chunks
   - build passed after the integration scaffold
+- Live Supabase project connection:
+  - project confirmed: `work-dashboard`, id/ref `nbefvcrcfwacvnohtsmy`, region `ap-northeast-1`
+  - local `.env.local` was created with the project URL and publishable key and is ignored by Git
+  - applied two live migrations through the Supabase connector:
+    - `20260605105710 initial_dashboard_core_schema`
+    - `20260605105800 initial_dashboard_rls_policies`
+  - real Supabase login/signup UI now appears when env values are configured
+  - browser check confirmed the login/signup tabs render and missing-session state no longer shows an error
 
 ## Risks and Notes
 
@@ -447,8 +455,9 @@ Validation notes:
 - `src/styles.css` is large and still contains layered overrides. A small cleanup pass has started, but production hardening should continue by moving feature sections into clearer layers or CSS modules.
 - Current auth/admin/permission behavior is UI-only and localStorage-backed until the Supabase project is connected. It is not secure yet.
 - Current persistence is browser-local only. It is not multi-user yet.
-- Supabase schema/RLS is drafted but not applied. It must be tested in an actual Supabase project before wiring the React app to it.
-- Supabase store is scaffolded but not wired into App state yet because project URL, anon key, and migration execution are still missing.
+- Supabase schema/RLS is applied, but CRUD wiring is not complete yet.
+- First admin account still needs a real signup with `seulgis@posco.com`, followed by admin promotion.
+- Supabase store is partially wired for auth/session only; task CRUD still uses the local prototype state.
 - Full emoji support is not installed yet. The current picker is a prototype; install and wire `emoji-picker-react` during the production implementation stage after dependency approval.
 - `prototype.html` is not feature parity and should not drive future implementation.
 - Avoid adding dependencies unless necessary; network is restricted.
@@ -465,5 +474,5 @@ AGENTS.md, HANDOFF.md, TODO.md에서 계속 진행에 필요한 부분만 확인
 
 프로젝트는 `/Users/seulgi/Documents/work-dashboard`의 `연구기획그룹-전략` 업무 대시보드 React/Vite 프로토타입이다. 대표 구현은 `src/App.jsx`, `src/data.js`, `src/styles.css`, `src/storage.js`이며, `prototype.html`은 레거시 참고용이다.
 
-다음 우선순위는 Supabase 프로젝트 URL, anon key, 첫 관리자 이메일을 받아 실제 프로젝트에 migration을 적용하고 App 초기화를 Supabase auth/session 기반으로 전환하는 것이다. 그 전까지는 localStorage fallback을 유지해야 한다. 변경 후 `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`와 가능한 브라우저 시각 검증을 수행해줘. 실제 프로덕션 전에는 별도로 수동 키보드 QA도 진행해야 한다.
+다음 우선순위는 슬기님이 `seulgis@posco.com`으로 회원가입을 완료한 뒤 해당 계정을 admin으로 승격하고, task/tags/calendar CRUD를 Supabase 테이블에 연결하는 것이다. 그 전까지는 localStorage fallback과 현재 UI 동작을 유지해야 한다. 변경 후 `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`와 가능한 브라우저 시각 검증을 수행해줘. 실제 프로덕션 전에는 별도로 수동 키보드 QA도 진행해야 한다.
 ```

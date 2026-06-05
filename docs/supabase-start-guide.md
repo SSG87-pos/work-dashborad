@@ -79,6 +79,16 @@ VITE_SUPABASE_ANON_KEY=
 
 Never commit service role keys or database passwords to the frontend repo.
 
+Current local project values:
+
+- Supabase project: `work-dashboard`
+- Project ref: `nbefvcrcfwacvnohtsmy`
+- URL: `https://nbefvcrcfwacvnohtsmy.supabase.co`
+- First admin email: `seulgis@posco.com`
+- Applied live migrations:
+  - `20260605105710 initial_dashboard_core_schema`
+  - `20260605105800 initial_dashboard_rls_policies`
+
 ## Permission Notes
 
 - New signups default to `member`.

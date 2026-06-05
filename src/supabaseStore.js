@@ -98,7 +98,11 @@ function toProfileOverrides(users) {
 
 async function readCurrentUser(client) {
   const { data: authData, error: authError } = await client.auth.getUser();
-  if (authError) throw authError;
+  if (authError) {
+    const message = authError.message?.toLowerCase() ?? "";
+    if (message.includes("session") && message.includes("missing")) return null;
+    throw authError;
+  }
   if (!authData.user) return null;
 
   const { data: profile, error: profileError } = await client
@@ -108,6 +112,11 @@ async function readCurrentUser(client) {
     .single();
   if (profileError) throw profileError;
   return fromUserRow(profile);
+}
+
+async function getCurrentProfile() {
+  if (!supabaseConfig.isConfigured) return null;
+  return readCurrentUser(requireSupabaseClient());
 }
 
 async function readDashboardState() {
@@ -290,6 +299,7 @@ export const supabaseDashboardStore = {
   write: writeUserPreferences,
   clear: signOut,
   auth: {
+    getCurrentProfile,
     signInWithPassword,
     signUpWithPassword,
     signOut

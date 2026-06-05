@@ -187,13 +187,21 @@
   - Done: installed `@supabase/supabase-js`, added a Supabase client that only activates when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` exist, added first auth/read/preference store scaffolding, kept localStorage as the active fallback, added a top-bar local/Supabase status pill, and split Supabase/vendor bundles in Vite.
   - Verification: build passed on `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`; no actual secret values were added.
 
+- [x] Connect the local app to the real Supabase project and apply initial DB schema.
+  - Project: `work-dashboard` at `https://nbefvcrcfwacvnohtsmy.supabase.co`.
+  - Done: added `.env.local` locally and excluded env files in `.gitignore`; applied Supabase migrations `initial_dashboard_core_schema` and `initial_dashboard_rls_policies`; added real email/password login and signup UI when Supabase env values are present.
+  - Verification: Supabase migration list shows both migrations; browser showed the real login/signup form without a missing-session error; build passed.
+
 ## Later
 
-- [ ] Connect to an actual Supabase project.
+- [x] Connect to an actual Supabase project.
   - Read first: `docs/supabase-start-guide.md`, `supabase/migrations/001_initial_dashboard_schema.sql`, `docs/backend-api-spec.md`, `docs/permission-rules.md`.
-  - Needed from 슬기님: Supabase project URL, anon key, and first administrator email.
-  - Verify: migration applies, signup creates `member` users, first admin can be promoted, and RLS policies allow/deny the intended actions.
-  - Next code step after credentials: switch App initialization from local-only read to async Supabase session bootstrap, then wire real email/password login/signup.
+  - Done: project URL and publishable key were configured in ignored `.env.local`; initial schema/RLS migration applied.
+  - Still needed from 슬기님: sign up once with `seulgis@posco.com`, then promote that user to admin.
+
+- [ ] Promote the first administrator after signup.
+  - First admin email: `seulgis@posco.com`.
+  - Verify: signup creates the user as `member`, then admin promotion changes `public.users.permission_role` to `admin`.
 
 - [ ] Implement server-side permission enforcement after backend choice.
   - UI-only restrictions currently exist but are not secure.

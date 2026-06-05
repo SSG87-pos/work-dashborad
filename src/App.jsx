@@ -43,6 +43,7 @@ import {
 import { TODAY, assignerTypes, categories, initialCalendarEvents, initialTasks, people, statuses, tagOptions } from "./data.js";
 import { localDashboardStore } from "./storage.js";
 import { supabaseConfig } from "./supabaseClient.js";
+import { supabaseDashboardStore } from "./supabaseStore.js";
 
 const dayMs = 24 * 60 * 60 * 1000;
 const boardStatuses = ["검토/대기", "계획", "진행중", "완료", "보류"];
@@ -171,7 +172,7 @@ function persistedOption(value, options, fallback) {
 }
 
 function persistedPerson(value) {
-  return people.some((person) => person.id === value) ? value : "seoyeon";
+  return typeof value === "string" && value ? value : "seoyeon";
 }
 
 function persistedObject(value) {
@@ -1519,6 +1520,7 @@ function dashboardSummary(tasks, activePage, selectedPersonId) {
 
 function App() {
   const persisted = useMemo(localDashboardStore.read, []);
+  const isSupabaseReady = supabaseConfig.isConfigured;
   const importInputRef = useRef(null);
   const detailColumnRef = useRef(null);
   const initialPersistedTasks = useMemo(() => persistedArray(persisted.tasks, initialTasks), [persisted]);
@@ -1534,7 +1536,9 @@ function App() {
   const initialProfileOverrides = useMemo(() => persistedObject(persisted.profileOverrides), [persisted]);
   const [tasks, setTasks] = useState(initialPersistedTasks);
   const [selectedPersonId, setSelectedPersonId] = useState(() => persistedPerson(persisted.selectedPersonId));
-  const [isAuthenticated, setIsAuthenticated] = useState(() => persisted.isAuthenticated !== false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => isSupabaseReady ? false : persisted.isAuthenticated !== false);
+  const [authStatus, setAuthStatus] = useState(isSupabaseReady ? "checking" : "local");
+  const [authMessage, setAuthMessage] = useState("");
   const [category, setCategory] = useState(() => persistedTag(persisted.category, initialPersistedTags));
   const [priorityFilter, setPriorityFilter] = useState(() => persistedOption(persisted.priorityFilter, priorityFilters, "전체"));
   const [query, setQuery] = useState("");
@@ -1560,7 +1564,22 @@ function App() {
   const workflowDetailColumnRef = useRef(null);
 
   const directory = useMemo(
-    () => people.map((person) => ({ ...person, ...(profileOverrides[person.id] ?? {}) })),
+    () => {
+      const baseIds = new Set(people.map((person) => person.id));
+      const base = people.map((person) => ({ ...person, ...(profileOverrides[person.id] ?? {}) }));
+      const extras = Object.entries(profileOverrides)
+        .filter(([id]) => !baseIds.has(id))
+        .map(([id, profile]) => ({
+          id,
+          name: profile.name ?? "새 사용자",
+          role: profile.role ?? "팀원",
+          permissionRole: profile.permissionRole ?? "member",
+          color: profile.color ?? "#2563eb",
+          emoji: profile.emoji ?? "🌿",
+          isTeamMember: profile.isTeamMember ?? true
+        }));
+      return [...base, ...extras];
+    },
     [profileOverrides]
   );
   peopleDirectory = directory;
@@ -1608,6 +1627,7 @@ function App() {
   ).length;
 
   useEffect(() => {
+    if (isSupabaseReady) return;
     const nextState = {
       version: 1,
       tasks,
@@ -1640,10 +1660,44 @@ function App() {
     priorityFilter,
     memoByPage,
     tasks,
+    isSupabaseReady,
     timelineMode,
     timelineMonth,
     timelineYear
   ]);
+
+  useEffect(() => {
+    if (!isSupabaseReady) return undefined;
+    let cancelled = false;
+    setAuthStatus("checking");
+    supabaseDashboardStore.auth.getCurrentProfile()
+      .then((profile) => {
+        if (cancelled) return;
+        if (!profile) {
+          setIsAuthenticated(false);
+          setAuthStatus("signed-out");
+          return;
+        }
+        setProfileOverrides((current) => ({
+          ...current,
+          [profile.id]: profile
+        }));
+        setSelectedPersonId(profile.id);
+        setActivePage("team");
+        setIsAuthenticated(true);
+        setAuthStatus("signed-in");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.warn("Supabase 세션 확인에 실패했습니다.", error);
+        setIsAuthenticated(false);
+        setAuthStatus("signed-out");
+        setAuthMessage("Supabase 세션을 확인하지 못했습니다. 다시 로그인해 주세요.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSupabaseReady]);
 
   useEffect(() => {
     document.body.dataset.page = activePage;
@@ -1897,6 +1951,43 @@ function App() {
     closeTaskDetail();
   }
 
+  async function authenticateWithSupabase(payload) {
+    if (!isSupabaseReady) return;
+    setAuthStatus("submitting");
+    setAuthMessage("");
+    try {
+      if (payload.mode === "signup") {
+        await supabaseDashboardStore.auth.signUpWithPassword({
+          email: payload.email,
+          password: payload.password,
+          name: payload.name,
+          profileEmoji: payload.profileEmoji
+        });
+        setAuthMessage("회원가입 요청이 완료됐습니다. 이메일 확인이 켜져 있다면 메일 인증 후 로그인해 주세요.");
+      } else {
+        await supabaseDashboardStore.auth.signInWithPassword(payload.email, payload.password);
+      }
+      const profile = await supabaseDashboardStore.auth.getCurrentProfile();
+      if (profile) {
+        setProfileOverrides((current) => ({
+          ...current,
+          [profile.id]: profile
+        }));
+        setSelectedPersonId(profile.id);
+        setActivePage("team");
+        setActiveView("board");
+        setIsAuthenticated(true);
+        setAuthStatus("signed-in");
+        return;
+      }
+      setIsAuthenticated(false);
+      setAuthStatus("signed-out");
+    } catch (error) {
+      setAuthStatus("signed-out");
+      setAuthMessage(error.message || "로그인 처리 중 문제가 생겼습니다.");
+    }
+  }
+
   function loginAs(personId) {
     const nextPerson = peopleDirectory.find((person) => person.id === personId);
     if (!nextPerson) return;
@@ -1916,9 +2007,17 @@ function App() {
     setSelectedTaskId(tasks.find((task) => !task.archived && task.ownerId === personId)?.id ?? tasks.find((task) => !task.archived)?.id ?? tasks[0]?.id ?? "");
   }
 
-  function logout() {
+  async function logout() {
+    if (isSupabaseReady) {
+      try {
+        await supabaseDashboardStore.auth.signOut();
+      } catch (error) {
+        console.warn("Supabase 로그아웃에 실패했습니다.", error);
+      }
+    }
     setIsAuthenticated(false);
     setIsAccountOpen(false);
+    setAuthStatus(isSupabaseReady ? "signed-out" : "local");
   }
 
   function updateProfileEmoji(personId, emoji) {
@@ -2058,7 +2157,16 @@ function App() {
   }
 
   if (!isAuthenticated) {
-    return <LoginScreen people={directory} onLogin={loginAs} />;
+    return (
+      <LoginScreen
+        authMessage={authMessage}
+        authStatus={authStatus}
+        isSupabaseReady={isSupabaseReady}
+        onLogin={loginAs}
+        onSupabaseAuth={authenticateWithSupabase}
+        people={directory}
+      />
+    );
   }
 
   const hasTaskDetail = isDetailOpen && Boolean(selectedTask);
@@ -2615,7 +2723,91 @@ function insertEmojiAtCursor(textareaRef, currentValue, emoji, onChange) {
   });
 }
 
-function LoginScreen({ onLogin, people }) {
+function LoginScreen({ authMessage, authStatus, isSupabaseReady, onLogin, onSupabaseAuth, people }) {
+  const [mode, setMode] = useState("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [profileEmoji, setProfileEmoji] = useState("🌿");
+  const isSubmitting = authStatus === "submitting" || authStatus === "checking";
+
+  function submit(event) {
+    event.preventDefault();
+    if (!isSupabaseReady) return;
+    onSupabaseAuth({
+      mode,
+      email: email.trim(),
+      password,
+      name: name.trim() || email.split("@")[0] || "새 사용자",
+      profileEmoji
+    });
+  }
+
+  if (isSupabaseReady) {
+    return (
+      <main className="login-screen">
+        <section className="login-panel auth-login-panel">
+          <div className="login-copy">
+            <span className="panel-label">연구기획그룹-전략</span>
+            <h1>업무 대시보드 로그인</h1>
+            <p>회사 이메일로 가입하면 기본 팀원으로 들어오고, 관리자 권한은 별도로 지정됩니다.</p>
+          </div>
+
+          <form className="auth-form" onSubmit={submit}>
+            <div className="auth-mode-tabs" role="tablist" aria-label="로그인 방식">
+              <button className={mode === "signin" ? "active" : ""} onClick={() => setMode("signin")} type="button">
+                로그인
+              </button>
+              <button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")} type="button">
+                회원가입
+              </button>
+            </div>
+
+            {mode === "signup" && (
+              <label className="auth-field">
+                <span>이름</span>
+                <input autoComplete="name" onChange={(event) => setName(event.target.value)} placeholder="예: 김서연" value={name} />
+              </label>
+            )}
+
+            <label className="auth-field">
+              <span>이메일</span>
+              <input autoComplete="email" onChange={(event) => setEmail(event.target.value)} placeholder="seulgis@posco.com" type="email" value={email} />
+            </label>
+
+            <label className="auth-field">
+              <span>비밀번호</span>
+              <input autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={6} onChange={(event) => setPassword(event.target.value)} placeholder="6자 이상" type="password" value={password} />
+            </label>
+
+            {mode === "signup" && (
+              <div className="auth-emoji-row">
+                <span>프로필 이모지</span>
+                <EmojiPopover
+                  selectedEmoji={profileEmoji}
+                  onSelect={setProfileEmoji}
+                  triggerLabel="가입 프로필 이모지 선택"
+                  triggerClassName="profile-emoji-trigger"
+                />
+              </div>
+            )}
+
+            {authMessage && <p className="auth-message">{authMessage}</p>}
+
+            <button className="primary-button auth-submit" disabled={isSubmitting || !email.trim() || !password} type="submit">
+              <LogIn size={17} />
+              {isSubmitting ? "확인 중" : mode === "signup" ? "가입하기" : "로그인"}
+            </button>
+          </form>
+
+          <p className="auth-footnote">
+            첫 관리자 이메일은 `seulgis@posco.com`으로 지정 예정입니다. 가입 후 관리자 승격 SQL을 적용합니다.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="login-screen">
       <section className="login-panel">
