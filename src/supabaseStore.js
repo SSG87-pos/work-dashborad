@@ -43,6 +43,7 @@ function toTaskRow(task, currentUserId) {
     progress_before_complete: task.progressBeforeComplete ?? null,
     progress: Number.isFinite(Number(task.progress)) ? Number(task.progress) : 0,
     archived_at: task.archived ? new Date().toISOString() : null,
+    deleted_at: task.deletedAt ? new Date().toISOString() : null,
     recurring_template_id: isUuid(task.recurringTemplateId) ? task.recurringTemplateId : null,
     recurring_frequency: recurringFrequency,
     recurring_interval: recurringFrequency ? Math.max(1, Number(task.recurringInterval) || 1) : null,
@@ -87,6 +88,7 @@ function fromTaskRow(row, relations = {}) {
     progress: row.progress ?? 0,
     subtasks: relations.subtasks ?? [],
     archived: Boolean(row.archived_at),
+    deletedAt: row.deleted_at?.slice(0, 10) ?? "",
     createdAt: row.created_at?.slice(0, 10) ?? row.start_date,
     isNewAssignment: false,
     recurring,
@@ -153,6 +155,11 @@ function toProfileOverrides(users) {
 
 function rosterIdFor(personId) {
   return isUuid(personId) ? null : personId;
+}
+
+function authUserIdFor(personId, directory = []) {
+  const person = directory.find((item) => item.id === personId);
+  return isUuid(person?.authUserId) ? person.authUserId : null;
 }
 
 async function ensureRosterPeople(client, ids, directory = [], currentUser) {
@@ -314,6 +321,7 @@ async function readDashboardState() {
       endDate: event.end_date ?? event.start_date ?? event.event_date,
       scope: event.scope,
       ownerId: event.owner_roster_id ?? event.owner_id,
+      creatorId: event.created_by,
       note: event.note ?? ""
     })),
     isAuthenticated: true,
@@ -753,7 +761,8 @@ async function addCalendarEvent(event) {
   if (!currentUser) return { skipped: true };
   const scope = event.scope === "personal" ? "personal" : "team";
   await ensureRosterPeople(client, [event.ownerId], event.peopleDirectory ?? [], currentUser);
-  const ownerId = isUuid(event.ownerId) ? event.ownerId : scope === "personal" ? currentUser.id : null;
+  const ownerAuthUserId = authUserIdFor(event.ownerId, event.peopleDirectory ?? []);
+  const ownerId = isUuid(event.ownerId) ? event.ownerId : scope === "personal" ? ownerAuthUserId ?? currentUser.id : null;
   const row = {
     title: event.title.trim(),
     event_date: event.startDate || event.date || TODAY,
@@ -777,7 +786,8 @@ async function updateCalendarEvent(event) {
   if (!currentUser) return { skipped: true };
   const scope = event.scope === "personal" ? "personal" : "team";
   await ensureRosterPeople(client, [event.ownerId], event.peopleDirectory ?? [], currentUser);
-  const ownerId = isUuid(event.ownerId) ? event.ownerId : scope === "personal" ? currentUser.id : null;
+  const ownerAuthUserId = authUserIdFor(event.ownerId, event.peopleDirectory ?? []);
+  const ownerId = isUuid(event.ownerId) ? event.ownerId : scope === "personal" ? ownerAuthUserId ?? currentUser.id : null;
   const { error } = await client
     .from("calendar_events")
     .update({

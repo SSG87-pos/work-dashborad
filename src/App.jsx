@@ -230,6 +230,10 @@ function uniqueById(items) {
   });
 }
 
+function isDeletedTask(task) {
+  return Boolean(task?.deletedAt);
+}
+
 function isISODate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
@@ -280,6 +284,7 @@ function cleanImportedTask(task, index) {
           .filter((subtask) => subtask.title)
       : [],
     archived: Boolean(task.archived),
+    deletedAt: isISODate(task.deletedAt) ? task.deletedAt : "",
     isNewAssignment: false,
     recurring: recurringTypes.includes(task.recurring) ? task.recurring : null,
     recurringDetail: typeof task.recurringDetail === "string" ? task.recurringDetail : "",
@@ -332,6 +337,10 @@ function cleanImportedEvent(event, index) {
   const ownerId = people.some((person) => person.id === event.ownerId && person.isTeamMember !== false)
     ? event.ownerId
     : "lead";
+  const creatorCandidate = event.creatorId || event.createdBy;
+  const creatorId = people.some((person) => person.id === creatorCandidate)
+    ? creatorCandidate
+    : ownerId;
   const startDate = isISODate(event.startDate) ? event.startDate : isISODate(event.date) ? event.date : TODAY;
   const endDateCandidate = isISODate(event.endDate) ? event.endDate : startDate;
   const endDate = diffDays(endDateCandidate, startDate) >= 0 ? endDateCandidate : startDate;
@@ -343,6 +352,7 @@ function cleanImportedEvent(event, index) {
     endDate,
     scope,
     ownerId,
+    creatorId,
     note: typeof event.note === "string" ? event.note : ""
   };
 }
@@ -419,6 +429,10 @@ function eventRangeLabel(event) {
   const start = eventStartDate(event);
   const end = eventEndDate(event);
   return start === end ? formatDate(start) : `${formatDate(start)} - ${formatDate(end)}`;
+}
+
+function eventCreatorId(event) {
+  return event?.creatorId || event?.createdBy || event?.ownerId || "";
 }
 
 function weekdayOf(value) {
@@ -569,7 +583,7 @@ function recurringSchedulePreview(task, completedDueDates = new Set()) {
 }
 
 function recurringOccurrencesInRange(task, rangeStart, rangeEnd, limit = 18) {
-  if (!task.recurring || task.archived || task.isRecurringInstance) return [];
+  if (!task.recurring || task.archived || task.isRecurringInstance || isDeletedTask(task)) return [];
   const occurrences = [];
   recurringDueDates(task, { count: limit, rangeStart, rangeEnd, afterDate: task.dueDate }).forEach((dueDate) => {
     const occurrence = occurrenceFromDueDate(task, dueDate);
@@ -600,7 +614,7 @@ function recurringOccurrencesInRange(task, rangeStart, rangeEnd, limit = 18) {
 
 function tasksWithRecurringInstances(tasks, rangeStart, rangeEnd, limit = 18) {
   return [
-    ...tasks,
+    ...tasks.filter((task) => !isDeletedTask(task)),
     ...tasks.flatMap((task) =>
       recurringOccurrencesInRange(task, rangeStart, rangeEnd, limit).filter(
         (occurrence) =>
@@ -612,7 +626,7 @@ function tasksWithRecurringInstances(tasks, rangeStart, rangeEnd, limit = 18) {
 
 function todayAgendaFor(tasks, events, personId, isTeam) {
   const todayTasks = tasks
-    .filter((task) => !task.archived && task.dueDate === TODAY && (isTeam || task.ownerId === personId))
+    .filter((task) => !isDeletedTask(task) && !task.archived && task.dueDate === TODAY && (isTeam || task.ownerId === personId))
     .map((task) => ({
       id: `task-${task.id}`,
       tone: "task",
@@ -798,6 +812,11 @@ function canManageTaskFor(task, personId) {
   if (!task) return false;
   const role = permissionRole(personId);
   return role === "admin" || role === "lead" || task.ownerId === personId || task.creatorId === personId;
+}
+
+function canAssignPersonalCalendarFor(personId) {
+  const role = permissionRole(personId);
+  return role === "admin" || role === "lead";
 }
 
 function normalizeTags(tags) {
@@ -1488,7 +1507,7 @@ function briefingDueLabel(task) {
 }
 
 function briefingFor(tasks, personId) {
-  const pool = tasks.filter((task) => !task.archived && (!personId || task.ownerId === personId) && task.status !== "완료");
+  const pool = tasks.filter((task) => !isDeletedTask(task) && !task.archived && (!personId || task.ownerId === personId) && task.status !== "완료");
   const used = new Set();
   const pick = (matcher, limit = 2) =>
     pool
@@ -1517,7 +1536,7 @@ function briefingFor(tasks, personId) {
 
 function dashboardSummary(tasks, activePage, selectedPersonId) {
   const scoped = (activePage === "my" ? tasks.filter((task) => task.ownerId === selectedPersonId) : tasks).filter(
-    (task) => !task.archived
+    (task) => !isDeletedTask(task) && !task.archived
   );
   const open = scoped.filter((task) => task.status !== "완료");
   const overdue = open.filter((task) => diffDays(task.dueDate, TODAY) < 0);
@@ -1527,7 +1546,7 @@ function dashboardSummary(tasks, activePage, selectedPersonId) {
   });
   const completed = scoped.filter((task) => task.status === "완료");
   const archived = (activePage === "my" ? tasks.filter((task) => task.ownerId === selectedPersonId) : tasks).filter(
-    (task) => task.archived
+    (task) => !isDeletedTask(task) && task.archived
   );
   const averageProgress = open.length
     ? Math.round(open.reduce((sum, task) => sum + taskProgress(task), 0) / open.length)
@@ -1656,7 +1675,7 @@ function App() {
   const defaultTaskOwnerId = selectedPerson?.isTeamMember === false ? "lead" : selectedPersonId;
   const canManageTags = canManageTagsFor(selectedPersonId);
   const teamMembers = useMemo(() => teamCompositionOrder(teamAssignablePeople(directory)), [directory]);
-  const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId && !isDeletedTask(task)) ?? null;
   const todayAgenda = useMemo(
     () => todayAgendaFor(tasks, calendarEvents, selectedPersonId, activePage === "team"),
     [activePage, calendarEvents, selectedPersonId, tasks]
@@ -1742,6 +1761,7 @@ function App() {
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
+      if (isDeletedTask(task)) return false;
       const tags = taskTags(task);
       const byCategory = matchesTagFilter(tags, category, tagGroups);
       const text = `${task.title} ${task.description} ${tags.join(" ")}`.toLowerCase();
@@ -1767,10 +1787,10 @@ function App() {
     return acc;
   }, {});
   const archiveCount = tasks.filter(
-    (task) => task.archived && (activePage === "team" || task.ownerId === selectedPersonId)
+    (task) => !isDeletedTask(task) && task.archived && (activePage === "team" || task.ownerId === selectedPersonId)
   ).length;
   const recurringCount = tasks.filter(
-    (task) => task.recurring && !task.isRecurringInstance && !task.archived && (activePage === "team" || task.ownerId === selectedPersonId)
+    (task) => !isDeletedTask(task) && task.recurring && !task.isRecurringInstance && !task.archived && (activePage === "team" || task.ownerId === selectedPersonId)
   ).length;
 
   useEffect(() => {
@@ -1925,8 +1945,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (selectedTaskId && tasks.some((task) => task.id === selectedTaskId)) return;
-    setSelectedTaskId(tasks.find((task) => !task.archived)?.id ?? tasks[0]?.id ?? "");
+    if (selectedTaskId && tasks.some((task) => task.id === selectedTaskId && !isDeletedTask(task))) return;
+    setSelectedTaskId(tasks.find((task) => !isDeletedTask(task) && !task.archived)?.id ?? tasks.find((task) => !isDeletedTask(task))?.id ?? "");
   }, [selectedTaskId, tasks]);
 
   function saveTask(task, options = {}) {
@@ -2169,7 +2189,7 @@ function App() {
     setSelectedBriefingKey("");
     if (archived && selectedTaskId === taskId) {
       setIsDetailOpen(false);
-      const nextVisibleTask = tasks.find((task) => task.id !== taskId && !task.archived && task.ownerId === selectedPersonId);
+      const nextVisibleTask = tasks.find((task) => task.id !== taskId && !isDeletedTask(task) && !task.archived && task.ownerId === selectedPersonId);
       if (nextVisibleTask) setSelectedTaskId(nextVisibleTask.id);
     }
   }
@@ -2209,8 +2229,37 @@ function App() {
   function deleteTask(taskId) {
     const task = tasks.find((item) => item.id === taskId);
     if (!task || !canManageTaskFor(task, selectedPersonId)) return;
-    const confirmed = window.confirm(`${displayTaskTitle(task)} 업무를 삭제할까요? 반복업무를 삭제하면 이미 저장된 하위 회차도 함께 삭제됩니다.`);
+    const isRecurringOccurrence = Boolean(task.recurringTemplateId) && !task.recurring;
+    const confirmed = window.confirm(
+      isRecurringOccurrence
+        ? `${displayTaskTitle(task)} 회차만 삭제할까요? 다른 반복 일정과 반복 규칙에는 영향이 없습니다.`
+        : `${displayTaskTitle(task)} 업무를 삭제할까요? 반복업무 원본을 삭제하면 이미 저장된 하위 회차도 함께 삭제됩니다.`
+    );
     if (!confirmed) return;
+    if (isRecurringOccurrence) {
+      const deletedTask = {
+        ...task,
+        archived: true,
+        deletedAt: TODAY,
+        statusHistory: [{
+          date: TODAY,
+          actorId: selectedPersonId,
+          type: "delete",
+          from: task.status,
+          to: "삭제",
+          note: "반복업무 중 선택한 회차만 삭제"
+        }, ...(task.statusHistory ?? [])]
+      };
+      const nextTasks = tasks.map((item) => (item.id === taskId ? deletedTask : item));
+      setTasks(nextTasks);
+      persistTaskToSupabase({ ...deletedTask, peopleDirectory: directory }, deletedTask.id);
+      setSelectedBriefingKey("");
+      setIsDetailOpen(false);
+      const scoped = activePage === "team" ? nextTasks : nextTasks.filter((item) => item.ownerId === selectedPersonId);
+      setSelectedTaskId(scoped.find((item) => !isDeletedTask(item) && !item.archived)?.id ?? nextTasks.find((item) => !isDeletedTask(item) && !item.archived)?.id ?? "");
+      if (editingTask?.id === taskId) closeTaskEditor();
+      return;
+    }
     const nextTasks = tasks.filter((item) => item.id !== taskId && item.recurringTemplateId !== taskId);
     setTasks(nextTasks);
     if (isSupabaseReady && isAuthenticated) {
@@ -2426,12 +2475,12 @@ function App() {
     if (nextPerson.permissionRole === "admin") {
       setActivePage("team");
       setActiveView("board");
-      setSelectedTaskId(tasks.find((task) => !task.archived)?.id ?? tasks[0]?.id ?? "");
+      setSelectedTaskId(tasks.find((task) => !isDeletedTask(task) && !task.archived)?.id ?? tasks.find((task) => !isDeletedTask(task))?.id ?? "");
       return;
     }
     setActivePage("my");
     setActiveView("board");
-    setSelectedTaskId(tasks.find((task) => !task.archived && task.ownerId === personId)?.id ?? tasks.find((task) => !task.archived)?.id ?? tasks[0]?.id ?? "");
+    setSelectedTaskId(tasks.find((task) => !isDeletedTask(task) && !task.archived && task.ownerId === personId)?.id ?? tasks.find((task) => !isDeletedTask(task) && !task.archived)?.id ?? tasks.find((task) => !isDeletedTask(task))?.id ?? "");
   }
 
   async function logout() {
@@ -3046,12 +3095,12 @@ function App() {
                 onAddEvent={addCalendarEvent}
                 onAddLink={addTaskLink}
                 onAddUpdate={addTaskUpdate}
-                onArchive={(task) => toggleArchive(task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id, true)}
+                onArchive={(task) => toggleArchive(task.id, true)}
                 onDeleteEvent={deleteCalendarEvent}
-                onDelete={(task) => deleteTask(task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id)}
-                onEdit={(task) => openTaskEditor(tasks.find((item) => item.id === (task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id)) || task)}
+                onDelete={(task) => deleteTask(task.id)}
+                onEdit={(task) => openTaskEditor(tasks.find((item) => item.id === task.id) || task)}
                 onMonthChange={setTimelineMonth}
-                onRestore={(task) => toggleArchive(task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id, false)}
+                onRestore={(task) => toggleArchive(task.id, false)}
                 onSelectTask={selectTask}
                 onToggleSubtask={toggleSubtask}
                 onUpdateEvent={updateCalendarEvent}
@@ -3096,7 +3145,7 @@ function App() {
                 onAddUpdate={addTaskUpdate}
                 onSelect={selectTask}
                 selectedPersonId={selectedPersonId}
-                tasks={tasks.filter((task) => !task.archived)}
+                tasks={tasks.filter((task) => !isDeletedTask(task) && !task.archived)}
               />
             )}
             {activeView === "performance" && (
@@ -4286,6 +4335,10 @@ function CalendarView({
   selectedPersonId,
   tasks
 }) {
+  const canAssignPersonalCalendar = canAssignPersonalCalendarFor(selectedPersonId);
+  const personalCalendarOwnerOptions = canAssignPersonalCalendar
+    ? teamAssignablePeople()
+    : teamAssignablePeople().filter((person) => person.id === selectedPersonId);
   const [draftEvent, setDraftEvent] = useState({
     title: "",
     date: TODAY,
@@ -4325,6 +4378,8 @@ function CalendarView({
     event.preventDefault();
     const title = draftEvent.title.trim();
     if (!title) return;
+    const scope = draftEvent.scope === "personal" ? "personal" : "team";
+    const ownerId = scope === "personal" ? draftEvent.ownerId || selectedPersonId : selectedPersonId;
     const nextEvent = {
       ...draftEvent,
       id: `e-${Date.now()}`,
@@ -4332,12 +4387,22 @@ function CalendarView({
       date: eventStartDate(draftEvent),
       startDate: eventStartDate(draftEvent),
       endDate: eventEndDate(draftEvent),
-      ownerId: selectedPersonId,
+      scope,
+      ownerId,
+      creatorId: selectedPersonId,
       note: draftEvent.note.trim()
     };
     onAddEvent(nextEvent);
     setSelectedCalendarItem({ type: "event", id: nextEvent.id, event: nextEvent });
-    setDraftEvent((current) => ({ ...current, title: "", date: TODAY, startDate: TODAY, endDate: TODAY, note: "" }));
+    setDraftEvent((current) => ({
+      ...current,
+      title: "",
+      date: TODAY,
+      startDate: TODAY,
+      endDate: TODAY,
+      ownerId: selectedPersonId,
+      note: ""
+    }));
   }
 
   return (
@@ -4346,7 +4411,7 @@ function CalendarView({
         <div>
           <span className="panel-label">Calendar</span>
           <h2>일정 관리</h2>
-          <p className="calendar-help">팀 일정, 개인 일정, 계획된 업무 일정을 함께 관리합니다.</p>
+          <p className="calendar-help">등록된 팀 일정, 개인 일정, 업무 일정을 팀 전체가 함께 확인합니다.</p>
         </div>
         <div className="period-switcher">
           <button onClick={() => changeMonth(-1)} type="button" title="이전 달">
@@ -4393,13 +4458,37 @@ function CalendarView({
           <span>구분</span>
           <select
             aria-label="일정 구분"
-            onChange={(event) => setDraftEvent((current) => ({ ...current, scope: event.target.value }))}
+            onChange={(event) => {
+              const nextScope = event.target.value;
+              setDraftEvent((current) => ({
+                ...current,
+                scope: nextScope,
+                ownerId: nextScope === "personal" ? current.ownerId || selectedPersonId : selectedPersonId
+              }));
+            }}
             value={draftEvent.scope}
           >
             <option value="team">팀 공유</option>
             <option value="personal">개인 일정</option>
           </select>
         </label>
+        {draftEvent.scope === "personal" && (
+          <label className="calendar-form-field">
+            <span>대상자</span>
+            <select
+              aria-label="개인일정 대상자"
+              disabled={!canAssignPersonalCalendar}
+              onChange={(event) => setDraftEvent((current) => ({ ...current, ownerId: event.target.value }))}
+              value={draftEvent.ownerId}
+            >
+              {personalCalendarOwnerOptions.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.name} {person.role}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="calendar-form-field calendar-title-field">
           <span>일정명</span>
           <input
@@ -4550,6 +4639,10 @@ function CalendarDetailPanel({
   const visibleSubtasks = isTask ? (task.subtasks ?? []).filter((subtask) => subtask.title?.trim()).slice(0, 4) : [];
   const visibleLinks = isTask ? (task.links ?? []).filter((link) => link.title || link.url).slice(0, 3) : [];
   const visibleUpdates = isTask ? (task.updates ?? []).slice(0, 3) : [];
+  const canAssignPersonalCalendar = canAssignPersonalCalendarFor(selectedPersonId);
+  const personalCalendarOwnerOptions = canAssignPersonalCalendar
+    ? teamAssignablePeople()
+    : teamAssignablePeople().filter((person) => person.id === selectedPersonId || person.id === event?.ownerId);
   useEffect(() => {
     setEventDraft(event ?? null);
     setIsEditingEvent(false);
@@ -4586,8 +4679,12 @@ function CalendarDetailPanel({
   function submitEventUpdate(submitEvent) {
     submitEvent.preventDefault();
     if (!eventDraft?.title?.trim()) return;
+    const scope = eventDraft.scope === "personal" ? "personal" : "team";
     onUpdateEvent({
       ...eventDraft,
+      scope,
+      ownerId: scope === "personal" ? eventDraft.ownerId || selectedPersonId : eventDraft.ownerId || selectedPersonId,
+      creatorId: eventCreatorId(eventDraft),
       date: eventStartDate(eventDraft),
       startDate: eventStartDate(eventDraft),
       endDate: eventEndDate(eventDraft)
@@ -4624,6 +4721,39 @@ function CalendarDetailPanel({
               value={eventDraft?.title ?? ""}
             />
           </label>
+          <label>
+            <span>구분</span>
+            <select
+              onChange={(changeEvent) => {
+                const nextScope = changeEvent.target.value;
+                setEventDraft((current) => ({
+                  ...current,
+                  scope: nextScope,
+                  ownerId: nextScope === "personal" ? current.ownerId || selectedPersonId : current.ownerId || selectedPersonId
+                }));
+              }}
+              value={eventDraft?.scope ?? "team"}
+            >
+              <option value="team">팀 공유</option>
+              <option value="personal">개인 일정</option>
+            </select>
+          </label>
+          {eventDraft?.scope === "personal" && (
+            <label>
+              <span>대상자</span>
+              <select
+                disabled={!canAssignPersonalCalendar}
+                onChange={(changeEvent) => setEventDraft((current) => ({ ...current, ownerId: changeEvent.target.value }))}
+                value={eventDraft?.ownerId ?? selectedPersonId}
+              >
+                {personalCalendarOwnerOptions.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name} {person.role}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             <span>시작일</span>
             <input
@@ -4681,12 +4811,16 @@ function CalendarDetailPanel({
               <dt>구분</dt>
               <dd>{event.scope === "team" ? "팀 공유" : "개인 일정"}</dd>
             </div>
-            {event.scope === "team" && (
+            {event.scope === "personal" && (
               <div>
-                <dt>등록자</dt>
+                <dt>대상자</dt>
                 <dd>{personName(event.ownerId)}</dd>
               </div>
             )}
+            <div>
+              <dt>등록자</dt>
+              <dd>{personName(eventCreatorId(event))}</dd>
+            </div>
           </dl>
         </div>
       )}
@@ -4695,7 +4829,7 @@ function CalendarDetailPanel({
 }
 
 function RecurringView({ canManageTask, onEditRecurring, onSelect, onSelectOccurrence, onStopRecurring, tasks }) {
-  const recurring = tasks.filter((task) => task.recurring && !task.isRecurringInstance);
+  const recurring = tasks.filter((task) => !isDeletedTask(task) && task.recurring && !task.isRecurringInstance);
   return (
     <section className="recurring-view">
       {recurring.map((task) => {
@@ -4843,14 +4977,14 @@ function UpdatesView({ initialScope = "mine", onAddUpdate, onSelect, selectedPer
         .sort((a, b) => b.date.localeCompare(a.date))
     }))
     .map((task) => ({ ...task, latestUpdate: task.sortedUpdates[0] }))
-    .filter((task) => !task.archived && task.status !== "완료" && task.latestUpdate)
+    .filter((task) => !isDeletedTask(task) && !task.archived && task.status !== "완료" && task.latestUpdate)
     .filter((task) => {
       if (scope === "team") return true;
       return task.ownerId === selectedPersonId || task.sortedUpdates.some((update) => update.authorId === selectedPersonId);
     })
     .sort((a, b) => b.latestUpdate.date.localeCompare(a.latestUpdate.date) || displayTaskTitle(a).localeCompare(displayTaskTitle(b), "ko-KR"));
   const newAssignmentTasks = tasks
-    .filter((task) => !task.archived && task.status !== "완료" && isRecentAssignment(task))
+    .filter((task) => !isDeletedTask(task) && !task.archived && task.status !== "완료" && isRecentAssignment(task))
     .filter((task) => {
       if (scope === "team") return true;
       return task.ownerId === selectedPersonId || task.creatorId === selectedPersonId || task.assignerId === selectedPersonId;
@@ -5629,6 +5763,7 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onD
 
 function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
   const isRecurringRuleMode = mode === "recurringRule";
+  const canEditRecurringFields = isRecurringRuleMode || !task.id || (!task.recurring && !task.recurringTemplateId);
   const [draft, setDraft] = useState({
     ...task,
     recurringInterval: Math.max(1, Number(task.recurringInterval) || 1),
@@ -5818,6 +5953,14 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
             <p>아직 시작하지 않은 회차의 반복 일정만 조정합니다. 업무명, 상세 업무 내용, 링크와 로그는 그대로 유지됩니다.</p>
           </div>
         )}
+        {!isRecurringRuleMode && (task.recurring || task.recurringTemplateId) && (
+          <div className="recurring-edit-warning">
+            <span>🔁 반복 업무</span>
+            <p>
+              이 화면에서는 선택한 회차의 업무명, 기간, 상세 업무 내용만 수정합니다. 반복 주기와 앞으로의 일정은 반복 업무 탭에서 수정하세요.
+            </p>
+          </div>
+        )}
 
         <label className="field wide task-modal-full-field">
           <span>업무명</span>
@@ -5907,7 +6050,7 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
             <span>마감일</span>
             <input type="date" value={draft.dueDate} onChange={(event) => update("dueDate", event.target.value)} />
           </label>
-          <label className={`field task-modal-full-field ${draft.recurringTemplateId ? "recurring-instance-hidden-field" : ""}`}>
+          <label className={`field task-modal-full-field ${!canEditRecurringFields ? "recurring-instance-hidden-field" : ""}`}>
             <span>반복 여부</span>
             <select value={draft.recurring || ""} onChange={(event) => changeRecurring(event.target.value)}>
               <option value="">없음</option>
@@ -5915,7 +6058,7 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
               <option value="매월">월 단위</option>
             </select>
           </label>
-          {draft.recurring && (
+          {canEditRecurringFields && draft.recurring && (
             <div className="field wide recurring-config-field">
               <span>반복 설정</span>
               <div className="recurring-config-card">
