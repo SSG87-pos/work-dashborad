@@ -1615,6 +1615,7 @@ function App() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [briefingFeedbackKey, setBriefingFeedbackKey] = useState("");
   const [editingTask, setEditingTask] = useState(null);
+  const [editingTaskMode, setEditingTaskMode] = useState("task");
   const [pendingRecurringSave, setPendingRecurringSave] = useState(null);
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
@@ -1992,7 +1993,18 @@ function App() {
     setSelectedBriefingKey("");
     setSelectedTaskId(nextTask.id);
     setEditingTask(null);
+    setEditingTaskMode("task");
     setPendingRecurringSave(null);
+  }
+
+  function openTaskEditor(task, mode = "task") {
+    setEditingTaskMode(mode);
+    setEditingTask(task);
+  }
+
+  function closeTaskEditor() {
+    setEditingTask(null);
+    setEditingTaskMode("task");
   }
 
   function updateStatus(taskId, nextStatus) {
@@ -2197,7 +2209,7 @@ function App() {
   function deleteTask(taskId) {
     const task = tasks.find((item) => item.id === taskId);
     if (!task || !canManageTaskFor(task, selectedPersonId)) return;
-    const confirmed = window.confirm(`${displayTaskTitle(task)} 업무를 삭제할까요? 반복 원본을 삭제하면 저장된 하위 반복 회차도 함께 삭제됩니다.`);
+    const confirmed = window.confirm(`${displayTaskTitle(task)} 업무를 삭제할까요? 반복업무를 삭제하면 이미 저장된 하위 회차도 함께 삭제됩니다.`);
     if (!confirmed) return;
     const nextTasks = tasks.filter((item) => item.id !== taskId && item.recurringTemplateId !== taskId);
     setTasks(nextTasks);
@@ -2215,7 +2227,7 @@ function App() {
       const scoped = activePage === "team" ? nextTasks : nextTasks.filter((item) => item.ownerId === selectedPersonId);
       setSelectedTaskId(scoped.find((item) => !item.archived)?.id ?? nextTasks.find((item) => !item.archived)?.id ?? nextTasks[0]?.id ?? "");
     }
-    if (editingTask?.id === taskId) setEditingTask(null);
+    if (editingTask?.id === taskId) closeTaskEditor();
   }
 
   function addTag(tag) {
@@ -2277,6 +2289,7 @@ function App() {
       tags: cleanTags,
       tone: group.tone || "custom"
     };
+    setAvailableTags((current) => normalizeTags([...current, ...cleanTags]));
     setTagGroups((current) => {
       const exists = current.some((item) => item.id === id);
       return exists
@@ -2284,6 +2297,11 @@ function App() {
         : [...current, nextGroup];
     });
     if (isSupabaseReady && isAuthenticated) {
+      cleanTags.forEach((tag) => {
+        supabaseDashboardStore.tags.add(tag).catch((error) => {
+          console.warn("Supabase 태그 추가에 실패했습니다.", error);
+        });
+      });
       supabaseDashboardStore.tags.saveGroup(nextGroup).catch((error) => {
         console.warn("Supabase 태그 Category 저장에 실패했습니다.", error);
         showSyncNotice("태그 Category 저장은 마이그레이션 적용 후 Supabase에 반영됩니다.");
@@ -2625,7 +2643,7 @@ function App() {
       setCategory("전체");
       setSelectedBriefingKey("");
       setIsDetailOpen(false);
-      setEditingTask(null);
+      closeTaskEditor();
       setActiveView("board");
       setSelectedTaskId(imported.tasks.find((task) => !task.archived)?.id ?? imported.tasks[0]?.id ?? "");
       setIsDataMenuOpen(false);
@@ -2654,7 +2672,7 @@ function App() {
     setSelectedBriefingKey("");
     setIsDetailOpen(false);
     setSelectedTaskId(resetTasks[0]?.id ?? "");
-    setEditingTask(null);
+    closeTaskEditor();
     setMemoByPage({ my: "", team: "" });
     setProfileOverrides({});
     localDashboardStore.clear();
@@ -2680,7 +2698,7 @@ function App() {
       onArchive={() => toggleArchive(selectedTask.id, true)}
       onClose={closeTaskDetail}
       onDelete={() => deleteTask(selectedTask.id)}
-      onEdit={() => setEditingTask(selectedTask)}
+      onEdit={() => openTaskEditor(selectedTask)}
       onRestore={() => toggleArchive(selectedTask.id, false)}
       onAddLink={(link) => addTaskLink(selectedTask.id, link)}
       onAddUpdate={(text) => addTaskUpdate(selectedTask.id, text)}
@@ -2866,7 +2884,7 @@ function App() {
                 {adminBadge(selectedPerson) && <em className="account-admin-badge">{adminBadge(selectedPerson)}</em>}
               </span>
             </button>
-            <button className="primary-button" onClick={() => setEditingTask(createBlankTask(defaultTaskOwnerId, selectedPersonId))} type="button">
+            <button className="primary-button" onClick={() => openTaskEditor(createBlankTask(defaultTaskOwnerId, selectedPersonId))} type="button">
               <Plus size={18} />
               업무 추가
             </button>
@@ -2962,7 +2980,7 @@ function App() {
                 <BoardView
                   canManageTask={(task) => canManageTaskFor(task, selectedPersonId)}
                   counts={counts}
-                  onEdit={(task) => setEditingTask(task)}
+                  onEdit={(task) => openTaskEditor(task)}
                   onArchive={(task) => toggleArchive(task.id, true)}
                   onSelect={(taskId) => selectTask(taskId, "workflow")}
                   onStatusChange={updateStatus}
@@ -3007,7 +3025,7 @@ function App() {
                 onArchive={(task) => toggleArchive(task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id, true)}
                 onDeleteEvent={deleteCalendarEvent}
                 onDelete={(task) => deleteTask(task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id)}
-                onEdit={(task) => setEditingTask(tasks.find((item) => item.id === (task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id)) || task)}
+                onEdit={(task) => openTaskEditor(tasks.find((item) => item.id === (task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id)) || task)}
                 onMonthChange={setTimelineMonth}
                 onRestore={(task) => toggleArchive(task.isRecurringInstance ? (task.recurringTemplateId || task.id) : task.id, false)}
                 onSelectTask={selectTask}
@@ -3021,6 +3039,7 @@ function App() {
               <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`}>
                 <RecurringView
                   canManageTask={(task) => canManageTaskFor(task, selectedPersonId)}
+                  onEditRecurring={(task) => openTaskEditor(task, "recurringRule")}
                   onSelect={(taskId) => selectTask(taskId, "workflow")}
                   onSelectOccurrence={(task) => selectTask(task, "workflow")}
                   onStopRecurring={stopRecurring}
@@ -3076,7 +3095,8 @@ function App() {
       {editingTask && (
         <TaskModal
           availableTags={availableTags}
-          onClose={() => setEditingTask(null)}
+          mode={editingTaskMode}
+          onClose={closeTaskEditor}
           onSave={saveTask}
           task={editingTask}
         />
@@ -4655,7 +4675,7 @@ function CalendarDetailPanel({
   );
 }
 
-function RecurringView({ canManageTask, onSelect, onSelectOccurrence, onStopRecurring, tasks }) {
+function RecurringView({ canManageTask, onEditRecurring, onSelect, onSelectOccurrence, onStopRecurring, tasks }) {
   const recurring = tasks.filter((task) => task.recurring && !task.isRecurringInstance);
   return (
     <section className="recurring-view">
@@ -4703,14 +4723,11 @@ function RecurringView({ canManageTask, onSelect, onSelectOccurrence, onStopRecu
                         isRecurringInstance: true,
                         recurringTemplateId: task.id
                       })}
-                      title={`${formatDate(occurrence.startDate)} 시작 · ${formatDate(occurrence.dueDate)} 마감${occurrence.subtasks ? ` · 상세 업무 ${occurrence.subtasks}개 유지` : ""}`}
+                      title={`${formatDate(occurrence.startDate)} 시작 · ${formatDate(occurrence.dueDate)} 마감`}
                       type="button"
                     >
                       <b>{formatDate(occurrence.startDate)} 시작</b>
-                      <small>
-                        {formatDate(occurrence.dueDate)} 마감
-                        {occurrence.subtasks ? ` · 상세 ${occurrence.subtasks}개 유지` : ""}
-                      </small>
+                      <small>{formatDate(occurrence.dueDate)} 마감</small>
                     </button>
                   ))}
                   {hiddenOccurrenceCount > 0 && (
@@ -4723,15 +4740,26 @@ function RecurringView({ canManageTask, onSelect, onSelectOccurrence, onStopRecu
               </span>
             </div>
             {canManageTask(task) && (
-              <button
-                className="secondary-button small recurring-stop-button"
-                onClick={() => onStopRecurring(task.id)}
-                type="button"
-                title="시작 전 미래 반복 회차 삭제"
-              >
-                <X size={14} />
-                미수행 반복 일정 삭제
-              </button>
+              <div className="recurring-row-actions">
+                <button
+                  className="secondary-button small recurring-stop-button"
+                  onClick={() => onEditRecurring(task)}
+                  type="button"
+                  title="미수행 반복 일정 수정"
+                >
+                  <Edit3 size={14} />
+                  미수행 반복 일정 수정
+                </button>
+                <button
+                  className="secondary-button small recurring-stop-button"
+                  onClick={() => onStopRecurring(task.id)}
+                  type="button"
+                  title="시작 전 미래 반복 회차 삭제"
+                >
+                  <X size={14} />
+                  미수행 반복 일정 삭제
+                </button>
+              </div>
             )}
           </article>
         );
@@ -5580,7 +5608,8 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onD
   );
 }
 
-function TaskModal({ availableTags, onClose, onSave, task }) {
+function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
+  const isRecurringRuleMode = mode === "recurringRule";
   const [draft, setDraft] = useState({
     ...task,
     recurringInterval: Math.max(1, Number(task.recurringInterval) || 1),
@@ -5753,22 +5782,29 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
 
   return (
     <div className="modal-backdrop" role="presentation">
-      <form className="task-modal" onSubmit={submit} role="dialog" aria-modal="true" aria-label={task.id ? "업무 수정" : "업무 추가"}>
+      <form className={`task-modal ${isRecurringRuleMode ? "recurring-rule-mode" : ""}`} onSubmit={submit} role="dialog" aria-modal="true" aria-label={isRecurringRuleMode ? "미수행 반복 일정 수정" : task.id ? "업무 수정" : "업무 추가"}>
         <div className="modal-header">
           <div>
-            <span className="panel-label">{task.id ? "업무 수정" : "업무 추가"}</span>
+            <span className="panel-label">{isRecurringRuleMode ? "미수행 반복 일정 수정" : task.id ? "업무 수정" : "업무 추가"}</span>
             <h2>{task.id ? task.title : "새 업무 만들기"}</h2>
           </div>
           <button className="icon-button" onClick={onClose} type="button" title="닫기">
             <X size={18} />
           </button>
         </div>
+        {isRecurringRuleMode && (
+          <div className="recurring-rule-context">
+            <span>🔁 반복 규칙</span>
+            <strong>{recurringDescription(draft)}</strong>
+            <p>아직 시작하지 않은 회차의 반복 일정만 조정합니다. 업무명, 상세 업무 내용, 링크와 로그는 그대로 유지됩니다.</p>
+          </div>
+        )}
 
-        <label className="field wide">
+        <label className="field wide task-modal-full-field">
           <span>업무명</span>
           <input required value={draft.title} onChange={(event) => update("title", event.target.value)} />
         </label>
-        <div className="field wide subtask-editor">
+        <div className="field wide subtask-editor task-modal-full-field">
           <span className="field-label-with-note">
             상세 업무 내용
             <small className="field-note-badge">ⓘ 최소 1개 필요 · 체크 완료 기준으로 진행률 계산</small>
@@ -5804,13 +5840,13 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
             상세 업무 내용 추가
           </button>
         </div>
-        <label className="field wide">
+        <label className="field wide task-modal-full-field">
           <span>설명</span>
           <textarea value={draft.description} onChange={(event) => update("description", event.target.value)} rows={3} />
         </label>
 
         <div className="form-grid">
-          <label className="field">
+          <label className="field task-modal-full-field">
             <span>담당자</span>
             <select value={draft.ownerId} onChange={(event) => update("ownerId", event.target.value)}>
               {taskOwnerOptions().map((person) => (
@@ -5820,7 +5856,7 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
               ))}
             </select>
           </label>
-          <label className="field">
+          <label className="field task-modal-full-field">
             <span>업무배정자</span>
             <select value={draft.assignerType || "개인"} onChange={(event) => update("assignerType", event.target.value)}>
               {assignerTypes.map((type) => (
@@ -5828,7 +5864,7 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
               ))}
             </select>
           </label>
-          <label className="field">
+          <label className="field task-modal-full-field">
             <span>상태</span>
             <select value={draft.status} onChange={(event) => update("status", event.target.value)}>
               {statuses.map((status) => (
@@ -5836,7 +5872,7 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
               ))}
             </select>
           </label>
-          <label className="field">
+          <label className="field task-modal-full-field">
             <span>우선순위</span>
             <select value={draft.priority} onChange={(event) => update("priority", event.target.value)}>
               {["낮음", "보통", "높음"].map((priority) => (
@@ -5844,15 +5880,15 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
               ))}
             </select>
           </label>
-          <label className="field">
+          <label className="field task-modal-full-field">
             <span>시작일</span>
             <input type="date" value={draft.startDate} onChange={(event) => update("startDate", event.target.value)} />
           </label>
-          <label className="field">
+          <label className="field task-modal-full-field">
             <span>마감일</span>
             <input type="date" value={draft.dueDate} onChange={(event) => update("dueDate", event.target.value)} />
           </label>
-          <label className="field">
+          <label className="field task-modal-full-field">
             <span>반복 여부</span>
             <select value={draft.recurring || ""} onChange={(event) => changeRecurring(event.target.value)}>
               <option value="">없음</option>
@@ -5950,7 +5986,7 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
               </div>
             </div>
           )}
-          <label className="field">
+          <label className="field task-modal-full-field">
             <span>보관 여부</span>
             <select value={draft.archived ? "true" : "false"} onChange={(event) => update("archived", event.target.value === "true")}>
               <option value="false">메인에 표시</option>
@@ -5959,7 +5995,7 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
           </label>
         </div>
 
-        <div className="field wide tag-picker">
+        <div className="field wide tag-picker task-modal-full-field">
           <span>태그</span>
           <div className="selected-tag-list">
             {selectedDraftTags().map((tag) => (
@@ -6007,7 +6043,7 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
           </div>
           {tagError && <em className="field-error">{tagError}</em>}
         </div>
-        <label className="field wide">
+        <label className="field wide task-modal-full-field">
           <span>관련 링크</span>
           <div className="link-input-list">
             {draft.links.map((link, index) => (
@@ -6031,7 +6067,7 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
             ))}
           </div>
         </label>
-        <label className="field wide">
+        <label className="field wide task-modal-full-field">
           <span>업데이트 로그 추가</span>
           <div className="emoji-textarea-frame">
             <textarea
@@ -6055,7 +6091,7 @@ function TaskModal({ availableTags, onClose, onSave, task }) {
           </button>
           <button className="primary-button" type="submit">
             <CheckCircle2 size={18} />
-            저장
+            {isRecurringRuleMode ? "반복 일정 저장" : "저장"}
           </button>
         </div>
       </form>
