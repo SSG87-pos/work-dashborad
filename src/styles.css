@@ -1626,6 +1626,27 @@ h1 {
   position: relative;
 }
 
+.backend-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #d9e3f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 560;
+  white-space: nowrap;
+}
+
+.backend-status.connected {
+  border-color: #b7ebd1;
+  background: #ecfdf5;
+  color: #047857;
+}
+
 .search-box {
   width: 282px;
   height: 42px;

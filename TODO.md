@@ -182,12 +182,18 @@
   - Done: added setup guidance for first admin promotion and future frontend environment variables.
   - Verification note: SQL is drafted but not executed against a Supabase project yet; project URL/anon key and a Supabase SQL run are still needed before frontend integration.
 
+- [x] Start Supabase client integration.
+  - Files: `package.json`, `pnpm-lock.yaml`, `.env.example`, `src/supabaseClient.js`, `src/supabaseStore.js`, `src/storage.js`, `src/App.jsx`, `src/styles.css`, `vite.config.js`, `docs/backend-implementation-plan.md`.
+  - Done: installed `@supabase/supabase-js`, added a Supabase client that only activates when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` exist, added first auth/read/preference store scaffolding, kept localStorage as the active fallback, added a top-bar local/Supabase status pill, and split Supabase/vendor bundles in Vite.
+  - Verification: build passed on `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`; no actual secret values were added.
+
 ## Later
 
 - [ ] Connect to an actual Supabase project.
   - Read first: `docs/supabase-start-guide.md`, `supabase/migrations/001_initial_dashboard_schema.sql`, `docs/backend-api-spec.md`, `docs/permission-rules.md`.
   - Needed from 슬기님: Supabase project URL, anon key, and first administrator email.
   - Verify: migration applies, signup creates `member` users, first admin can be promoted, and RLS policies allow/deny the intended actions.
+  - Next code step after credentials: switch App initialization from local-only read to async Supabase session bootstrap, then wire real email/password login/signup.
 
 - [ ] Implement server-side permission enforcement after backend choice.
   - UI-only restrictions currently exist but are not secure.

@@ -432,14 +432,23 @@ Validation notes:
   - created `docs/supabase-start-guide.md`
   - added `.env.example` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
   - SQL has not yet been executed against a Supabase project.
+- Supabase client integration start:
+  - installed `@supabase/supabase-js`
+  - added `src/supabaseClient.js` for env-driven Supabase activation
+  - added `src/supabaseStore.js` with first auth/read/preference adapter scaffolding
+  - updated `src/storage.js` with a reusable dashboard snapshot helper while preserving the localStorage adapter
+  - added a top-bar status pill: `로컬 저장` when env values are missing, `Supabase 준비` when present
+  - updated `vite.config.js` to split `supabase` and `vendor` chunks
+  - build passed after the integration scaffold
 
 ## Risks and Notes
 
-- No git baseline exists; all project files are untracked.
+- Git baseline exists on `main`; current Supabase work is on `codex/supabase-integration`.
 - `src/styles.css` is large and still contains layered overrides. A small cleanup pass has started, but production hardening should continue by moving feature sections into clearer layers or CSS modules.
 - Current auth/admin/permission behavior is UI-only and localStorage-backed until the Supabase project is connected. It is not secure yet.
 - Current persistence is browser-local only. It is not multi-user yet.
 - Supabase schema/RLS is drafted but not applied. It must be tested in an actual Supabase project before wiring the React app to it.
+- Supabase store is scaffolded but not wired into App state yet because project URL, anon key, and migration execution are still missing.
 - Full emoji support is not installed yet. The current picker is a prototype; install and wire `emoji-picker-react` during the production implementation stage after dependency approval.
 - `prototype.html` is not feature parity and should not drive future implementation.
 - Avoid adding dependencies unless necessary; network is restricted.
@@ -456,5 +465,5 @@ AGENTS.md, HANDOFF.md, TODO.md에서 계속 진행에 필요한 부분만 확인
 
 프로젝트는 `/Users/seulgi/Documents/work-dashboard`의 `연구기획그룹-전략` 업무 대시보드 React/Vite 프로토타입이다. 대표 구현은 `src/App.jsx`, `src/data.js`, `src/styles.css`, `src/storage.js`이며, `prototype.html`은 레거시 참고용이다.
 
-다음 우선순위는 실제 프로덕션화 전 결정이 필요한 백엔드/인증/권한 저장소 선택이다. 코드 작업을 계속한다면 `src/styles.css`의 남은 후반 override 레이어를 더 작은 기능 섹션으로 정리하되, 맥락형 업무상세 배치(`detailContext`, `workflow-detail-mode`)와 태그 프리셋 필터는 유지해야 한다. 변경 후 `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`와 가능한 브라우저 시각 검증을 수행해줘. 실제 프로덕션 전에는 별도로 수동 키보드 QA도 진행해야 한다.
+다음 우선순위는 Supabase 프로젝트 URL, anon key, 첫 관리자 이메일을 받아 실제 프로젝트에 migration을 적용하고 App 초기화를 Supabase auth/session 기반으로 전환하는 것이다. 그 전까지는 localStorage fallback을 유지해야 한다. 변경 후 `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`와 가능한 브라우저 시각 검증을 수행해줘. 실제 프로덕션 전에는 별도로 수동 키보드 QA도 진행해야 한다.
 ```

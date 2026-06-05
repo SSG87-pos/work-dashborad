@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { TODAY, assignerTypes, categories, initialCalendarEvents, initialTasks, people, statuses, tagOptions } from "./data.js";
 import { localDashboardStore } from "./storage.js";
+import { supabaseConfig } from "./supabaseClient.js";
 
 const dayMs = 24 * 60 * 60 * 1000;
 const boardStatuses = ["검토/대기", "계획", "진행중", "완료", "보류"];
@@ -2197,6 +2198,13 @@ function App() {
             <button className="icon-button" type="button" title="알림">
               <Bell size={18} />
             </button>
+            <span
+              className={`backend-status ${supabaseConfig.isConfigured ? "connected" : "local"}`}
+              title={supabaseConfig.isConfigured ? "Supabase 환경변수가 설정되어 있습니다." : "Supabase URL과 anon key가 없어 로컬 프로토타입 저장소를 사용합니다."}
+            >
+              <Database size={14} />
+              {supabaseConfig.isConfigured ? "Supabase 준비" : "로컬 저장"}
+            </span>
             <div className="data-menu-wrap">
               <button
                 className={`icon-button ${isDataMenuOpen ? "active" : ""}`}

@@ -177,5 +177,12 @@ After the Supabase project connection details are available:
 1. Apply `supabase/migrations/001_initial_dashboard_schema.sql`.
 2. Add `@supabase/supabase-js` and a Supabase client.
 3. Add a Supabase store beside `src/storage.js`, matching the `localDashboardStore` read/write/clear boundary.
-3. Load users, tasks, tags, calendar events, notes, and preferences from API on login.
-4. Keep JSON export/import as an admin backup and migration tool.
+4. Load users, tasks, tags, calendar events, notes, and preferences from API on login.
+5. Keep JSON export/import as an admin backup and migration tool.
+
+## Current Integration State
+
+- `@supabase/supabase-js` is installed.
+- `src/supabaseClient.js` reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+- `src/supabaseStore.js` contains the first read/auth/preference adapter scaffold.
+- The React UI still uses the local prototype store until a real Supabase project URL and anon key are provided.
