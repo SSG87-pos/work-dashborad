@@ -112,7 +112,8 @@ This is a Supabase Auth dashboard setting rather than a SQL migration in this re
 
 Recommended next action:
 
-- Enable leaked password protection in the Supabase Auth dashboard before broader pilot use, unless company identity policy requires a different login path.
+- Defer leaked password protection while the project remains a private/free-plan personal Supabase demo.
+- Revisit this setting before real operational data entry if the company approves Supabase as the backend, or replace this checklist with the approved company identity/SSO policy if Supabase is not used.
 
 ## Verification Completed
 
@@ -140,5 +141,5 @@ Recommended next action:
 
 ## Remaining Approval Boundary
 
-- Enable leaked password protection in the Supabase Auth dashboard before broader pilot use, unless company identity policy requires a different login path.
-- Browser CRUD QA should be rerun once the in-app browser can reload the local app target.
+- Supabase Auth leaked password protection is intentionally deferred for the private/free-plan demo. Enable it only if Supabase is approved for real operational use and the plan supports it, unless company identity policy requires a different login path.
+- Signed-in browser CRUD QA is complete as of 2026-06-06: temporary task create, status update, detail open, quick update log, and delete cleanup all passed on `http://127.0.0.1:5173/`.

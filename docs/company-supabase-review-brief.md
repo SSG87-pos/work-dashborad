@@ -71,10 +71,11 @@ Already done:
 - Performance-focused RLS read/manage policy split was handled through live migration `015_split_read_manage_rls_policies`.
 - Security advisor now only reports leaked password protection disabled.
 - Performance advisor now only reports unused-index info until real traffic accumulates.
+- Signed-in CRUD smoke QA passed: a temporary task was created, moved to `진행중`, opened in detail, given a quick update log, and deleted; the UI returned to the original live-task state with no console errors/warnings.
 
 Still approval-bound:
 
-- Supabase Auth leaked password protection setting.
+- Supabase Auth leaked password protection setting, only if Supabase is approved for real operational use and the required plan is available.
 - Actual lead/member signup and auth account linking.
 - Temporary internet deployment URL.
 - Real operational data entry.
@@ -145,4 +146,4 @@ Ask company IT/security:
 1. 내부 실명 데모를 로컬 또는 슬기님 PC에서 시연한다.
 2. 이 문서와 `docs/company-demo-readiness-checklist.md`를 기준으로 Supabase 사용 가능 여부를 문의한다.
 3. 내부 포트 방식으로 먼저 확인한다. 임시 URL이 필요하다는 결정이 나면, 그때 익명화 여부와 배포 플랫폼을 정한다.
-4. 회사가 Supabase 사용을 허용하면 Supabase Auth leaked password protection과 실제 사용자 계정 연결/SSO 기준을 확인한다.
+4. 회사가 Supabase 사용을 허용하면 Supabase Auth leaked password protection 가능 여부와 실제 사용자 계정 연결/SSO 기준을 확인한다. 개인/free-plan Supabase 데모 단계에서는 Pro 업그레이드 없이 보류한다.
