@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import {
@@ -26,6 +26,7 @@ import {
   LogIn,
   LogOut,
   MessageSquareText,
+  Network,
   NotebookPen,
   Plus,
   Search,
@@ -46,6 +47,9 @@ import { buildSupabaseImportPlan, formatSupabaseImportPlanMessage } from "./supa
 import { supabaseConfig } from "./supabaseClient.js";
 import { supabaseDashboardStore } from "./supabaseStore.js";
 import { summaryFilterLabels, summaryFilterMatches } from "./summaryFilters.js";
+
+const MindmapView = lazy(() => import("./MindmapView.jsx").then((module) => ({ default: module.MindmapView })));
+const SharedCanvasView = lazy(() => import("./SharedCanvasView.jsx").then((module) => ({ default: module.SharedCanvasView })));
 
 const dayMs = 24 * 60 * 60 * 1000;
 const boardStatuses = ["검토/대기", "계획", "진행중", "완료", "보류"];
@@ -83,8 +87,8 @@ const defaultTagFilterPresets = [
   { id: "preset:research", label: "조사/근거", tags: ["자료조사", "외부자료", "정책"], tone: "research" },
   { id: "preset:operations", label: "운영/KPI", tags: ["월간보고", "회의체", "운영", "KPI"], tone: "operations" }
 ];
-const viewOptions = ["board", "timeline", "calendar", "recurring", "archive", "updates", "performance"];
-const fullPageViews = ["calendar", "updates", "performance"];
+const viewOptions = ["board", "timeline", "calendar", "recurring", "archive", "mindmap", "updates", "performance", "canvas"];
+const fullPageViews = ["calendar", "updates", "performance", "canvas"];
 const pageOptions = ["my", "team"];
 const timelineModeOptions = ["month", "year"];
 const performanceModes = ["week", "month", "quarter", "year"];
@@ -1927,11 +1931,23 @@ function App() {
       const text = `${task.title} ${task.description} ${tags.join(" ")}`.toLowerCase();
       const byScope = activePage === "team" || task.ownerId === selectedPersonId;
       const byArchive = activeView === "archive" ? task.archived : !task.archived;
-      const byPriority = !["board", "timeline", "recurring", "archive"].includes(activeView) || priorityFilter === "전체" || task.priority === priorityFilter;
+      const byPriority = !["board", "timeline", "recurring", "archive", "mindmap"].includes(activeView) || priorityFilter === "전체" || task.priority === priorityFilter;
       const bySummary = activeView !== "board" || summaryFilterMatches(task, summaryFilter, TODAY);
       return byScope && byCategory && byArchive && byPriority && bySummary && text.includes(query.trim().toLowerCase());
     });
   }, [activePage, activeView, category, priorityFilter, query, selectedPersonId, summaryFilter, tagGroups, tasks]);
+
+  const mindmapTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      if (isDeletedTask(task)) return false;
+      const tags = taskTags(task);
+      const byCategory = matchesTagFilter(tags, category, tagGroups);
+      const text = `${task.title} ${task.description} ${tags.join(" ")}`.toLowerCase();
+      const byScope = activePage === "team" || task.ownerId === selectedPersonId;
+      const byPriority = priorityFilter === "전체" || task.priority === priorityFilter;
+      return byScope && byCategory && byPriority && text.includes(query.trim().toLowerCase());
+    });
+  }, [activePage, category, priorityFilter, query, selectedPersonId, tagGroups, tasks]);
 
   const briefing = useMemo(
     () => briefingFor(tasks, activePage === "my" ? selectedPersonId : null),
@@ -2659,6 +2675,14 @@ function App() {
     closeTaskDetail();
   }
 
+  function applyMindmapTagFilter(tags) {
+    setCategory(serializeTagFilters(tags));
+    setSummaryFilter("");
+    setActiveView("board");
+    setDetailContext("workflow");
+    closeTaskDetail();
+  }
+
   function applySummaryFilter(filterKey) {
     setSummaryFilter(filterKey);
     setCategory("전체");
@@ -3190,6 +3214,19 @@ function App() {
             <Sparkles size={18} />
             <span>Highlights</span>
           </button>
+          <button
+            className={`nav-item ${activeView === "canvas" ? "active" : ""}`}
+            onClick={() => {
+              setActivePage("team");
+              setActiveView("canvas");
+              closeTaskDetail();
+            }}
+            type="button"
+            title="Canvas"
+          >
+            <NotebookPen size={18} />
+            <span>Canvas</span>
+          </button>
         </nav>
         <div className="team-stack">
           <span className="panel-label">Team Members</span>
@@ -3299,7 +3336,7 @@ function App() {
           </div>
         </header>
 
-        {activeView !== "performance" && <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />}
+        {!["performance", "canvas"].includes(activeView) && <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />}
 
         <section className={`dashboard-grid ${activeView === "timeline" ? "timeline-layout" : ""} ${fullPageViews.includes(activeView) ? "calendar-layout" : ""} ${isWorkflowDetailContext ? "workflow-detail-mode" : ""} ${isBriefingDetailContext ? "briefing-detail-mode" : ""}`}>
           <div className="main-column">
@@ -3325,7 +3362,8 @@ function App() {
                     ["board", "보드", ListChecks],
                     ["timeline", "타임라인", CalendarDays],
                     ["recurring", recurringCount ? `반복 업무 ${recurringCount}` : "반복 업무", Clock3],
-                    ["archive", `보관함 ${archiveCount}`, Archive]
+                    ["archive", `보관함 ${archiveCount}`, Archive],
+                    ["mindmap", "마인드맵", Network]
                   ].map(([key, label, Icon]) => (
                     <button
                       className={activeView === key ? "active" : ""}
@@ -3357,7 +3395,7 @@ function App() {
                     태그: {tagFilterLabel}
                   </button>
                 </div>
-                {["board", "timeline", "recurring", "archive"].includes(activeView) && (
+                {["board", "timeline", "recurring", "archive", "mindmap"].includes(activeView) && (
                   <label className={`filter-select priority-filter ${priorityFilter !== "전체" ? "is-filtered" : ""}`}>
                     <select aria-label="중요도 필터" onChange={(event) => setPriorityFilter(event.target.value)} value={priorityFilter}>
                       {priorityFilters.map((priority) => (
@@ -3485,6 +3523,24 @@ function App() {
                 )}
               </section>
             )}
+            {activeView === "mindmap" && (
+              <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`}>
+                <Suspense fallback={<div className="mindmap-loading">마인드맵을 불러오는 중입니다.</div>}>
+                  <MindmapView
+                    onFilterTags={applyMindmapTagFilter}
+                    onSelectTask={(taskId) => selectTask(taskId, "workflow")}
+                    people={directory}
+                    presets={tagGroups}
+                    tasks={mindmapTasks}
+                  />
+                </Suspense>
+                {isWorkflowDetailContext && (
+                  <aside className="workflow-detail-column" ref={workflowDetailColumnRef}>
+                    {detailPanel}
+                  </aside>
+                )}
+              </section>
+            )}
             {activeView === "updates" && (
               <UpdatesView
                 initialScope={activePage === "team" ? "team" : "mine"}
@@ -3498,6 +3554,11 @@ function App() {
               <PerformanceView
                 tasks={tasks}
               />
+            )}
+            {activeView === "canvas" && (
+              <Suspense fallback={<div className="shared-canvas-loading">Canvas를 불러오는 중입니다.</div>}>
+                <SharedCanvasView />
+              </Suspense>
             )}
           </div>
 

@@ -10489,3 +10489,956 @@ body[data-page="team"] .briefing-panel {
 .new-assignment-grid .task-card .card-title-row strong {
   font-size: 13px;
 }
+
+/* Mindmap workflow tab: scoped so existing board/timeline/detail surfaces keep their approved rules. */
+.mindmap-view {
+  display: grid;
+  min-width: 0;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: visible;
+}
+
+.mindmap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e4ebf3;
+  background: #fbfdff;
+}
+
+.mindmap-header h2 {
+  margin: 3px 0 0;
+  font-size: 18px;
+  font-weight: 720;
+  letter-spacing: 0;
+}
+
+.mindmap-header-controls {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mindmap-mode-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #f6f9fc;
+}
+
+.mindmap-mode-tabs button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 660;
+}
+
+.mindmap-mode-tabs button.active {
+  background: #ffffff;
+  color: #1d4ed8;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.mindmap-home-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 680;
+  white-space: nowrap;
+}
+
+.mindmap-canvas {
+  min-height: 620px;
+  overflow: visible;
+  background: #f8fbff;
+}
+
+.mindmap-canvas .react-flow__pane {
+  cursor: grab;
+}
+
+.mindmap-canvas .react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.mindmap-canvas .react-flow__controls {
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.mindmap-node-card {
+  display: grid;
+  width: 100%;
+  gap: 6px;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2937;
+  padding: 10px;
+  text-align: left;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  word-break: keep-all;
+}
+
+.mindmap-canvas.is-compact .mindmap-node-task {
+  gap: 0;
+  min-height: 34px;
+  padding: 8px 9px;
+  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.06);
+}
+
+.mindmap-canvas.is-compact .mindmap-node-card {
+  gap: 2px;
+  min-height: 32px;
+  padding: 7px 8px;
+  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.06);
+}
+
+.mindmap-canvas.is-compact .mindmap-node-root,
+.mindmap-canvas.is-compact .mindmap-node-group,
+.mindmap-canvas.is-compact .mindmap-node-tag {
+  min-height: 34px;
+}
+
+.mindmap-canvas.is-compact .mindmap-node-task .mindmap-node-topline strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 11.5px;
+  line-height: 1.25;
+  font-weight: 660;
+}
+
+.mindmap-canvas.is-compact .mindmap-node-card .mindmap-node-topline strong {
+  font-size: 11.5px;
+  line-height: 1.25;
+  font-weight: 680;
+}
+
+.mindmap-canvas.is-compact .mindmap-node-task .mindmap-node-topline em {
+  display: none;
+}
+
+.mindmap-canvas.is-compact .mindmap-node-topline em {
+  padding: 1px 5px;
+  font-size: 10px;
+}
+
+.mindmap-node-card:hover,
+.mindmap-node-card:focus-visible {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12), 0 12px 26px rgba(15, 23, 42, 0.1);
+  outline: 0;
+}
+
+.mindmap-node-root {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.mindmap-node-group,
+.mindmap-node-task {
+  background: #ffffff;
+}
+
+.mindmap-node-tag {
+  background: #f8fafc;
+}
+
+.mindmap-tone-report {
+  border-color: #9ec2f3;
+}
+
+.mindmap-tone-strategy {
+  border-color: #c8b5ee;
+}
+
+.mindmap-tone-research {
+  border-color: #a4dfbd;
+}
+
+.mindmap-tone-operations {
+  border-color: #efcc94;
+}
+
+.mindmap-node-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mindmap-node-topline strong {
+  min-width: 0;
+  color: #1f2937;
+  font-size: 12.5px;
+  line-height: 1.28;
+  font-weight: 720;
+}
+
+.mindmap-node-topline em {
+  flex: 0 0 auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 2px 6px;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 680;
+  white-space: nowrap;
+}
+
+.mindmap-node-card small,
+.mindmap-task-meta {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 560;
+}
+
+.mindmap-task-meta {
+  display: block;
+}
+
+.mindmap-node-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mindmap-node-chips i {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 0 6px;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.mindmap-node-chips i.shared {
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.mindmap-status-chip.active {
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.mindmap-status-chip.plan {
+  color: #7c3aed;
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+}
+
+.mindmap-status-chip.wait {
+  color: #b45309;
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.mindmap-status-chip.done {
+  color: #15803d;
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.mindmap-status-chip.hold {
+  color: #64748b;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.mindmap-handle {
+  width: 7px;
+  height: 7px;
+  border: 1px solid #94a3b8;
+  background: #ffffff;
+}
+
+.mindmap-empty,
+.mindmap-loading,
+.mindmap-canvas-placeholder {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  min-height: 420px;
+  color: #64748b;
+  text-align: center;
+  padding: 24px;
+}
+
+.mindmap-loading {
+  min-height: 220px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #fbfdff;
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.mindmap-canvas-placeholder strong {
+  color: #334155;
+  font-size: 14px;
+}
+
+.mindmap-canvas-placeholder p {
+  max-width: 420px;
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
+  font-weight: 560;
+}
+
+@media (max-width: 900px) {
+  .mindmap-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mindmap-header-controls {
+    justify-content: flex-start;
+  }
+
+  .mindmap-mode-tabs {
+    justify-content: flex-start;
+    width: fit-content;
+  }
+
+  .mindmap-canvas {
+    min-height: 540px;
+  }
+}
+
+/* Shared canvas main tab: separated from the auto-generated workflow mindmap. */
+.shared-canvas-view {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.shared-canvas-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 0 2px;
+}
+
+.shared-canvas-heading h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 740;
+  letter-spacing: 0;
+}
+
+.shared-canvas-heading p {
+  margin: 0;
+  max-width: 720px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 560;
+}
+
+.shared-canvas-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 5px;
+  width: fit-content;
+}
+
+.canvas-tab-add-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.canvas-tab-add-control input {
+  width: 86px;
+  height: 28px;
+  border: 1px solid #dce5ef;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #263244;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 560;
+}
+
+.canvas-tab-add-control button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #dbeafe;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.shared-canvas-tabs button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.shared-canvas-tabs button.active {
+  background: #ffffff;
+  color: #1d4ed8;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.shared-canvas-board {
+  overflow: hidden;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.shared-canvas-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 44px;
+  border-bottom: 1px solid #e4ebf3;
+  background: #fbfdff;
+  padding: 8px 12px;
+}
+
+.shared-canvas-toolbar strong {
+  min-width: 120px;
+  color: #263244;
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.canvas-add-control button,
+.canvas-arrange-button,
+.canvas-export-button {
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 660;
+}
+
+.canvas-density-tabs,
+.canvas-template-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #dce5ef;
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 3px;
+}
+
+.canvas-density-tabs button,
+.canvas-template-picker button {
+  min-height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 680;
+  white-space: nowrap;
+}
+
+.canvas-density-tabs button.active,
+.canvas-template-picker button.active {
+  background: #172033;
+  color: #ffffff;
+}
+
+.canvas-add-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: min(300px, 42%);
+}
+
+.canvas-add-control input {
+  min-width: 0;
+  height: 30px;
+  flex: 1;
+  border: 1px solid #dce5ef;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #263244;
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 560;
+}
+
+.canvas-add-control button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.canvas-arrange-button {
+  border-color: #dce5ef;
+  background: #ffffff;
+  color: #475569;
+}
+
+.canvas-arrange-button,
+.canvas-export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.canvas-export-button {
+  border-color: #d7e3ef;
+  background: #ffffff;
+  color: #1f2937;
+}
+
+.canvas-markdown-status {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 640;
+}
+
+.shared-canvas-stage {
+  position: relative;
+  height: clamp(520px, 72vh, 760px);
+  min-height: 520px;
+  overflow: auto;
+  background:
+    linear-gradient(#e8eef6 1px, transparent 1px),
+    linear-gradient(90deg, #e8eef6 1px, transparent 1px),
+    #f8fbff;
+  background-size: 28px 28px;
+}
+
+.canvas-plane {
+  position: relative;
+  min-width: 1480px;
+  min-height: 1040px;
+}
+
+.canvas-link-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.canvas-link-layer path {
+  fill: none;
+  stroke: #7f9fc4;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 0;
+}
+
+.canvas-link-layer path.is-manual-link {
+  stroke: #7f9fc4;
+  stroke-dasharray: 6 6;
+}
+
+.canvas-seed-node {
+  position: absolute;
+  z-index: 1;
+  left: calc(42% + (var(--node-index, 0) * 52px));
+  top: calc(84px + (var(--node-index, 0) * 110px));
+  display: grid;
+  gap: 5px;
+  width: 182px;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  padding: 9px;
+  box-shadow: 0 9px 18px rgba(15, 23, 42, 0.07);
+  word-break: keep-all;
+}
+
+.shared-canvas-stage.is-compact .canvas-seed-node {
+  gap: 0;
+  width: 160px;
+  min-height: 40px;
+  padding: 8px;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+}
+
+.shared-canvas-stage.is-compact .canvas-seed-node.primary {
+  width: 178px;
+}
+
+.canvas-seed-node.is-editable {
+  min-height: 94px;
+}
+
+.canvas-seed-node.is-link-source {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14), 0 10px 20px rgba(15, 23, 42, 0.08);
+}
+
+.canvas-seed-node.primary {
+  left: 24px;
+  top: 36px;
+  width: 226px;
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.canvas-seed-node.template-memo {
+  border-top: 3px solid #3b82f6;
+}
+
+.canvas-seed-node.template-question {
+  border-top: 3px solid #14b8a6;
+}
+
+.canvas-seed-node.template-decision {
+  border-top: 3px solid #7c3aed;
+}
+
+.canvas-seed-node.template-action {
+  border-top: 3px solid #f59e0b;
+}
+
+.canvas-seed-node.template-evidence {
+  border-top: 3px solid #22c55e;
+}
+
+.canvas-seed-node.template-risk {
+  border-top: 3px solid #ef4444;
+}
+
+.canvas-seed-node svg {
+  color: #2563eb;
+}
+
+.canvas-drag-handle,
+.canvas-delete-node,
+.canvas-child-node,
+.canvas-connect-node {
+  position: absolute;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #dce5ef;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #64748b;
+  transition: opacity 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.canvas-drag-handle:hover,
+.canvas-delete-node:hover,
+.canvas-child-node:hover,
+.canvas-connect-node:hover {
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.shared-canvas-stage.is-compact .canvas-drag-handle,
+.shared-canvas-stage.is-compact .canvas-delete-node,
+.shared-canvas-stage.is-compact .canvas-child-node,
+.shared-canvas-stage.is-compact .canvas-connect-node {
+  width: 19px;
+  height: 19px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.shared-canvas-stage.is-compact .canvas-seed-node:hover .canvas-drag-handle,
+.shared-canvas-stage.is-compact .canvas-seed-node:hover .canvas-delete-node,
+.shared-canvas-stage.is-compact .canvas-seed-node:hover .canvas-child-node,
+.shared-canvas-stage.is-compact .canvas-seed-node:hover .canvas-connect-node,
+.shared-canvas-stage.is-compact .canvas-seed-node:focus-within .canvas-drag-handle,
+.shared-canvas-stage.is-compact .canvas-seed-node:focus-within .canvas-delete-node,
+.shared-canvas-stage.is-compact .canvas-seed-node:focus-within .canvas-child-node,
+.shared-canvas-stage.is-compact .canvas-seed-node:focus-within .canvas-connect-node {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.canvas-drag-handle {
+  top: 7px;
+  right: 89px;
+  cursor: grab;
+}
+
+.canvas-drag-handle:active {
+  cursor: grabbing;
+}
+
+.canvas-delete-node {
+  top: 7px;
+  right: 8px;
+}
+
+.canvas-child-node {
+  top: 7px;
+  right: 35px;
+}
+
+.canvas-connect-node {
+  top: 7px;
+  right: 62px;
+}
+
+.shared-canvas-stage.is-compact .canvas-drag-handle {
+  top: 6px;
+  right: 72px;
+}
+
+.shared-canvas-stage.is-compact .canvas-connect-node {
+  top: 6px;
+  right: 50px;
+}
+
+.shared-canvas-stage.is-compact .canvas-child-node {
+  top: 6px;
+  right: 28px;
+}
+
+.shared-canvas-stage.is-compact .canvas-delete-node {
+  top: 6px;
+  right: 6px;
+}
+
+.canvas-seed-node strong {
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 720;
+}
+
+.canvas-node-template {
+  width: fit-content;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 720;
+}
+
+.shared-canvas-stage.is-compact .canvas-node-template {
+  padding: 0 5px;
+  font-size: 9.5px;
+}
+
+.canvas-seed-node input,
+.canvas-seed-node textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #1f2937;
+  padding: 2px 4px;
+  font-family: inherit;
+}
+
+.canvas-seed-node .canvas-title-input {
+  margin-top: 2px;
+  padding-right: 4px;
+  resize: none;
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 720;
+}
+
+.shared-canvas-stage.is-compact .canvas-seed-node .canvas-title-input {
+  margin-top: 0;
+  padding: 0 3px;
+  padding-right: 3px;
+  white-space: nowrap;
+  min-height: 18px;
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.canvas-seed-node textarea:not(.canvas-title-input) {
+  resize: vertical;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 560;
+}
+
+.shared-canvas-stage.is-compact .canvas-seed-node textarea:not(.canvas-title-input),
+.shared-canvas-stage.is-compact .canvas-seed-node p {
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.canvas-seed-node input:focus,
+.canvas-seed-node textarea:focus {
+  border-color: #bfdbfe;
+  background: #ffffff;
+  outline: 0;
+}
+
+.canvas-seed-node p {
+  margin: 0;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 560;
+}
+
+.shared-canvas-placeholder,
+.shared-canvas-loading {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.shared-canvas-placeholder {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  width: 246px;
+  border: 1px dashed #b7c6d8;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 14px;
+}
+
+.shared-canvas-placeholder strong,
+.shared-canvas-loading {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.shared-canvas-placeholder p {
+  margin: 0;
+  color: #64748b;
+  font-size: 11.5px;
+  line-height: 1.55;
+  font-weight: 560;
+}
+
+.shared-canvas-loading {
+  min-height: 260px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+@media (max-width: 900px) {
+  .shared-canvas-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .shared-canvas-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .canvas-tab-add-control {
+    flex: 0 0 auto;
+  }
+
+  .shared-canvas-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    height: auto;
+    padding: 10px 12px;
+  }
+
+  .canvas-density-tabs,
+  .canvas-template-picker {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .canvas-add-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .canvas-arrange-button,
+  .canvas-export-button {
+    width: fit-content;
+  }
+
+  .shared-canvas-stage {
+    height: 620px;
+    min-height: 620px;
+  }
+
+  .canvas-plane {
+    min-width: 980px;
+    min-height: 980px;
+  }
+}

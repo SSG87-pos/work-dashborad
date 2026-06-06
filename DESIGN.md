@@ -94,6 +94,38 @@ Greetings:
 - Archive/edit actions stay grouped tightly.
 - Repeat marker appears on the task-title row, icon-only.
 
+### Mindmap
+
+- Mindmap is a workflow peer of board, timeline, recurring work, and archive.
+- The first mindmap mode is `업무 구조`: an automatically generated structure from top-level workflow, Category presets, tags, and visible tasks.
+- The center node should stay compatible with a future `상위 업무흐름` model. Do not hardwire the conceptual center to Category only.
+- Scope modes separate active work from all historical work. `현재 진행업무` keeps richer task cards, while `전체 진행업무` uses a dense title-first/list-like node style because completed and archived work can become large.
+- `현재 진행업무` can also offer a compact node-size mode for scanning many boxes without switching to the historical/all-work scope.
+- The mindmap should auto-generate from the currently visible My/Team task scope and calculate layout positions to avoid node overlap.
+- The mindmap canvas should grow the page vertically as the generated map grows; avoid a separate internal scrollbar for the mindmap area.
+- Provide a visible center/home action for the generated mindmap so users can return to the top/fitted view after scrolling through a long map.
+- A task may appear in multiple Category branches when its Category/tags match more than one group, but total counts should dedupe by task id.
+- Multi-branch tasks should show a compact shared-location indicator such as `공유 N곳` rather than duplicating count semantics.
+- Group and tag nodes are filter actions: clicking them applies the existing tag filter and returns the user to the board result.
+- Task nodes open the same right-side workflow task detail as board/timeline/recurring/archive.
+- Do not reserve a blank detail column before a task node is selected.
+
+### Canvas
+
+- `Canvas` is its own main navigation area below `Highlights`, not a mode inside the workflow mindmap.
+- The `Canvas` area starts with only the default `생각 정리` tab. Other canvases should be created freely by users, not shipped as fixed tabs.
+- Users can add local Canvas tabs for additional personal or shared thinking spaces. Until backend storage is approved, these tabs are session-local prototype state.
+- Keep the `Canvas` page heading compact; do not duplicate the visible `Canvas` label in a large header card because the working area needs the vertical space.
+- Use this area for user-created/freeform thought sharing, while the workflow mindmap remains an automatically generated structured view.
+- Current implementation supports local draft editing: add nodes, edit node text, delete nodes, and drag nodes inside the current tab.
+- Canvas nodes can create child nodes directly, show connector lines, and run automatic tree-style arrangement for quick cleanup.
+- Existing Canvas nodes can be directly connected by selecting a source node and then a target node. Parent-child links remain tree/arrangement links in data and render as solid lines; direct related-node links are layout hints, remain separate from hierarchy data, and render as dashed lines so the difference is visible.
+- Canvas uses a scrollable large plane. Nodes should stay compact enough for many ideas, with template variants such as memo, question, decision, action, evidence, and risk.
+- Canvas node action icons should remain visible in card mode for ease of use. In compact mode, hide actions until hover/focus so the node reads as a title-only chip.
+- Canvas `카드/작게` mode is a true density switch: card mode shows editable title/body/template, while compact mode shows title-only nodes and auto-arrange recalculates for the smaller size.
+- The current tab can be exported to Markdown by copy or file download. This is an export affordance, not backend persistence.
+- Persistence, task-linking, and live multi-user collaboration are not implemented yet; do not imply those behaviors until approved.
+
 ### Timeline
 
 - Timeline is a workflow peer of the board.
