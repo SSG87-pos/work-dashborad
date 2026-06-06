@@ -2,6 +2,12 @@
 
 ## Now
 
+- [x] Document temporary internet URL demo procedure.
+  - Files: `docs/internal-port-demo-runbook.md`, `docs/company-demo-readiness-checklist.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a `Temporary Internet URL Demo Option` to the runbook covering Cloudflare Quick Tunnel, ngrok, and Vercel Hobby preview choices.
+  - Done: clarified that the default demo path remains internal port/local-network access, while temporary internet URLs can be used for short internal meetings only with example data, no real work data, no sensitive links, and shutdown after the demo.
+  - Done: updated the company checklist so internal-port, short tunnel URL, Vercel preview, IT/security review, and real operation are separated by risk and approval level.
+
 - [x] Run current POSLAB/mindmap branch demo-readiness QA.
   - Files: `TODO.md`, `HANDOFF.md`.
   - Done: rechecked the current `codex/poslab-entry-landing` branch after the compact mindmap adjustment.

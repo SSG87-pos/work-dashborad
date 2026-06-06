@@ -2,13 +2,16 @@
 
 ## Purpose
 
-임시 인터넷 URL 없이 회사 내부에서 포트/로컬 네트워크 방식으로 `연구기획그룹-전략` 업무 대시보드를 시연하기 위한 실행 절차다.
+회사 내부에서 포트/로컬 네트워크 방식으로 `연구기획그룹-전략` 업무 대시보드를 시연하기 위한 실행 절차다.
+
+기본 권장안은 회사망 포트 시연이다. 다만 회의 상황상 같은 네트워크 접속이 어렵거나 짧은 시간 동안만 여러 명에게 보여줘야 하면, 예시 데이터만 사용하는 조건으로 임시 인터넷 URL 시연을 별도 선택할 수 있다.
 
 나중에 회사 Windows/Linux PC에서 Git clone 후 실행할 때는 `docs/company-clone-runbook.md`를 함께 본다.
 
-현재 결정:
+현재 기본 결정:
 
-- 임시 배포 URL은 만들지 않는다.
+- 1차 기본안은 임시 배포 URL 없이 회사 포트/로컬 네트워크로 시연한다.
+- 필요 시 임시 인터넷 URL은 예시 데이터만 포함한 상태로, 회의 시간 동안만 제한적으로 연다.
 - 내부 1차 시연은 실명 예시 데이터로 진행한다.
 - 실제 업무 데이터는 입력하지 않는다.
 - 실제 팀원 auth 가입/계정 연결은 아직 하지 않는다.
@@ -128,7 +131,120 @@ Network: http://192.168.x.x:5174/
 - JSON 가져오기 실행 금지.
 - live DB 보안 정책 변경 금지.
 - service role key, DB password, Supabase secret 노출 금지.
-- 외부 임시 URL 생성 금지.
+- 임시 인터넷 URL을 열 경우, 실제 업무 데이터/민감자료/비공개 문서 링크를 절대 넣지 않는다.
+
+## Temporary Internet URL Demo Option
+
+임시 인터넷 URL은 회사망 포트 접근이 어렵거나, 회의 참석자가 같은 네트워크에 없어서 짧게 확인해야 할 때만 사용한다.
+
+이 방식은 인터넷에서 접근 가능한 URL을 만들기 때문에 기본안이 아니라 보조안이다. 내부 소규모 시연이고 예시 데이터만 사용한다면 실명 roster를 유지할 수 있지만, 부서 외 공유나 보안 검토로 넘어가면 익명 roster를 준비한다.
+
+### Minimum Conditions
+
+- 실제 업무 데이터는 입력하지 않는다.
+- 실제 업무 메모, 민감 일정, 비공개 문서 링크는 넣지 않는다.
+- 예시 데이터와 실명 roster만 사용한다.
+- URL은 회의 참석자에게만 공유한다.
+- 시연 시간 동안만 열고, 끝나면 즉시 종료한다.
+- Supabase service role key, DB password, `.env.local` 값, API secret은 화면/문서/채팅에 노출하지 않는다.
+- 실제 팀원 signup/auth 연결, JSON import, live DB migration은 하지 않는다.
+
+### Option A: Cloudflare Quick Tunnel
+
+짧은 라이브 시연에 가장 가볍다. 로컬 dev server를 켠 뒤 별도 터미널에서 임시 URL을 만든다.
+
+1. 앱 실행:
+
+```bash
+cd /Users/seulgi/Documents/work-dashboard
+/Users/seulgi/Library/pnpm/bin/pnpm run dev
+```
+
+2. 다른 터미널에서 tunnel 실행:
+
+```bash
+cloudflared tunnel --url http://localhost:5173
+```
+
+3. 출력되는 `https://...trycloudflare.com` 주소를 회의 참석자에게만 공유한다.
+
+4. 시연 종료 후 두 터미널에서 모두 종료한다.
+
+```text
+Ctrl + C
+```
+
+참고:
+
+- Cloudflare 공식 문서의 Quick Tunnel 명령도 `cloudflared tunnel --url http://localhost:8080` 형태다.
+- Quick Tunnel은 테스트/임시 공유 성격이다. 장기 운영 URL로 쓰지 않는다.
+- Vite가 `5174` 같은 다른 포트를 잡으면 tunnel 명령도 해당 포트로 바꾼다.
+
+예:
+
+```bash
+cloudflared tunnel --url http://localhost:5174
+```
+
+### Option B: ngrok
+
+ngrok 계정/설정이 이미 있거나 회사 정책상 ngrok 사용이 더 익숙하면 사용할 수 있다.
+
+1. 앱 실행:
+
+```bash
+/Users/seulgi/Library/pnpm/bin/pnpm run dev
+```
+
+2. 다른 터미널에서:
+
+```bash
+ngrok http 5173
+```
+
+3. 출력되는 `https://...ngrok...` 주소를 회의 참석자에게만 공유한다.
+
+4. 시연 후 종료한다.
+
+```text
+Ctrl + C
+```
+
+### Option C: Vercel Hobby Preview
+
+며칠 동안 내부 참석자들이 각자 눌러보는 정적 프론트 데모에는 Vercel Hobby를 검토할 수 있다.
+
+Vercel Hobby는 무료 플랜이지만 개인 프로젝트/소규모 앱용이며, 배포 URL은 터널처럼 터미널을 끄면 바로 사라지는 방식이 아니다. 따라서 “회의 시간 동안만 잠깐 열고 닫기”에는 Cloudflare Quick Tunnel이 더 적합하다.
+
+Vercel을 쓸 때의 기준:
+
+- 예시 데이터만 사용한다.
+- 실제 업무 데이터는 넣지 않는다.
+- 배포 URL 공유 범위를 내부 참석자로 제한한다.
+- 시연이 끝난 뒤 필요하면 프로젝트 배포를 비활성화하거나 삭제한다.
+- Supabase 사용 승인 여부는 Vercel 배포와 별개로 계속 확인한다.
+
+## Temporary URL Demo Checklist
+
+시연 전:
+
+- `git status -sb`가 의도한 브랜치/커밋 상태인지 확인한다.
+- `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`가 통과한다.
+- `/Users/seulgi/Library/pnpm/bin/pnpm run build`가 통과한다.
+- 앱 화면에 실제 업무 비밀이 없는지 확인한다.
+- 공유할 URL과 참석자 범위를 정한다.
+
+시연 중:
+
+- `Supabase 연결` 상태를 확인한다.
+- POSLAB entry -> Team Flow -> Mindmap -> Calendar -> Updates -> Highlights 순서로 보여준다.
+- 실제 업무 입력/JSON import/DB 설정 변경은 하지 않는다.
+
+시연 후:
+
+- tunnel/dev server 터미널을 `Ctrl + C`로 종료한다.
+- 임시 URL이 더 이상 열리지 않는지 확인한다.
+- Vercel을 썼다면 배포 유지 여부를 별도 결정한다.
 
 ## Troubleshooting
 

@@ -8,7 +8,7 @@
 
 - 실제 업무 데이터 없이 제품 흐름을 설명한다.
 - Supabase 사용 승인에 필요한 정보와 보안 질문을 정리한다.
-- 현재는 임시 인터넷 주소를 만들지 않고, 회사 내부 포트/로컬 네트워크 방식으로 시연한다.
+- 기본은 회사 내부 포트/로컬 네트워크 방식으로 시연한다. 다만 같은 회사망 접속이 어렵거나 회의 시간 동안만 여러 명에게 보여줘야 하면, 예시 데이터만 사용하는 조건으로 임시 인터넷 URL 시연을 별도 선택할 수 있다.
 - 나중에 GitHub repo를 회사 Windows/Linux PC에 clone해서 실행할 수 있도록 별도 절차를 유지한다.
 
 ## Recommended Stop Point Before Company Approval
@@ -19,7 +19,7 @@
 2. 실제 팀원 auth 가입/계정 연결은 보류한다.
 3. 기존 로컬 JSON 업무 이관은 실행하지 않는다. 팀은 Supabase에 새 데이터로 시작한다.
 4. Supabase RLS/function 보안 패스는 적용 완료 상태이며, 남은 Auth dashboard 보안 설정은 `docs/supabase-auth-security-checklist.md`를 기준으로 확인한다.
-5. 임시 배포 URL은 현재 제외한다. 회사에서는 포트/로컬 네트워크 방식으로 먼저 확인한다.
+5. 임시 배포 URL은 기본안에서 제외한다. 회사에서는 포트/로컬 네트워크 방식으로 먼저 확인하되, 필요하면 `docs/internal-port-demo-runbook.md`의 임시 인터넷 URL 절차를 따른다.
 
 ## Demo Data Policy
 
@@ -78,7 +78,9 @@
 
 ## Internal Port Demo Decision
 
-현재 결정: 임시 인터넷 주소는 제외하고, 회사에서 포트/로컬 네트워크를 활용해 먼저 확인한다.
+현재 기본 결정: 임시 인터넷 주소는 기본안에서 제외하고, 회사에서 포트/로컬 네트워크를 활용해 먼저 확인한다.
+
+예외: 같은 네트워크 접속이 어렵거나 짧은 회의 시간 동안만 보여줘야 하면, 예시 데이터만 사용하고 실제 업무 데이터는 넣지 않는 조건으로 임시 인터넷 URL을 열 수 있다. 이 경우 절차는 `docs/internal-port-demo-runbook.md`의 `Temporary Internet URL Demo Option`을 따른다.
 
 실행 절차는 `docs/internal-port-demo-runbook.md`를 따른다.
 
@@ -88,7 +90,9 @@
 | --- | --- | --- |
 | 슬기님 노트북으로 회의실에서 시연 | No | `localhost` 또는 로컬 dev server로 충분하다. |
 | 같은 회사망에서 포트로 접근해 보기 | No | dev server host/port를 회사망 정책에 맞게 열어 테스트한다. |
-| 회사 보안팀/IT팀 검토 | Maybe later | 현재는 포트 방식으로 먼저 확인하고, 요구가 있으면 배포 URL을 별도 검토한다. |
+| 짧은 회의용 임시 인터넷 URL | Optional | 예시 데이터만 사용하고, 시연 시간 동안만 열고 종료한다. Cloudflare Quick Tunnel/ngrok이 적합하다. |
+| 며칠간 눌러보는 프론트 데모 | Optional | Vercel Hobby preview를 검토할 수 있지만 URL이 계속 남는 방식이므로 공유 범위를 제한한다. |
+| 회사 보안팀/IT팀 검토 | Maybe later | 현재는 포트 방식 또는 제한된 임시 URL로 먼저 확인하고, 요구가 있으면 승인된 배포 경로를 별도 검토한다. |
 | 실제 운영 전환 | Yes | 임시 URL이 아니라 승인된 운영 배포 경로가 필요하다. |
 
 회사 포트/로컬 네트워크 시연에서도 실제 업무 데이터는 넣지 않는다.
@@ -105,6 +109,7 @@
 - JSON import는 현재 launch path에서 제외되어 있다.
 - 실제 팀원 signup/auth linking은 제외되어 있다.
 - 보안 패스는 별도 승인 후 진행한다.
+- 임시 인터넷 URL을 쓰는 경우, 실제 업무 데이터/민감자료/비공개 문서 링크가 없는지 재확인했다.
 
 ## Next Engineering Work
 
@@ -113,11 +118,12 @@
 - 예시 데이터가 실제 업무처럼 보이되 민감하지 않은지 문구 점검.
 - 데모용 익명 roster 옵션을 별도 준비할지 결정할 수 있도록 문서화.
 - 회사 포트/로컬 네트워크 시연 시 필요한 실행 명령, 포트, 접속 조건을 정리.
+- 임시 인터넷 URL을 써야 할 때의 Cloudflare/ngrok/Vercel 선택 기준을 유지.
 - 회사 Windows/Linux clone 실행 절차와 사전 점검 script를 유지.
 
 승인이 필요한 작업:
 
 - live DB 보안 정책 변경.
-- 임시 인터넷 주소 배포.
+- 운영성/지속 배포 URL 생성.
 - 실제 팀원 계정 가입/연결.
 - 실제 업무 데이터 입력.

@@ -145,6 +145,12 @@ Recent UI/UX refinements from the latest session:
   - Browser desktop QA at 1366px verified POSLAB entry session restore, `Supabase 연결`, the 6-person real roster, Team Flow board, compact mindmap, Canvas, Calendar, Updates, Highlights, and scoped admin management surfaces with no horizontal overflow. Admin tabs `사람 관리`, `태그 관리`, and `업무흐름 관리` rendered after clicking the scoped sidebar `관리자` nav.
   - Browser narrow QA at 820px verified Team Flow board, compact mindmap, Canvas, Calendar, and Admin with no horizontal overflow and no console errors. Known warnings during broader browser work came from third-party 3D/lanyard deprecation messages.
 
+- Temporary internet URL demo option:
+  - `docs/internal-port-demo-runbook.md` now keeps internal port/local-network access as the default path, but documents a temporary internet URL option for short internal meetings when same-network access is difficult.
+  - The temporary URL option is limited to example data only, no real work data, no sensitive links, no JSON import, no live DB migration, and shutdown after the demo.
+  - Cloudflare Quick Tunnel is documented as the lightest short live-demo option (`cloudflared tunnel --url http://localhost:5173`), ngrok as an alternative, and Vercel Hobby preview as a longer-lived frontend demo option where the URL can remain available after deployment.
+  - `docs/company-demo-readiness-checklist.md` now separates internal port demo, short tunnel URL demo, Vercel preview, IT/security review, and real operation by risk/approval level.
+
 - Added POSLAB entry landing:
   - created `src/PoslabLanyard.jsx` with the React Bits-style lanyard implementation: original card/clip/clamp GLB geometry, logo-free meshline strap, Rapier rope/spherical joints, and the selected `Executive Blue` POSLAB-only generated card face
   - added POSLAB entry screen styles to `src/styles.css` and a `hasEnteredDashboard` session gate in `src/App.jsx`
