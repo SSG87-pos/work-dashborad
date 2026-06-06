@@ -61,6 +61,7 @@ One row is one accountable unit of work. When two or more people share work, cre
 | id | string | Stable task id. |
 | title | string | Task name. |
 | description | text | Detail shown in task detail. |
+| workstream | text nullable | Single `상위 업무흐름` used for report and mindmap grouping. Tags remain separate multi-select filter metadata. |
 | owner_id | user id | Main assignee. |
 | assigner_type | enum | 원장님, 소장님, 그룹장님, 팀장님, 개인, 기타. |
 | assigner_id | user id nullable | Internal user who assigned or entered assignment if applicable. |

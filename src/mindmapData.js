@@ -1,9 +1,12 @@
+import { collectWorkstreams, groupTasksByWorkstream } from "./workstreams.js";
+
 const fallbackGroup = {
   id: "mindmap:uncategorized",
   label: "미분류",
   tags: [],
   tone: "custom"
 };
+const statusSummaryOrder = ["진행중", "계획", "검토/대기", "완료", "보류"];
 
 export function normalizeMindmapTags(tags) {
   return Array.from(new Set((tags ?? []).map((tag) => String(tag ?? "").trim()).filter(Boolean)));
@@ -17,6 +20,29 @@ export function mindmapTaskProgress(task) {
   const subtasks = task?.subtasks?.filter((subtask) => subtask.title?.trim()) ?? [];
   if (!subtasks.length) return task?.status === "완료" ? 100 : 0;
   return Math.round((subtasks.filter((subtask) => subtask.done).length / subtasks.length) * 100);
+}
+
+export function uniqueMindmapTasksForGroup(group) {
+  if (Array.isArray(group?.tasks)) return group.tasks;
+  return Array.from(
+    new Map((group?.tagBuckets ?? []).flatMap((bucket) => bucket.tasks ?? []).map((task) => [task.id, task])).values()
+  );
+}
+
+function countStatuses(tasks) {
+  return tasks.reduce((acc, task) => {
+    acc[task.status] = (acc[task.status] ?? 0) + 1;
+    return acc;
+  }, {});
+}
+
+export function mindmapGroupStatusSummary(group) {
+  const statusCounts = countStatuses(uniqueMindmapTasksForGroup(group));
+  const orderedStatuses = [
+    ...statusSummaryOrder.filter((status) => statusCounts[status]),
+    ...Object.keys(statusCounts).filter((status) => !statusSummaryOrder.includes(status)).sort((a, b) => a.localeCompare(b, "ko-KR"))
+  ];
+  return orderedStatuses.slice(0, 3).map((status) => `${status} ${statusCounts[status]}`);
 }
 
 export function filterMindmapTasksByScope(tasks, scope = "active") {
@@ -33,9 +59,8 @@ function placementTagFor(taskTags, group) {
   return taskTags.find((tag) => group.tags.includes(tag)) ?? group.tags[0] ?? "미분류";
 }
 
-function groupSortValue(group) {
-  if (group.id === fallbackGroup.id) return 1;
-  return 0;
+function safeWorkstreamId(label) {
+  return `workstream:${String(label ?? "미지정").replace(/\s+/g, "-")}`;
 }
 
 function createMindmapTask(task, locations) {
@@ -63,51 +88,46 @@ export function buildMindmapStructure(tasks, presets = []) {
       tone: group.tone ?? "custom"
     }))
     .filter((group) => group.id && group.label && group.tags.length);
-  const groupsById = new Map([...normalizedGroups, fallbackGroup].map((group) => [group.id, {
-    ...group,
+  const workstreamGroups = groupTasksByWorkstream(activeTasks, collectWorkstreams(activeTasks));
+  const groupsById = new Map(workstreamGroups.map((group) => [safeWorkstreamId(group.label), {
+    id: safeWorkstreamId(group.label),
+    label: group.label,
+    tags: [],
+    tone: "custom",
     taskIds: new Set(),
-    tagBucketsByName: new Map()
+    tasks: []
   }]));
-  const locationsByTaskId = new Map();
 
-  activeTasks.forEach((task) => {
-    const tags = mindmapTaskTags(task);
-    const matchedGroups = normalizedGroups.filter((group) => taskMatchesGroup(tags, group));
-    const placementGroups = matchedGroups.length ? matchedGroups : [fallbackGroup];
-    const locations = placementGroups.map((group) => ({
-      groupId: group.id,
-      groupLabel: group.label,
-      tag: placementTagFor(tags, group)
-    }));
-    locationsByTaskId.set(task.id, locations);
-  });
-
-  activeTasks.forEach((task) => {
-    const locations = locationsByTaskId.get(task.id) ?? [];
-    locations.forEach((location) => {
-      const group = groupsById.get(location.groupId);
-      if (!group) return;
+  workstreamGroups.forEach((workstream) => {
+    const workstreamId = safeWorkstreamId(workstream.label);
+    const group = groupsById.get(workstreamId);
+    if (!group) return;
+    workstream.tasks.forEach((task) => {
+      const tags = mindmapTaskTags(task);
+      const matchedGroups = normalizedGroups.filter((categoryGroup) => taskMatchesGroup(tags, categoryGroup));
+      const classificationGroups = matchedGroups.length ? matchedGroups : [fallbackGroup];
+      const locations = classificationGroups.map((categoryGroup) => ({
+        workstreamId,
+        groupId: categoryGroup.id,
+        groupLabel: categoryGroup.label,
+        tag: placementTagFor(tags, categoryGroup)
+      }));
       group.taskIds.add(task.id);
-      if (!group.tagBucketsByName.has(location.tag)) {
-        group.tagBucketsByName.set(location.tag, {
-          tag: location.tag,
-          tasks: []
-        });
-      }
-      group.tagBucketsByName.get(location.tag).tasks.push(createMindmapTask(task, locations));
+      group.tags = normalizeMindmapTags([...group.tags, ...tags]);
+      group.tasks.push(createMindmapTask(task, locations));
     });
   });
 
   const groups = Array.from(groupsById.values())
     .filter((group) => group.taskIds.size > 0)
-    .sort((a, b) => groupSortValue(a) - groupSortValue(b))
+    .sort((a, b) => a.label.localeCompare(b.label, "ko-KR"))
     .map((group) => ({
       id: group.id,
       label: group.label,
       tags: group.tags,
       tone: group.tone,
       uniqueTaskCount: group.taskIds.size,
-      tagBuckets: Array.from(group.tagBucketsByName.values()).sort((a, b) => a.tag.localeCompare(b.tag, "ko-KR"))
+      tasks: group.tasks
     }));
 
   return {

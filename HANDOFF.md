@@ -38,9 +38,10 @@ Key product decisions now in the prototype:
 - Memo behavior is page-scoped, not account-scoped: `오늘 브리핑` and `전체 업무흐름` each have an independent memo, and any signed-in team member can edit the memo for the page they are viewing.
 - `전체 업무흐름` is the shared public team board/timeline/recurring/archive area.
 - `마인드맵` is now a workflow peer for structured work viewing:
-  - `업무 구조` is automatically generated from the current top-level workflow, Category presets, tags, and visible tasks.
+  - `업무 구조` is automatically generated from `상위 업무흐름`, Category presets, tags, and visible tasks.
   - It respects the current My/Team task scope by receiving the already visible task list from `App.jsx`.
-  - Future direction: the center node may become `상위 업무흐름`; keep Category as a branching/filtering axis rather than the only conceptual root.
+  - `상위 업무흐름` is now the conceptual first branch; Category and tags remain lower filtering/context branches.
+  - Initial data and the mindmap header `샘플` action include workflow-shaped examples, especially `혁신아이디어`, so users can verify that separate tasks across dates/categories still group into one upper flow.
   - Scope modes separate `현재 진행업무` from `전체 진행업무`; active work can use richer node cards or compact boxes, while all/historical work uses a much denser title-first node/list style.
   - The mindmap calculates node coordinates to avoid overlap and sets its container height from the generated layout so the page grows vertically instead of adding a separate internal mindmap scrollbar.
   - tasks that match 2+ Category branches can appear in multiple branches while total counts dedupe by task id and show a compact `공유 N곳` indicator.
@@ -98,13 +99,20 @@ Key product decisions now in the prototype:
 - `업무실적` is report-oriented, not metric-card-oriented:
   - opens in `주간`
   - weekly shows detailed issue/content/completed/planned lines
-  - monthly groups by week
-  - quarterly groups by month
-  - yearly groups by quarter
+  - weekly remains task-oriented
+  - monthly/quarterly/yearly summarize by `상위 업무흐름` inside week/month/quarter period groupings
+  - workstream items keep source task evidence for Markdown copy/save
   - recurring work is merged into compact recurring summaries.
+- `상위 업무흐름` is separate from tags:
+  - tags remain multi-select filter/search metadata
+  - each task has one workstream label used for mindmap and performance grouping
+  - blank workstream values are recommended from the task title first and tags only as secondary evidence
+  - admin cleanup now starts in `관리자 > 업무흐름 관리`, where similar names can be reviewed and labels can be renamed to intentionally merge tasks under one flow.
 - Profile/login/admin are prototype-level:
   - account selection screen after logout
   - admin account exists for permission/admin flow
+  - the `관리자` sidebar tab is visible only to admin users and contains `사람 관리`, `태그 관리`, and `업무흐름 관리`
+  - account modal is now focused on account switching and personal profile edits; roster/permission management moved into `관리자 > 사람 관리`
   - profile emoji picker exists and persists locally
   - shared emoji picker now uses lazy-loaded `emoji-picker-react` with native emoji rendering for profile, memo, calendar notes, and update logs
   - team composition order is `그룹장 -> 팀장 -> 가나다순`.
@@ -123,6 +131,42 @@ Key product decisions now in the prototype:
   - Data API table grants are applied manually because automatic table exposure was disabled.
 
 Recent UI/UX refinements from the latest session:
+
+- Added an admin-only management page:
+  - sidebar `관리자` tab is shown only when the selected profile has `permissionRole: admin`; non-admin stale routes are redirected back to the board
+  - `사람 관리` moved roster add/edit, permission role, team display, and active-state controls out of the account modal into a wide admin page
+  - `태그 관리` now uses a compact Category-folder/tag-file tree with a right-side selected-item editor; admins can click tags to rename/delete them and drag tags between Category folders
+  - `업무흐름 관리` now uses a compact flow list plus selected-flow editor; the detail panel shows status evidence, included source tasks, similar-flow candidates, and rename-based flow merging
+  - Supabase note: workstream rename is reflected in app state, but shared persistence still needs the future `tasks.workstream` migration.
+  - Verification: `check:workstreams`, `check:mindmap-structure`, `check:summary-filter`, `git diff --check`, and production build passed. Browser QA on `http://127.0.0.1:5178/` verified admin-only nav visibility, non-admin route guard, account modal admin-section removal, the three admin tabs, workstream management showing `혁신아이디어`, monthly performance grouping by workstream, no console errors/warnings, and no horizontal overflow at 1280px and 820px widths.
+  - Latest follow-up QA on `http://127.0.0.1:5178/` verified `태그 관리` has the new tree/editor surface with 14 draggable tag rows and no old tag-table rows; `업무흐름 관리` has 8 compact tree rows, selected-flow `포함 업무`, no old workstream-card rows, no clipped workstream/task text, no horizontal overflow at 1366px or 820px, and console errors/warnings 0.
+  - Tag-folder follow-up QA on `http://127.0.0.1:5178/` verified Category folder collapse/expand: first folder toggled from `aria-expanded=true` to `false`, visible tag rows changed from 14 to 12, one `.is-collapsed` folder appeared, toggling again restored 14 visible tag rows, no console errors/warnings, and no horizontal overflow.
+  - Final tag-tree fix aligned the `미분류` folder to the same arrow/folder/count grid as normal Category folders, fixing the truncated label and stretched count pill.
+
+- Refined workstream display in reports and mindmap:
+  - monthly/quarterly/yearly performance cards now use `묶인 업무 N건` instead of `상위흐름 N건`
+  - grouped report cards show a `포함 업무` line listing the task titles that make up the workstream
+  - quarterly/yearly performance cards hide checklist/detail rows by default and keep `포함 업무` as the main evidence unless the detailed-report option is enabled
+  - mindmap no longer renders Category buckets as a separate layer; it now branches root -> `상위 업무흐름` -> task nodes
+  - multi-Category task context is no longer shown as a visible `분류 N개` badge because it was unclear after removing Category bucket nodes.
+  - mindmap task status chips now follow the timeline/status color meaning, importance uses the existing square priority sticker grammar, and compact task nodes show a small status-colored dot plus owner name without widening the node.
+  - Latest follow-up QA on `http://127.0.0.1:5178/` verified mindmap has 0 Category/tag bucket nodes, 8 workstream nodes, 10 task nodes, includes `혁신아이디어 행사 기획`, and quarterly performance shows `포함 업무`/`묶인 업무` with 0 checklist/detail rows and 0 description rows by default.
+  - Chip follow-up QA on `http://127.0.0.1:5178/` verified card mode status classes such as `status-진행중`, priority square classes such as `priority-square-높음`, no visible `분류` text, 10 task nodes, 222px task node width, and no horizontal overflow. Compact mode verified 10 task nodes with status dots, owner text such as `류강묵`, 166px width, 42px height, no console errors/warnings, and no horizontal overflow.
+  - Status-dot follow-up QA on `http://127.0.0.1:5178/` verified 5 status legend items in the mindmap header, legend/status dots at 8x8, compact owner text retained, no console errors/warnings, and no horizontal overflow.
+  - Legend layout follow-up QA on `http://127.0.0.1:5178/` verified mindmap controls and status legend are separated into two rows, the legend appears below the controls, 5 legend items render, no console errors/warnings, and no horizontal overflow.
+
+- Added first-pass `상위 업무흐름` support:
+  - new `src/workstreams.js` pure helpers recommend/group workstreams title-first, with `scripts/check-workstreams.mjs` covering examples such as `혁신아이디어 행사 기획 -> 혁신아이디어`, short `g` fragments staying blank, and existing confirmed labels being reused when appropriate
+  - task add/edit modal shows `상위 업무흐름`; the suggestion refreshes while the user has not manually overridden it
+  - short IME/roman fragments such as `g` no longer become workstreams like `g 추진`
+  - new title-derived workstreams keep the core phrase instead of automatically appending generic suffixes such as `추진`; existing confirmed workstream names can still be reused as-is
+  - the task form now recommends after the 업무명 field loses focus, not on every keystroke, and explains inline that the value can be directly edited if needed
+  - task detail metadata shows `상위 업무흐름`
+  - mindmap now branches from workstream first directly to tasks; Category/tag context stays on task nodes rather than as its own visual layer
+  - initial sample data now carries explicit workstream labels and `MindmapView` has a small `샘플` action that adds `혁신아이디어` demo tasks when existing saved/live data does not include them
+  - monthly/quarterly/yearly performance reports now use workstream summary titles and show `묶인 업무 N건` when multiple source tasks are grouped
+  - backend docs now include a future `tasks.workstream` field; live Supabase persistence for custom confirmed values still needs the DB migration before relying on it in signed-in mode.
+  - Verification: `check:workstreams`, `check:mindmap-structure`, `check:summary-filter`, `git diff --check`, and production build passed; Browser QA on local mode `http://127.0.0.1:5177/` verified Team Flow mindmap rendering, the `샘플` action, `혁신아이디어` grouped as 2 active tasks with deduped `진행중 1 / 계획 1` status summary, no console errors/warnings, and no horizontal overflow at 1280px and 820px widths.
 
 - Added the `마인드맵` workflow tab:
   - installed `@xyflow/react` and added a lazy-loaded `MindmapView`

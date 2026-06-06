@@ -96,6 +96,7 @@ Backend integration should not store view-only fields as team data. Treat these 
 | id | text pk | yes | Stable task id. |
 | title | text | yes | Task name. |
 | description | text | no | Detail body. |
+| workstream | text | no | `상위 업무흐름` used for mindmap and performance grouping. Recommended from title first, tags second, and confirmed by user/admin. |
 | owner_id | text fk users.id | yes | Accountable assignee. |
 | assigner_type | enum | yes | `원장님`, `소장님`, `그룹장님`, `팀장님`, `개인`, `기타`. |
 | assigner_id | text fk users.id | no | Internal assigner when known. |

@@ -19,6 +19,8 @@ import {
   Download,
   Edit3,
   Filter,
+  FileText,
+  FolderOpen,
   Info,
   LayoutDashboard,
   Link2,
@@ -41,12 +43,13 @@ import {
   Upload,
   X
 } from "lucide-react";
-import { TODAY, assignerTypes, categories, initialCalendarEvents, initialTasks, people, statuses, tagOptions } from "./data.js";
+import { TODAY, assignerTypes, categories, initialCalendarEvents, initialTasks, mindmapSampleTasks, people, statuses, tagOptions } from "./data.js";
 import { localDashboardStore, supabaseImportHistoryStore } from "./storage.js";
 import { buildSupabaseImportPlan, formatSupabaseImportPlanMessage } from "./supabaseImportPlan.js";
 import { supabaseConfig } from "./supabaseClient.js";
 import { supabaseDashboardStore } from "./supabaseStore.js";
 import { summaryFilterLabels, summaryFilterMatches } from "./summaryFilters.js";
+import { collectWorkstreams, groupTasksByWorkstream, recommendWorkstream } from "./workstreams.js";
 
 const MindmapView = lazy(() => import("./MindmapView.jsx").then((module) => ({ default: module.MindmapView })));
 const SharedCanvasView = lazy(() => import("./SharedCanvasView.jsx").then((module) => ({ default: module.SharedCanvasView })));
@@ -87,8 +90,8 @@ const defaultTagFilterPresets = [
   { id: "preset:research", label: "조사/근거", tags: ["자료조사", "외부자료", "정책"], tone: "research" },
   { id: "preset:operations", label: "운영/KPI", tags: ["월간보고", "회의체", "운영", "KPI"], tone: "operations" }
 ];
-const viewOptions = ["board", "timeline", "calendar", "recurring", "archive", "mindmap", "updates", "performance", "canvas"];
-const fullPageViews = ["calendar", "updates", "performance", "canvas"];
+const viewOptions = ["board", "timeline", "calendar", "recurring", "archive", "mindmap", "updates", "performance", "canvas", "admin"];
+const fullPageViews = ["calendar", "updates", "performance", "canvas", "admin"];
 const pageOptions = ["my", "team"];
 const timelineModeOptions = ["month", "year"];
 const performanceModes = ["week", "month", "quarter", "year"];
@@ -280,6 +283,11 @@ function displayTaskTitle(task) {
   return title.replace(/\s*\((?:\d{1,2}월\s*)?\d{1,2}일\s*반복\)\s*$/u, "").trim() || title;
 }
 
+function taskWorkstreamLabel(task, existingWorkstreams = []) {
+  if (!task?.workstream && !String(task?.title ?? "").trim()) return "";
+  return recommendWorkstream(task, existingWorkstreams).label;
+}
+
 function cleanImportedTask(task, index, options = {}) {
   const knownPersonIds = options.knownPersonIds ?? new Set(people.map((person) => person.id));
   const ownerId = knownPersonIds.has(task.ownerId)
@@ -303,6 +311,7 @@ function cleanImportedTask(task, index, options = {}) {
     priority: ["낮음", "보통", "높음"].includes(task.priority) ? task.priority : "보통",
     category: tags[0] ?? "운영",
     tags: tags.length ? tags : ["운영"],
+    workstream: taskWorkstreamLabel(task),
     createdAt:
       typeof task.createdAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(task.createdAt)
         ? task.createdAt
@@ -1230,6 +1239,16 @@ function reportLineDate(task, mode) {
   return "";
 }
 
+function performanceItemDateLabel(item, mode) {
+  if (!item?.tasks?.length) return "";
+  const dates = itemReportDates(item);
+  if ((item.workstreamLabel || item.tasks.length > 1) && dates.length > 1) {
+    return `${reportDateLabel(dates[0], mode)}~${reportDateLabel(dates.at(-1), mode)}`;
+  }
+  const task = item.task;
+  return reportLineDate({ ...task, status: item.status }, mode);
+}
+
 function reportDetailMeta(label) {
   const meta = {
     완료: { icon: "✓", tone: "done" },
@@ -1274,34 +1293,34 @@ function mergeReportRows(rowGroups) {
     .filter(Boolean);
 }
 
+function workstreamTaskSummary(item) {
+  if (!item?.workstreamTaskCount || item.workstreamTaskCount <= 1) return "";
+  const titles = Array.from(new Set(item.tasks.map((task) => displayTaskTitle(task))));
+  const preview = titles.slice(0, 4).join(", ");
+  const hiddenCount = Math.max(0, titles.length - 4);
+  return hiddenCount ? `${preview} 외 ${hiddenCount}건` : preview;
+}
+
 function performanceItemsForTasks(tasks, mode, range, options = {}) {
   if (mode === "week") return tasks.map((task) => ({ id: task.id, task, tasks: [task], title: task.title, status: task.status }));
-  const recurringGroups = new Map();
-  const items = [];
-  tasks.forEach((task) => {
-    if (!task.recurring) {
-      items.push({ id: task.id, task, tasks: [task], title: task.title, status: task.status });
-      return;
-    }
-    const key = `${task.recurring}:${normalizeRecurringTitle(task.title)}:${task.recurringDetail ?? ""}`;
-    if (!recurringGroups.has(key)) recurringGroups.set(key, []);
-    recurringGroups.get(key).push(task);
-  });
-  recurringGroups.forEach((groupTasks, key) => {
-    const sorted = groupTasks.sort((a, b) => toDate(effectiveReportDate(a)) - toDate(effectiveReportDate(b)));
+  const workstreamGroups = groupTasksByWorkstream(tasks, collectWorkstreams(tasks));
+  const items = workstreamGroups.map((group) => {
+    const sorted = group.tasks.sort((a, b) => toDate(effectiveReportDate(a)) - toDate(effectiveReportDate(b)));
     const firstTask = sorted[0];
     const rows = mergeReportRows(
       sorted.flatMap((task) => reportDetailRows(task, updatesInRange(task, range), mode, options))
     );
-    items.push({
-      id: `recurring-${key}`,
+    return {
+      id: `workstream-${group.label}`,
       task: firstTask,
       tasks: sorted,
-      title: normalizeRecurringTitle(firstTask.title),
+      title: group.label,
       status: mergedStatus(sorted),
-      recurringLabel: recurringRangeLabel(sorted),
+      workstreamLabel: group.label,
+      workstreamTaskCount: sorted.length,
+      recurringLabel: sorted.every((task) => task.recurring) ? recurringRangeLabel(sorted) : "",
       detailRows: rows
-    });
+    };
   });
   return items.sort((a, b) => toDate(effectiveReportDate(a.tasks[0])) - toDate(effectiveReportDate(b.tasks[0])));
 }
@@ -1331,8 +1350,8 @@ function reportPeriodGroup(item, mode) {
     const weeks = Array.from(new Set(itemReportDates(item).map(weekOfMonthNumber))).sort((a, b) => a - b);
     const firstWeek = weeks[0] ?? 1;
     const lastWeek = weeks[weeks.length - 1] ?? firstWeek;
-    if (item.recurringLabel && weeks.length > 1) {
-      return { label: `${firstWeek}~${lastWeek}주차 반복`, sortKey: firstWeek };
+    if ((item.recurringLabel || item.workstreamLabel) && weeks.length > 1) {
+      return { label: `${firstWeek}~${lastWeek}주차 ${item.recurringLabel ? "반복" : "흐름"}`, sortKey: firstWeek };
     }
     return { label: `${firstWeek}주차`, sortKey: firstWeek };
   }
@@ -1340,9 +1359,9 @@ function reportPeriodGroup(item, mode) {
   const firstMonth = months[0];
   const lastMonth = months[months.length - 1] ?? firstMonth;
   if (mode === "quarter") {
-    if (item.recurringLabel && months.length > 1) {
+    if ((item.recurringLabel || item.workstreamLabel) && months.length > 1) {
       return {
-        label: `${monthGroupLabel(firstMonth)}~${monthGroupLabel(lastMonth)} 반복`,
+        label: `${monthGroupLabel(firstMonth)}~${monthGroupLabel(lastMonth)} 흐름`,
         sortKey: Number(firstMonth.slice(5, 7))
       };
     }
@@ -1352,8 +1371,8 @@ function reportPeriodGroup(item, mode) {
     const quarters = Array.from(new Set(months.map((month) => quarterNumberFromDate(`${month}-01`)))).sort((a, b) => a - b);
     const firstQuarter = quarters[0];
     const lastQuarter = quarters[quarters.length - 1] ?? firstQuarter;
-    if (item.recurringLabel && quarters.length > 1) {
-      return { label: `${firstQuarter}~${lastQuarter}분기 반복`, sortKey: firstQuarter };
+    if ((item.recurringLabel || item.workstreamLabel) && quarters.length > 1) {
+      return { label: `${firstQuarter}~${lastQuarter}분기 흐름`, sortKey: firstQuarter };
     }
     return { label: `${firstQuarter}분기`, sortKey: firstQuarter };
   }
@@ -1375,17 +1394,21 @@ function performanceItemMarkdown(item, mode, range, options = {}) {
   const task = item.task;
   const rangeUpdates = item.tasks.flatMap((entry) => updatesInRange(entry, range));
   const issue = mode === "week" || options.showLongDetails ? issueFromTask(task, rangeUpdates) : "";
-  const detailRows = item.detailRows ?? reportDetailRows(task, rangeUpdates, mode, options);
+  const hideLongRangeDetails = ["quarter", "year"].includes(mode) && !options.showLongDetails;
+  const detailRows = hideLongRangeDetails ? [] : (item.detailRows ?? reportDetailRows(task, rangeUpdates, mode, options));
   const statusMeta = reportStatusMeta({ ...task, status: item.status });
-  const reportDate = reportLineDate({ ...task, status: item.status }, mode);
+  const reportDate = performanceItemDateLabel(item, mode);
   const titleParts = [
     `[${statusMeta.label}]`,
     reportDate,
     item.title,
+    item.workstreamTaskCount > 1 ? `(묶인 업무: ${item.workstreamTaskCount}건)` : "",
     item.recurringLabel ? `(반복: ${item.recurringLabel})` : ""
   ].filter(Boolean);
   const lines = [`- ${titleParts.join(" ")}`];
   if (issue) lines.push(`  - ${task.status === "보류" ? "보류" : "이슈"}: ${issue}`);
+  const sourceTaskSummary = workstreamTaskSummary(item);
+  if (sourceTaskSummary) lines.push(`  - 포함 업무: ${sourceTaskSummary}`);
   detailRows.forEach((row) => lines.push(`  - ${row.label}: ${row.text}`));
   return lines.join("\n");
 }
@@ -1395,8 +1418,9 @@ function performanceSourceLine(item, range) {
     .map((task) => {
       const updateIds = updatesInRange(task, range).map((update, index) => `${update.date}:${update.authorId}:${index + 1}`);
       const tagLabel = taskTags(task).join(", ");
+      const workstreamLabel = taskWorkstreamLabel(task);
       const doneLabel = completionDate(task) ? ` / 완료 ${completionDate(task)}(${personName(task.completedBy || task.ownerId)})` : "";
-      return `- ${task.id}: ${task.title} / 담당 ${personName(task.ownerId)} / 상태 ${task.status} / 기간 ${task.startDate}~${task.dueDate}${doneLabel} / 태그 ${tagLabel}${updateIds.length ? ` / 로그 ${updateIds.join(", ")}` : ""}`;
+      return `- ${task.id}: ${task.title} / 상위 업무흐름 ${workstreamLabel} / 담당 ${personName(task.ownerId)} / 상태 ${task.status} / 기간 ${task.startDate}~${task.dueDate}${doneLabel} / 태그 ${tagLabel}${updateIds.length ? ` / 로그 ${updateIds.join(", ")}` : ""}`;
     })
     .join("\n");
 }
@@ -1531,6 +1555,7 @@ function createBlankTask(ownerId, creatorId = ownerId) {
     priority: "보통",
     category: "",
     tags: ["기획보고"],
+    workstream: "",
     startDate: TODAY,
     dueDate: TODAY,
     completedAt: "",
@@ -1833,10 +1858,15 @@ function App() {
   );
   peopleDirectory = directory;
   const selectedPerson = directory.find((person) => person.id === selectedPersonId) ?? directory.find((person) => person.id === "kmryu");
+  const isSelectedAdmin = selectedPerson?.permissionRole === "admin";
   const defaultTaskOwnerId = selectedPerson?.isTeamMember === false ? "lead" : selectedPersonId;
   const canManageTags = canManageTagsFor(selectedPersonId);
   const teamMembers = useMemo(() => teamCompositionOrder(teamAssignablePeople(directory)), [directory]);
   const selectedTagFilters = useMemo(() => readTagFilterValues(category, tagGroups), [category, tagGroups]);
+  const workstreamOptions = useMemo(
+    () => groupTasksByWorkstream(tasks, collectWorkstreams(tasks)).map((group) => ({ label: group.label })),
+    [tasks]
+  );
   const tagFilterLabel = selectedTagFilters.length ? `선택됨 ${selectedTagFilters.length}개` : "전체";
   const tagFilterTitle = selectedTagFilters.length ? tagFilterSummaryLabel(selectedTagFilters) : "전체 태그";
   const selectedTask = tasks.find((task) => task.id === selectedTaskId && !isDeletedTask(task)) ?? null;
@@ -2106,6 +2136,12 @@ function App() {
   }, [activePage, activeView]);
 
   useEffect(() => {
+    if (activeView === "admin" && !isSelectedAdmin) {
+      setActiveView("board");
+    }
+  }, [activeView, isSelectedAdmin]);
+
+  useEffect(() => {
     const previous = navigationScrollRef.current;
     const changedPage = previous.page !== activePage;
     const enteredFullPage = fullPageViews.includes(activeView) && previous.view !== activeView;
@@ -2185,6 +2221,7 @@ function App() {
       assignerType: task.assignerType || defaultAssignerType(task.ownerId),
       creatorId: task.creatorId || selectedPersonId,
       category: nextTags[0],
+      workstream: taskWorkstreamLabel({ ...task, tags: nextTags }, workstreamOptions),
       archived: Boolean(task.archived),
       isNewAssignment: false,
       progress: nextSubtasks.length
@@ -2434,6 +2471,48 @@ function App() {
     );
   }
 
+  function fillMindmapDemoData() {
+    const currentIds = new Set(tasks.map((task) => task.id));
+    const missingDemoTasks = cloneList(mindmapSampleTasks).filter((task) => !currentIds.has(task.id));
+    setTasks((current) => {
+      if (!missingDemoTasks.length) return current;
+      return [...current, ...missingDemoTasks];
+    });
+    setActivePage("team");
+    setActiveView("mindmap");
+    setDetailContext("workflow");
+    closeTaskDetail();
+    setCategory("전체");
+    setPriorityFilter("전체");
+    setSummaryFilter("");
+    showSyncNotice(
+      missingDemoTasks.length
+        ? `마인드맵 샘플 업무 ${missingDemoTasks.length}건을 추가했습니다. 혁신아이디어 흐름을 현재/전체 범위에서 확인해 보세요.`
+        : "마인드맵 샘플 업무가 이미 추가되어 있습니다."
+    );
+  }
+
+  function renameWorkstream(oldLabel, nextLabel) {
+    if (!isSelectedAdmin) return;
+    const cleanOldLabel = String(oldLabel ?? "").trim();
+    const cleanNextLabel = String(nextLabel ?? "").trim();
+    if (!cleanOldLabel || !cleanNextLabel || cleanOldLabel === cleanNextLabel) return;
+    const matchedTaskIds = new Set(
+      groupTasksByWorkstream(tasks.filter((task) => task && !isDeletedTask(task)), collectWorkstreams(tasks))
+        .find((group) => group.label === cleanOldLabel)
+        ?.tasks.map((task) => task.id) ?? []
+    );
+    if (!matchedTaskIds.size) return;
+    setTasks((current) =>
+      current.map((task) => (matchedTaskIds.has(task.id) ? { ...task, workstream: cleanNextLabel } : task))
+    );
+    showSyncNotice(
+      isSupabaseReady
+        ? "업무흐름 이름은 화면에 반영됐습니다. Supabase 공유 저장은 tasks.workstream 마이그레이션 후 적용됩니다."
+        : `${cleanOldLabel} 업무흐름을 ${cleanNextLabel}(으)로 수정했습니다.`
+    );
+  }
+
   function stopRecurring(taskId) {
     const task = tasks.find((item) => item.id === taskId);
     if (!task || !task.recurring || !canManageTaskFor(task, selectedPersonId)) return;
@@ -2618,6 +2697,29 @@ function App() {
       supabaseDashboardStore.tags.saveGroup(nextGroup).catch((error) => {
         console.warn("Supabase 태그 Category 저장에 실패했습니다.", error);
         showSyncNotice("태그 Category 저장은 마이그레이션 적용 후 Supabase에 반영됩니다.");
+      });
+    }
+  }
+
+  function moveTagToPreset(tag, targetGroupId) {
+    if (!canManageTagsFor(selectedPersonId)) return;
+    const cleanTag = String(tag ?? "").trim();
+    if (!cleanTag) return;
+    setAvailableTags((current) => normalizeTags([...current, cleanTag]));
+    const nextGroups = tagGroups.map((group) => ({
+      ...group,
+      tags: normalizeTags(
+        group.id === targetGroupId
+          ? [...group.tags, cleanTag]
+          : group.tags.filter((item) => item !== cleanTag)
+      )
+    }));
+    setTagGroups(nextGroups);
+    if (isSupabaseReady && isAuthenticated) {
+      nextGroups.forEach((group) => {
+        supabaseDashboardStore.tags.saveGroup(group).catch((error) => {
+          console.warn("Supabase 태그 Category 이동 저장에 실패했습니다.", error);
+        });
       });
     }
   }
@@ -3227,6 +3329,21 @@ function App() {
             <NotebookPen size={18} />
             <span>Canvas</span>
           </button>
+          {isSelectedAdmin && (
+            <button
+              className={`nav-item ${activeView === "admin" ? "active" : ""}`}
+              onClick={() => {
+                setActivePage("team");
+                setActiveView("admin");
+                closeTaskDetail();
+              }}
+              type="button"
+              title="관리자"
+            >
+              <ShieldCheck size={18} />
+              <span>관리자</span>
+            </button>
+          )}
         </nav>
         <div className="team-stack">
           <span className="panel-label">Team Members</span>
@@ -3336,9 +3453,9 @@ function App() {
           </div>
         </header>
 
-        {!["performance", "canvas"].includes(activeView) && <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />}
+        {!["performance", "canvas", "admin"].includes(activeView) && <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />}
 
-        <section className={`dashboard-grid ${activeView === "timeline" ? "timeline-layout" : ""} ${fullPageViews.includes(activeView) ? "calendar-layout" : ""} ${isWorkflowDetailContext ? "workflow-detail-mode" : ""} ${isBriefingDetailContext ? "briefing-detail-mode" : ""}`}>
+        <section className={`dashboard-grid ${activeView === "timeline" ? "timeline-layout" : ""} ${fullPageViews.includes(activeView) ? "calendar-layout" : ""} ${activeView === "admin" ? "admin-layout" : ""} ${isWorkflowDetailContext ? "workflow-detail-mode" : ""} ${isBriefingDetailContext ? "briefing-detail-mode" : ""}`}>
           <div className="main-column">
             {!fullPageViews.includes(activeView) && (
               <BriefingPanel
@@ -3527,6 +3644,7 @@ function App() {
               <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`}>
                 <Suspense fallback={<div className="mindmap-loading">마인드맵을 불러오는 중입니다.</div>}>
                   <MindmapView
+                    onFillDemo={fillMindmapDemoData}
                     onFilterTags={applyMindmapTagFilter}
                     onSelectTask={(taskId) => selectTask(taskId, "workflow")}
                     people={directory}
@@ -3560,6 +3678,23 @@ function App() {
                 <SharedCanvasView />
               </Suspense>
             )}
+            {activeView === "admin" && isSelectedAdmin && (
+              <AdminView
+                currentPersonId={selectedPersonId}
+                onAddTag={addTag}
+                onDeletePreset={deleteTagGroup}
+                onDeleteTag={deleteTag}
+                onMoveTagToPreset={moveTagToPreset}
+                onRenameTag={renameTag}
+                onRenameWorkstream={renameWorkstream}
+                onSavePreset={saveTagGroup}
+                onUpdateUserAdministration={updateUserAdministration}
+                people={directory}
+                presets={tagGroups}
+                tags={availableTags}
+                tasks={tasks}
+              />
+            )}
           </div>
 
           {isBriefingDetailContext && <aside className="right-column" ref={detailColumnRef}>
@@ -3579,6 +3714,7 @@ function App() {
           onClose={closeTaskEditor}
           onSave={saveTask}
           task={editingTask}
+          workstreamOptions={workstreamOptions}
         />
       )}
       {pendingRecurringSave && (
@@ -3884,9 +4020,76 @@ function LoginScreen({ authMessage, authStatus, isSupabaseReady, onLogin, onSupa
   );
 }
 
-function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmoji, onUpdateProfile, onUpdateUserAdministration, people }) {
-  const currentPerson = people.find((person) => person.id === currentPersonId) ?? people[0];
-  const isAdmin = currentPerson.permissionRole === "admin";
+function AdminView({ currentPersonId, onAddTag, onDeletePreset, onDeleteTag, onMoveTagToPreset, onRenameTag, onRenameWorkstream, onSavePreset, onUpdateUserAdministration, people, presets, tags, tasks }) {
+  const [activeAdminTab, setActiveAdminTab] = useState("people");
+  const activeTasks = useMemo(() => (tasks ?? []).filter((task) => task && !isDeletedTask(task)), [tasks]);
+  const workstreamGroups = useMemo(
+    () => groupTasksByWorkstream(activeTasks, collectWorkstreams(activeTasks)),
+    [activeTasks]
+  );
+  const tabs = [
+    { id: "people", label: "사람 관리", count: teamAssignablePeople(people).length },
+    { id: "tags", label: "태그 관리", count: tags.length },
+    { id: "workstreams", label: "업무흐름 관리", count: workstreamGroups.filter((group) => group.label).length }
+  ];
+
+  return (
+    <section className="admin-page" aria-label="관리자">
+      <div className="admin-page-header">
+        <div>
+          <span className="panel-label">
+            <ShieldCheck size={14} />
+            관리자
+          </span>
+          <h2>운영 관리</h2>
+        </div>
+        <p>사람, 태그, 상위 업무흐름을 업무 화면과 분리해서 넓게 관리합니다.</p>
+      </div>
+      <div className="admin-page-tabs" role="tablist" aria-label="관리자 관리 항목">
+        {tabs.map((tab) => (
+          <button
+            className={activeAdminTab === tab.id ? "active" : ""}
+            key={tab.id}
+            onClick={() => setActiveAdminTab(tab.id)}
+            type="button"
+          >
+            {tab.label}
+            <small>{tab.count}</small>
+          </button>
+        ))}
+      </div>
+      {activeAdminTab === "people" && (
+        <AdminPeoplePanel
+          currentPersonId={currentPersonId}
+          onUpdateUserAdministration={onUpdateUserAdministration}
+          people={people}
+        />
+      )}
+      {activeAdminTab === "tags" && (
+        <AdminTagsPanel
+          onAddTag={onAddTag}
+          onDeletePreset={onDeletePreset}
+          onDeleteTag={onDeleteTag}
+          onMoveTagToPreset={onMoveTagToPreset}
+          onRenameTag={onRenameTag}
+          onSavePreset={onSavePreset}
+          presets={presets}
+          tags={tags}
+          tasks={activeTasks}
+        />
+      )}
+      {activeAdminTab === "workstreams" && (
+        <AdminWorkstreamsPanel
+          groups={workstreamGroups}
+          onRenameWorkstream={onRenameWorkstream}
+          people={people}
+        />
+      )}
+    </section>
+  );
+}
+
+function AdminPeoplePanel({ currentPersonId, onUpdateUserAdministration, people }) {
   const adminManageablePeople = orderedAccounts(people);
   const [rosterDraft, setRosterDraft] = useState({
     name: "",
@@ -3894,25 +4097,6 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
     expectedEmail: "",
     permissionRole: "member"
   });
-  const [profileDraft, setProfileDraft] = useState({
-    name: currentPerson.name,
-    role: currentPerson.role,
-    emoji: currentPerson.emoji
-  });
-
-  useEffect(() => {
-    setProfileDraft({
-      name: currentPerson.name,
-      role: currentPerson.role,
-      emoji: currentPerson.emoji
-    });
-  }, [currentPerson.id, currentPerson.name, currentPerson.role, currentPerson.emoji]);
-
-  function saveProfile(event) {
-    event.preventDefault();
-    if (!profileDraft.name.trim() || !profileDraft.role.trim()) return;
-    onUpdateProfile(currentPersonId, profileDraft);
-  }
 
   function isRosterProfile(person) {
     return !person.authUserId && person.permissionRole !== "admin";
@@ -3938,6 +4122,643 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
       expectedEmail: "",
       permissionRole: "member"
     });
+  }
+
+  return (
+    <section className="admin-panel">
+      <div className="admin-panel-heading">
+        <div>
+          <span className="panel-label">
+            <UserCog size={14} />
+            사람 관리
+          </span>
+          <h3>계정, 권한, 팀 표시</h3>
+        </div>
+        <p>관리자/팀장/팀원 권한과 팀원 표시 여부를 한곳에서 정리합니다.</p>
+      </div>
+      <form className="admin-roster-add-form admin-page-roster-form" onSubmit={addRosterMember}>
+        <label>
+          <small>이름</small>
+          <input
+            onChange={(event) => setRosterDraft((current) => ({ ...current, name: event.target.value }))}
+            placeholder="신규 팀원"
+            value={rosterDraft.name}
+          />
+        </label>
+        <label>
+          <small>직책</small>
+          <input
+            onChange={(event) => setRosterDraft((current) => ({ ...current, role: event.target.value }))}
+            value={rosterDraft.role}
+          />
+        </label>
+        <label>
+          <small>예정 이메일</small>
+          <input
+            onChange={(event) => setRosterDraft((current) => ({ ...current, expectedEmail: event.target.value }))}
+            placeholder="name@company.com"
+            type="email"
+            value={rosterDraft.expectedEmail}
+          />
+        </label>
+        <label>
+          <small>권한</small>
+          <select
+            onChange={(event) => setRosterDraft((current) => ({ ...current, permissionRole: event.target.value }))}
+            value={rosterDraft.permissionRole}
+          >
+            <option value="member">팀원</option>
+            <option value="lead">팀장</option>
+          </select>
+        </label>
+        <button className="secondary-button small" type="submit">
+          <Plus size={14} />
+          로스터 추가
+        </button>
+      </form>
+      <div className="admin-wide-list">
+        {adminManageablePeople.map((person) => (
+          <div className="admin-user-row admin-page-user-row" key={person.id}>
+            <span className="profile-emoji" style={avatarStyle(person)}>
+              {person.emoji}
+            </span>
+            <span className="admin-user-identity">
+              {isRosterProfile(person) ? (
+                <span className="admin-roster-name-fields">
+                  <label>
+                    <small>이름</small>
+                    <input
+                      aria-label={`${person.name} 이름`}
+                      defaultValue={person.name}
+                      onBlur={(event) => onUpdateUserAdministration(person.id, { name: event.target.value })}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") event.currentTarget.blur();
+                      }}
+                    />
+                  </label>
+                  <label>
+                    <small>직책</small>
+                    <input
+                      aria-label={`${person.name} 직책`}
+                      defaultValue={person.role}
+                      onBlur={(event) => onUpdateUserAdministration(person.id, { title: event.target.value })}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") event.currentTarget.blur();
+                      }}
+                    />
+                  </label>
+                </span>
+              ) : (
+                <>
+                  <strong>{person.name}</strong>
+                  <small>{person.role}</small>
+                </>
+              )}
+            </span>
+            <label className="admin-email-field">
+              <small>예정 이메일</small>
+              <input
+                onBlur={(event) => onUpdateUserAdministration(person.id, { expectedEmail: event.target.value })}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur();
+                }}
+                placeholder="가입 예정 이메일"
+                type="email"
+                defaultValue={person.expectedEmail ?? ""}
+              />
+            </label>
+            <label>
+              <small>권한</small>
+              <select
+                onChange={(event) => onUpdateUserAdministration(person.id, { permissionRole: event.target.value })}
+                value={person.permissionRole ?? "member"}
+              >
+                <option value="member">팀원</option>
+                <option value="lead">팀장</option>
+                <option value="admin">관리자</option>
+              </select>
+            </label>
+            <label className="admin-mini-toggle">
+              <input
+                checked={person.isTeamMember !== false}
+                onChange={(event) => onUpdateUserAdministration(person.id, { isTeamMember: event.target.checked })}
+                type="checkbox"
+              />
+              팀 표시
+            </label>
+            <label className="admin-mini-toggle">
+              <input
+                checked={person.isActive !== false}
+                onChange={(event) => onUpdateUserAdministration(person.id, { isActive: event.target.checked })}
+                disabled={person.id === currentPersonId}
+                type="checkbox"
+              />
+              활성
+            </label>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AdminTagsPanel({ onAddTag, onDeletePreset, onDeleteTag, onMoveTagToPreset, onRenameTag, onSavePreset, presets, tags, tasks }) {
+  const [newTag, setNewTag] = useState("");
+  const [newPresetDraft, setNewPresetDraft] = useState({ label: "", tagsText: "" });
+  const [selection, setSelection] = useState({ type: "category", id: presets[0]?.id ?? "uncategorized" });
+  const [presetEditDraft, setPresetEditDraft] = useState({ label: "", tagsText: "" });
+  const [tagEditValue, setTagEditValue] = useState("");
+  const [collapsedPresetIds, setCollapsedPresetIds] = useState(() => new Set());
+  const groupedTagNames = new Set(presets.flatMap((preset) => preset.tags));
+  const uncategorizedTags = tags.filter((tag) => !groupedTagNames.has(tag));
+  const tagRows = tags.map((tag) => ({
+    label: tag,
+    count: tasks.filter((task) => taskTags(task).includes(tag)).length,
+    categories: presets.filter((preset) => preset.tags.includes(tag)).map((preset) => preset.label)
+  }));
+  const selectedCategory = selection.type === "category"
+    ? presets.find((preset) => preset.id === selection.id)
+    : null;
+  const selectedIsUncategorized = selection.type === "category" && selection.id === "uncategorized";
+  const selectedTag = selection.type === "tag" ? tagRows.find((tag) => tag.label === selection.id) : null;
+
+  useEffect(() => {
+    const hasSelectedCategory = selection.type === "category" && (selection.id === "uncategorized" || presets.some((preset) => preset.id === selection.id));
+    const hasSelectedTag = selection.type === "tag" && tags.includes(selection.id);
+    if (hasSelectedCategory || hasSelectedTag) return;
+    setSelection({ type: "category", id: presets[0]?.id ?? "uncategorized" });
+  }, [presets, selection, tags]);
+
+  useEffect(() => {
+    if (selectedCategory) {
+      setPresetEditDraft({ label: selectedCategory.label, tagsText: selectedCategory.tags.join(", ") });
+    }
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    if (selectedTag) setTagEditValue(selectedTag.label);
+  }, [selectedTag]);
+
+  function submitTag(event) {
+    event.preventDefault();
+    onAddTag(newTag);
+    setNewTag("");
+  }
+
+  function submitNewPreset(event) {
+    event.preventDefault();
+    onSavePreset({
+      id: "",
+      label: newPresetDraft.label,
+      tags: normalizeTags(newPresetDraft.tagsText.split(",").map((tag) => tag.trim())),
+      tone: "custom"
+    });
+    setNewPresetDraft({ label: "", tagsText: "" });
+  }
+
+  function submitSelectedPreset(event) {
+    event.preventDefault();
+    if (!selectedCategory) return;
+    onSavePreset({
+      ...selectedCategory,
+      label: presetEditDraft.label,
+      tags: normalizeTags(presetEditDraft.tagsText.split(",").map((tag) => tag.trim()))
+    });
+  }
+
+  function submitTagEdit(event) {
+    event.preventDefault();
+    if (!selectedTag) return;
+    onRenameTag(selectedTag.label, tagEditValue);
+    setSelection({ type: "tag", id: tagEditValue.trim() || selectedTag.label });
+  }
+
+  function startTagDrag(event, tag) {
+    event.dataTransfer.setData("text/plain", tag);
+    event.dataTransfer.effectAllowed = "move";
+  }
+
+  function dropTag(event, targetPresetId) {
+    event.preventDefault();
+    const tag = event.dataTransfer.getData("text/plain");
+    if (!tag) return;
+    onMoveTagToPreset(tag, targetPresetId);
+    setSelection({ type: "tag", id: tag });
+  }
+
+  function togglePresetFolder(groupId) {
+    setSelection({ type: "category", id: groupId });
+    setCollapsedPresetIds((current) => {
+      const next = new Set(current);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }
+
+  function tagTreeButton(tag, key) {
+    const row = tagRows.find((item) => item.label === tag);
+    return (
+      <button
+        className={`admin-tree-file ${selection.type === "tag" && selection.id === tag ? "active" : ""}`}
+        draggable
+        key={key}
+        onClick={() => setSelection({ type: "tag", id: tag })}
+        onDragStart={(event) => startTagDrag(event, tag)}
+        type="button"
+      >
+        <FileText size={14} />
+        <span>{tag}</span>
+        <small>{row?.count ?? 0}</small>
+      </button>
+    );
+  }
+
+  return (
+    <section className="admin-panel">
+      <div className="admin-panel-heading">
+        <div>
+          <span className="panel-label">
+            <Tag size={14} />
+            태그 관리
+          </span>
+          <h3>Category와 태그 사전</h3>
+        </div>
+        <p>Category 폴더 안의 태그 파일처럼 보고, 클릭해서 수정하거나 드래그해서 옮깁니다.</p>
+      </div>
+      <div className="admin-tag-tools compact">
+        <form className="admin-inline-form" onSubmit={submitTag}>
+          <label>
+            <small>새 태그</small>
+            <input
+              onChange={(event) => setNewTag(event.target.value)}
+              placeholder="예: 행사"
+              value={newTag}
+            />
+          </label>
+          <button className="secondary-button small" type="submit">
+            <Plus size={14} />
+            태그 추가
+          </button>
+        </form>
+        <form className="admin-inline-form admin-category-form" onSubmit={submitNewPreset}>
+          <label>
+            <small>새 Category</small>
+            <input
+              onChange={(event) => setNewPresetDraft((current) => ({ ...current, label: event.target.value }))}
+              placeholder="예: 행사/확산"
+              value={newPresetDraft.label}
+            />
+          </label>
+          <label>
+            <small>포함 태그</small>
+            <input
+              onChange={(event) => setNewPresetDraft((current) => ({ ...current, tagsText: event.target.value }))}
+              placeholder="행사, 회의체"
+              value={newPresetDraft.tagsText}
+            />
+          </label>
+          <button className="secondary-button small" type="submit">
+            Category 추가
+          </button>
+        </form>
+      </div>
+      <div className="admin-tree-manager">
+        <section className="admin-tree-pane">
+          <div className="admin-tree-head">
+            <strong>태그 트리</strong>
+            <small>{presets.length}개 폴더 · {tags.length}개 태그</small>
+          </div>
+          <div className="admin-tree-list">
+            {presets.map((preset) => (
+              <div
+                className={`admin-tree-folder preset-${preset.tone} ${collapsedPresetIds.has(preset.id) ? "is-collapsed" : ""}`}
+                key={preset.id}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => dropTag(event, preset.id)}
+              >
+                <button
+                  className={`admin-tree-folder-button ${selection.type === "category" && selection.id === preset.id ? "active" : ""}`}
+                  aria-expanded={!collapsedPresetIds.has(preset.id)}
+                  onClick={() => togglePresetFolder(preset.id)}
+                  type="button"
+                >
+                  {collapsedPresetIds.has(preset.id) ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                  <FolderOpen size={15} />
+                  <span>{preset.label}</span>
+                  <small>{preset.tags.length}</small>
+                </button>
+                {!collapsedPresetIds.has(preset.id) && (
+                  <div className="admin-tree-children">
+                    {preset.tags.map((tag) => tagTreeButton(tag, `${preset.id}-${tag}`))}
+                    {!preset.tags.length && <span className="admin-tree-empty">태그를 이 폴더로 드래그하세요.</span>}
+                  </div>
+                )}
+              </div>
+            ))}
+            <div
+              className={`admin-tree-folder preset-custom ${collapsedPresetIds.has("uncategorized") ? "is-collapsed" : ""}`}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => dropTag(event, "")}
+            >
+              <button
+                className={`admin-tree-folder-button ${selectedIsUncategorized ? "active" : ""}`}
+                aria-expanded={!collapsedPresetIds.has("uncategorized")}
+                onClick={() => togglePresetFolder("uncategorized")}
+                type="button"
+              >
+                {collapsedPresetIds.has("uncategorized") ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                <FolderOpen size={15} />
+                <span>미분류</span>
+                <small>{uncategorizedTags.length}</small>
+              </button>
+              {!collapsedPresetIds.has("uncategorized") && (
+                <div className="admin-tree-children">
+                  {uncategorizedTags.map((tag) => tagTreeButton(tag, `loose-${tag}`))}
+                  {!uncategorizedTags.length && <span className="admin-tree-empty">미분류 태그가 없습니다.</span>}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+        <section className="admin-editor-pane">
+          <div className="admin-editor-head">
+            <strong>{selectedTag ? "태그 수정" : "Category 수정"}</strong>
+            <small>{selectedTag ? `${selectedTag.count}개 업무에서 사용` : selectedIsUncategorized ? "기본 폴더 없음" : `${selectedCategory?.tags.length ?? 0}개 태그`}</small>
+          </div>
+          {selectedCategory && (
+            <form className="admin-editor-form" onSubmit={submitSelectedPreset}>
+              <label>
+                <small>Category 이름</small>
+                <input
+                  onChange={(event) => setPresetEditDraft((current) => ({ ...current, label: event.target.value }))}
+                  value={presetEditDraft.label}
+                />
+              </label>
+              <label>
+                <small>포함 태그</small>
+                <textarea
+                  onChange={(event) => setPresetEditDraft((current) => ({ ...current, tagsText: event.target.value }))}
+                  value={presetEditDraft.tagsText}
+                />
+              </label>
+              <div className="admin-editor-actions">
+                <button className="secondary-button small" type="submit">저장</button>
+                <button className="secondary-button small danger-text" onClick={() => onDeletePreset(selectedCategory.id)} type="button">Category 삭제</button>
+              </div>
+              <p className="admin-editor-note">태그를 폴더로 드래그하면 이 목록도 함께 정리됩니다.</p>
+            </form>
+          )}
+          {selectedIsUncategorized && (
+            <div className="admin-editor-empty">
+              <strong>미분류 태그</strong>
+              <p>어느 Category에도 속하지 않은 태그입니다. 태그를 원하는 폴더로 드래그해서 정리하세요.</p>
+            </div>
+          )}
+          {selectedTag && (
+            <form className="admin-editor-form" onSubmit={submitTagEdit}>
+              <label>
+                <small>태그 이름</small>
+                <input
+                  aria-label={`${selectedTag.label} 태그 이름 수정`}
+                  onChange={(event) => setTagEditValue(event.target.value)}
+                  value={tagEditValue}
+                />
+              </label>
+              <div className="admin-tag-detail-meta">
+                <span>소속</span>
+                <p>{selectedTag.categories.length ? selectedTag.categories.join(" · ") : "미분류"}</p>
+              </div>
+              <div className="admin-editor-actions">
+                <button className="secondary-button small" type="submit">이름 저장</button>
+                <button
+                  className="secondary-button small danger-text"
+                  onClick={() => {
+                    onDeleteTag(selectedTag.label);
+                    setSelection({ type: "category", id: presets[0]?.id ?? "uncategorized" });
+                  }}
+                  type="button"
+                >
+                  태그 삭제
+                </button>
+              </div>
+              <p className="admin-editor-note">이름을 바꾸면 기존 업무에 붙은 태그도 함께 갱신됩니다.</p>
+            </form>
+          )}
+          {!selectedCategory && !selectedIsUncategorized && !selectedTag && (
+            <div className="admin-editor-empty">
+              <strong>수정할 항목을 선택하세요.</strong>
+              <p>왼쪽 트리에서 Category나 태그를 선택하면 이곳에서 바로 편집할 수 있습니다.</p>
+            </div>
+          )}
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function normalizeAdminWorkstreamKey(label) {
+  return String(label ?? "")
+    .replace(/\s+(추진|관리|대응|운영|체계화|과제)$/u, "")
+    .replace(/[()[\]{}.,:;'"`~!?·ㆍ/_-]/g, "")
+    .replace(/\s+/g, "")
+    .toLowerCase();
+}
+
+function similarWorkstreamCandidates(groups) {
+  const labeledGroups = groups.filter((group) => group.label);
+  const pairs = [];
+  labeledGroups.forEach((group, index) => {
+    const key = normalizeAdminWorkstreamKey(group.label);
+    labeledGroups.slice(index + 1).forEach((other) => {
+      const otherKey = normalizeAdminWorkstreamKey(other.label);
+      if (!key || !otherKey || key === otherKey) return;
+      if (key.length < 4 || otherKey.length < 4) return;
+      if (key.includes(otherKey) || otherKey.includes(key)) {
+        pairs.push({ labels: [group.label, other.label], count: group.tasks.length + other.tasks.length });
+      }
+    });
+  });
+  return pairs.slice(0, 6);
+}
+
+function countStatusLabels(tasks) {
+  const counts = tasks.reduce((acc, task) => {
+    acc[task.status] = (acc[task.status] ?? 0) + 1;
+    return acc;
+  }, {});
+  return ["진행중", "계획", "검토/대기", "완료", "보류"]
+    .filter((status) => counts[status])
+    .map((status) => ({ status, count: counts[status] }));
+}
+
+function AdminWorkstreamsPanel({ groups, onRenameWorkstream, people }) {
+  const [editingLabel, setEditingLabel] = useState("");
+  const [nextLabel, setNextLabel] = useState("");
+  const [selectedLabel, setSelectedLabel] = useState(groups.find((group) => group.label)?.label ?? groups[0]?.label ?? "");
+  const candidates = similarWorkstreamCandidates(groups);
+  const labeledGroups = groups.filter((group) => group.label);
+  const selectedGroup = groups.find((group) => group.label === selectedLabel) ?? labeledGroups[0] ?? groups[0] ?? null;
+  const selectedCandidates = candidates.filter((candidate) => selectedGroup && candidate.labels.includes(selectedGroup.label));
+
+  useEffect(() => {
+    if (!groups.length) return;
+    if (groups.some((group) => group.label === selectedLabel)) return;
+    setSelectedLabel(groups.find((group) => group.label)?.label ?? groups[0]?.label ?? "");
+  }, [groups, selectedLabel]);
+
+  function submitRename(event) {
+    event.preventDefault();
+    onRenameWorkstream(editingLabel, nextLabel);
+    setSelectedLabel(nextLabel.trim() || selectedLabel);
+    setEditingLabel("");
+    setNextLabel("");
+  }
+
+  function openRename(label) {
+    setEditingLabel(label);
+    setNextLabel(label);
+  }
+
+  return (
+    <section className="admin-panel">
+      <div className="admin-panel-heading">
+        <div>
+          <span className="panel-label">
+            <Network size={14} />
+            업무흐름 관리
+          </span>
+          <h3>상위 업무흐름 정리</h3>
+        </div>
+        <p>업무명에서 자동 추천된 흐름을 검토하고, 비슷한 흐름은 이름을 맞춰 묶습니다.</p>
+      </div>
+      <div className="admin-tree-manager workstream-tree-manager">
+        <section className="admin-tree-pane">
+          <div className="admin-tree-head">
+            <strong>상위 업무흐름</strong>
+            <small>{labeledGroups.length}개</small>
+          </div>
+          <div className="admin-workstream-tree">
+            {groups.map((group) => {
+              const ownerNames = Array.from(new Set(group.tasks.map((task) => people.find((person) => person.id === task.ownerId)?.name ?? "미지정"))).slice(0, 3);
+              const taskStatuses = countStatusLabels(group.tasks);
+              return (
+                <button
+                  className={`admin-workstream-tree-row ${selectedGroup?.label === group.label ? "active" : ""}`}
+                  key={group.label || "blank-workstream"}
+                  onClick={() => setSelectedLabel(group.label)}
+                  type="button"
+                >
+                  <span className="admin-workstream-dot" />
+                  <span>
+                    <strong>{group.label || "미지정"}</strong>
+                    <small>{group.tasks.length}개 업무 · {ownerNames.join(", ") || "담당자 없음"}</small>
+                  </span>
+                  <em>{taskStatuses.map((item) => `${item.status} ${item.count}`).join(" · ") || "상태 없음"}</em>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+        <section className="admin-editor-pane">
+          <div className="admin-editor-head">
+            <strong>{selectedGroup?.label || "업무흐름 없음"}</strong>
+            <small>{selectedGroup ? `${selectedGroup.tasks.length}개 포함 업무` : "0개"}</small>
+          </div>
+          {selectedGroup && (
+            <>
+              {editingLabel === selectedGroup.label ? (
+                <form className="admin-workstream-rename" onSubmit={submitRename}>
+                  <label>
+                    <small>현재 이름</small>
+                    <input readOnly value={editingLabel} />
+                  </label>
+                  <label>
+                    <small>새 이름</small>
+                    <input
+                      autoFocus
+                      onChange={(event) => setNextLabel(event.target.value)}
+                      value={nextLabel}
+                    />
+                  </label>
+                  <button className="secondary-button small" type="submit">이름 적용</button>
+                  <button className="secondary-button small" onClick={() => setEditingLabel("")} type="button">취소</button>
+                </form>
+              ) : (
+                selectedGroup.label && (
+                  <button className="secondary-button small admin-editor-primary-action" onClick={() => openRename(selectedGroup.label)} type="button">
+                    이름 수정
+                  </button>
+                )
+              )}
+              <div className="admin-workstream-summary">
+                {countStatusLabels(selectedGroup.tasks).map((item) => (
+                  <span className={`task-status-chip status-${item.status.replace("/", "")}`} key={`${selectedGroup.label}-${item.status}`}>
+                    {item.status} {item.count}
+                  </span>
+                ))}
+              </div>
+              <div className="admin-workstream-task-list">
+                <strong>포함 업무</strong>
+                {selectedGroup.tasks.map((task) => (
+                  <button className="admin-workstream-task-row" key={task.id} type="button">
+                    <span>{displayTaskTitle(task)}</span>
+                    <small>{people.find((person) => person.id === task.ownerId)?.name ?? "미지정"} · {task.status}</small>
+                  </button>
+                ))}
+              </div>
+              <div className="admin-similar-compact">
+                <div className="admin-editor-head slim">
+                  <strong>비슷한 흐름 후보</strong>
+                  <small>{selectedCandidates.length}개</small>
+                </div>
+                {selectedCandidates.map((candidate) => {
+                  const mergeTarget = candidate.labels.find((label) => label !== selectedGroup.label) ?? candidate.labels[0];
+                  return (
+                    <button
+                      className="admin-similar-compact-row"
+                      key={candidate.labels.join("|")}
+                      onClick={() => {
+                        setEditingLabel(selectedGroup.label);
+                        setNextLabel(mergeTarget);
+                      }}
+                      type="button"
+                    >
+                      <span>{candidate.labels.join(" ↔ ")}</span>
+                      <small>{candidate.count}개 업무 · 이름 맞추기</small>
+                    </button>
+                  );
+                })}
+                {!selectedCandidates.length && <p className="admin-empty-note">이 흐름과 바로 묶을 후보는 없습니다.</p>}
+              </div>
+            </>
+          )}
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmoji, onUpdateProfile, onUpdateUserAdministration, people }) {
+  const currentPerson = people.find((person) => person.id === currentPersonId) ?? people[0];
+  const [profileDraft, setProfileDraft] = useState({
+    name: currentPerson.name,
+    role: currentPerson.role,
+    emoji: currentPerson.emoji
+  });
+
+  useEffect(() => {
+    setProfileDraft({
+      name: currentPerson.name,
+      role: currentPerson.role,
+      emoji: currentPerson.emoji
+    });
+  }, [currentPerson.id, currentPerson.name, currentPerson.role, currentPerson.emoji]);
+
+  function saveProfile(event) {
+    event.preventDefault();
+    if (!profileDraft.name.trim() || !profileDraft.role.trim()) return;
+    onUpdateProfile(currentPersonId, profileDraft);
   }
 
   return (
@@ -4030,140 +4851,6 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
           </section>
         </div>
 
-        {isAdmin && (
-          <section className="admin-section">
-            <div className="admin-section-heading">
-              <span className="panel-label">
-                <ShieldCheck size={14} />
-                관리자 설정
-              </span>
-              <strong>권한, 팀 표시, 활성 상태를 관리합니다.</strong>
-            </div>
-            <form className="admin-roster-add-form" onSubmit={addRosterMember}>
-              <label>
-                <small>이름</small>
-                <input
-                  onChange={(event) => setRosterDraft((current) => ({ ...current, name: event.target.value }))}
-                  placeholder="신규 팀원"
-                  value={rosterDraft.name}
-                />
-              </label>
-              <label>
-                <small>직책</small>
-                <input
-                  onChange={(event) => setRosterDraft((current) => ({ ...current, role: event.target.value }))}
-                  value={rosterDraft.role}
-                />
-              </label>
-              <label>
-                <small>예정 이메일</small>
-                <input
-                  onChange={(event) => setRosterDraft((current) => ({ ...current, expectedEmail: event.target.value }))}
-                  placeholder="name@company.com"
-                  type="email"
-                  value={rosterDraft.expectedEmail}
-                />
-              </label>
-              <label>
-                <small>권한</small>
-                <select
-                  onChange={(event) => setRosterDraft((current) => ({ ...current, permissionRole: event.target.value }))}
-                  value={rosterDraft.permissionRole}
-                >
-                  <option value="member">팀원</option>
-                  <option value="lead">팀장</option>
-                </select>
-              </label>
-              <button className="secondary-button small" type="submit">
-                <Plus size={14} />
-                로스터 추가
-              </button>
-            </form>
-            <div className="admin-user-list">
-              {adminManageablePeople.map((person) => (
-                <div className="admin-user-row" key={person.id}>
-                  <span className="profile-emoji" style={avatarStyle(person)}>
-                    {person.emoji}
-                  </span>
-                  <span className="admin-user-identity">
-                    {isRosterProfile(person) ? (
-                      <span className="admin-roster-name-fields">
-                        <label>
-                          <small>이름</small>
-                          <input
-                            aria-label={`${person.name} 이름`}
-                            defaultValue={person.name}
-                            onBlur={(event) => onUpdateUserAdministration(person.id, { name: event.target.value })}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") event.currentTarget.blur();
-                            }}
-                          />
-                        </label>
-                        <label>
-                          <small>직책</small>
-                          <input
-                            aria-label={`${person.name} 직책`}
-                            defaultValue={person.role}
-                            onBlur={(event) => onUpdateUserAdministration(person.id, { title: event.target.value })}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") event.currentTarget.blur();
-                            }}
-                          />
-                        </label>
-                      </span>
-                    ) : (
-                      <>
-                        <strong>{person.name}</strong>
-                        <small>{person.role}</small>
-                      </>
-                    )}
-                  </span>
-                  <label className="admin-email-field">
-                    <small>예정 이메일</small>
-                    <input
-                      onBlur={(event) => onUpdateUserAdministration(person.id, { expectedEmail: event.target.value })}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.currentTarget.blur();
-                        }
-                      }}
-                      placeholder="가입 예정 이메일"
-                      type="email"
-                      defaultValue={person.expectedEmail ?? ""}
-                    />
-                  </label>
-                  <label>
-                    <small>권한</small>
-                    <select
-                      onChange={(event) => onUpdateUserAdministration(person.id, { permissionRole: event.target.value })}
-                      value={person.permissionRole ?? "member"}
-                    >
-                      <option value="member">팀원</option>
-                      <option value="lead">팀장</option>
-                      <option value="admin">관리자</option>
-                    </select>
-                  </label>
-                  <label className="admin-mini-toggle">
-                    <input
-                      checked={person.isTeamMember !== false}
-                      onChange={(event) => onUpdateUserAdministration(person.id, { isTeamMember: event.target.checked })}
-                      type="checkbox"
-                    />
-                    팀 표시
-                  </label>
-                  <label className="admin-mini-toggle">
-                    <input
-                      checked={person.isActive !== false}
-                      onChange={(event) => onUpdateUserAdministration(person.id, { isActive: event.target.checked })}
-                      type="checkbox"
-                    />
-                    활성
-                  </label>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
       </section>
     </div>
   );
@@ -6400,10 +7087,12 @@ function PerformanceView({ tasks }) {
                   const rangeUpdates = item.tasks.flatMap((entry) => updatesInRange(entry, range));
                   const issue = mode === "week" || showLongDetails ? issueFromTask(task, rangeUpdates) : "";
                   const detailRows = item.detailRows ?? reportDetailRows(task, rangeUpdates, mode, { showLongDetails });
-                  const contentRows = detailRows.filter((row) => row.label === "내용");
-                  const visibleDetailRows = detailRows.filter((row) => row.label !== "내용");
+                  const hideLongRangeDetails = ["quarter", "year"].includes(mode) && !showLongDetails;
+                  const contentRows = hideLongRangeDetails ? [] : detailRows.filter((row) => row.label === "내용");
+                  const visibleDetailRows = hideLongRangeDetails ? [] : detailRows.filter((row) => row.label !== "내용");
                   const statusMeta = reportStatusMeta({ ...task, status: item.status });
-                  const reportDate = reportLineDate({ ...task, status: item.status }, mode);
+                  const reportDate = performanceItemDateLabel(item, mode);
+                  const sourceTaskSummary = workstreamTaskSummary(item);
                   return (
                     <article className={`performance-work-card report-${statusMeta.tone}`} key={item.id}>
                       <div className="performance-work-top">
@@ -6414,9 +7103,16 @@ function PerformanceView({ tasks }) {
                         <h4>
                           {reportDate && <span className="performance-date-sticker">{reportDate}</span>}
                           {item.title}
+                          {item.workstreamTaskCount > 1 && <span className="performance-recurring-sticker">묶인 업무 {item.workstreamTaskCount}건</span>}
                           {item.recurringLabel && <span className="performance-recurring-sticker">🔁 {item.recurringLabel}</span>}
                         </h4>
                       </div>
+                      {sourceTaskSummary && (
+                        <p className="performance-source-summary">
+                          <span>포함 업무</span>
+                          {sourceTaskSummary}
+                        </p>
+                      )}
                       {contentRows.map((row) => (
                         <p className="performance-work-description" key={`${task.id}-${row.label}`}>
                           <span>✎ 내용</span>
@@ -6680,7 +7376,8 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onD
             {task.status === "완료" && <InfoItem label="완료일" value={completionDate(task) || "완료일 미기록"} />}
             {task.status === "완료" && <InfoItem label="완료자" value={personName(task.completedBy || task.ownerId)} />}
             <InfoItem label="우선순위" value={task.priority} />
-            <InfoItem label="기간" value={`${task.startDate} - ${task.dueDate}`} />
+          <InfoItem label="기간" value={`${task.startDate} - ${task.dueDate}`} />
+            <InfoItem label="상위 업무흐름" value={taskWorkstreamLabel(task)} />
             <InfoItem label="태그" value={taskTags(task).join(", ")} />
             <InfoItem label="반복" value={recurringLabel(task)} />
             <InfoItem label="보관" value={task.archived ? "보관됨" : "메인 표시"} />
@@ -6719,11 +7416,12 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onD
   );
 }
 
-function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
+function TaskModal({ availableTags, mode = "task", onClose, onSave, task, workstreamOptions = [] }) {
   const isRecurringRuleMode = mode === "recurringRule";
   const canEditRecurringFields = isRecurringRuleMode || !task.id || (!task.recurring && !task.recurringTemplateId);
   const [draft, setDraft] = useState({
     ...task,
+    workstream: taskWorkstreamLabel(task, workstreamOptions),
     recurringInterval: Math.max(1, Number(task.recurringInterval) || 1),
     recurringWeekdays: normalizeRecurringWeekdays(task.recurringWeekdays, task.dueDate),
     recurringStartDate: task.recurringStartDate || task.startDate || TODAY,
@@ -6738,8 +7436,10 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
   const [tagDraft, setTagDraft] = useState("");
   const [tagError, setTagError] = useState("");
   const [subtaskError, setSubtaskError] = useState("");
+  const [isWorkstreamEdited, setIsWorkstreamEdited] = useState(Boolean(task.workstream));
   const titleInputRef = useRef(null);
   const modalUpdateRef = useRef(null);
+  const lastAutoWorkstreamRef = useRef(task.workstream ? "" : taskWorkstreamLabel(task, workstreamOptions));
 
   useEffect(() => {
     titleInputRef.current?.focus();
@@ -6747,6 +7447,26 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
 
   function update(field, value) {
     setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateTitle(value) {
+    update("title", value);
+  }
+
+  function suggestWorkstreamFromTitle() {
+    if (isWorkstreamEdited) return;
+    setDraft((current) => {
+      const shouldRefreshWorkstream = !current.workstream || current.workstream === lastAutoWorkstreamRef.current;
+      if (!shouldRefreshWorkstream) return current;
+      const nextWorkstream = taskWorkstreamLabel(current, workstreamOptions);
+      lastAutoWorkstreamRef.current = nextWorkstream;
+      return { ...current, workstream: nextWorkstream };
+    });
+  }
+
+  function updateWorkstream(value) {
+    setIsWorkstreamEdited(true);
+    update("workstream", value);
   }
 
   function updateLink(index, field, value) {
@@ -6890,6 +7610,7 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
     onSave({
       ...taskDraft,
       ...recurringDraft,
+      workstream: taskWorkstreamLabel({ ...taskDraft, tags: nextTags }, workstreamOptions),
       tags: nextTags,
       links,
       subtasks,
@@ -6924,7 +7645,30 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
         )}
         <label className="field wide task-modal-full-field">
           <span>업무명</span>
-          <input ref={titleInputRef} required value={draft.title} onChange={(event) => update("title", event.target.value)} />
+          <input
+            ref={titleInputRef}
+            required
+            value={draft.title}
+            onBlur={suggestWorkstreamFromTitle}
+            onChange={(event) => updateTitle(event.target.value)}
+          />
+        </label>
+        <label className="field wide task-modal-full-field">
+          <span className="field-label-with-note">
+            상위 업무흐름
+            <small className="field-note-badge">ⓘ 업무명 입력 후 자동 추천 · 필요 시 직접 수정 · 실적/마인드맵 묶음 기준</small>
+          </span>
+          <input
+            aria-label="상위 업무흐름"
+            list="workstream-options"
+            value={draft.workstream}
+            onChange={(event) => updateWorkstream(event.target.value)}
+          />
+          <datalist id="workstream-options">
+            {workstreamOptions.map((workstream) => (
+              <option key={workstream.label} value={workstream.label} />
+            ))}
+          </datalist>
         </label>
         <div className="field wide subtask-editor task-modal-full-field">
           <span className="field-label-with-note">

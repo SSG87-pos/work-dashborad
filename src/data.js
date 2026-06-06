@@ -47,6 +47,92 @@ export const initialCalendarEvents = [
   }
 ];
 
+export const mindmapSampleTasks = [
+  {
+    id: "mindmap-demo-innovation-001",
+    title: "혁신아이디어 중간평가",
+    description: "상반기 혁신아이디어 후보의 중간평가 결과와 보완 의견을 정리했습니다.",
+    ownerId: "kmryu",
+    assignerId: "lead",
+    assignerType: "팀장님",
+    creatorId: "lead",
+    status: "완료",
+    priority: "높음",
+    category: "전략과제",
+    tags: ["전략과제", "임원보고"],
+    workstream: "혁신아이디어",
+    startDate: "2026-02-20",
+    dueDate: "2026-03-01",
+    completedAt: "2026-03-01",
+    completedBy: "kmryu",
+    progress: 100,
+    subtasks: [
+      { id: "st-md-innovation-001-1", title: "평가 기준 정리", done: true },
+      { id: "st-md-innovation-001-2", title: "후보 과제별 의견 취합", done: true },
+      { id: "st-md-innovation-001-3", title: "중간평가 결과 공유", done: true }
+    ],
+    archived: false,
+    isNewAssignment: false,
+    recurring: null,
+    links: [],
+    updates: [{ authorId: "kmryu", date: "2026-03-01", text: "중간평가 결과와 보완 의견을 완료 보고했습니다." }],
+    statusHistory: [{ from: "진행중", to: "완료", actorId: "kmryu", date: "2026-03-01", note: "중간평가 완료" }]
+  },
+  {
+    id: "mindmap-demo-innovation-002",
+    title: "혁신아이디어 우수과제 후속 실행안",
+    description: "중간평가에서 선별된 아이디어를 실행 과제로 전환하기 위한 후속 실행안을 정리합니다.",
+    ownerId: "minji",
+    assignerId: "lead",
+    assignerType: "팀장님",
+    creatorId: "lead",
+    status: "진행중",
+    priority: "보통",
+    category: "기획보고",
+    tags: ["기획보고", "임원보고"],
+    workstream: "혁신아이디어",
+    startDate: "2026-06-02",
+    dueDate: "2026-06-21",
+    progress: 40,
+    subtasks: [
+      { id: "st-md-innovation-002-1", title: "우수과제별 실행 조건 정리", done: true },
+      { id: "st-md-innovation-002-2", title: "담당 부서 협의 포인트 작성", done: false },
+      { id: "st-md-innovation-002-3", title: "후속 보고 초안 작성", done: false }
+    ],
+    archived: false,
+    isNewAssignment: true,
+    recurring: null,
+    links: [],
+    updates: [{ authorId: "minji", date: "2026-06-04", text: "우수과제 실행 조건을 1차로 정리했습니다." }]
+  },
+  {
+    id: "mindmap-demo-innovation-003",
+    title: "혁신아이디어 행사 기획",
+    description: "우수 아이디어 공유와 참여 확산을 위한 사내 행사 구성안을 준비합니다.",
+    ownerId: "junho",
+    assignerId: "lead",
+    assignerType: "팀장님",
+    creatorId: "lead",
+    status: "계획",
+    priority: "보통",
+    category: "운영",
+    tags: ["회의체", "전략과제"],
+    workstream: "혁신아이디어",
+    startDate: "2026-07-20",
+    dueDate: "2026-08-01",
+    progress: 0,
+    subtasks: [
+      { id: "st-md-innovation-003-1", title: "행사 목적과 대상 정리", done: false },
+      { id: "st-md-innovation-003-2", title: "세부 프로그램 구성", done: false }
+    ],
+    archived: false,
+    isNewAssignment: false,
+    recurring: null,
+    links: [],
+    updates: []
+  }
+];
+
 export const initialTasks = [
   {
     id: "t-001",
@@ -60,6 +146,7 @@ export const initialTasks = [
     priority: "높음",
     category: "기획보고",
     tags: ["전략과제", "임원보고"],
+    workstream: "상반기 전략과제 기획보고",
     startDate: "2026-06-03",
     dueDate: "2026-06-10",
     progress: 46,
@@ -93,6 +180,7 @@ export const initialTasks = [
     priority: "보통",
     category: "월간보고",
     tags: ["KPI", "회의체"],
+    workstream: "월간 KPI 관리",
     startDate: "2026-06-01",
     dueDate: "2026-06-04",
     progress: 72,
@@ -126,6 +214,7 @@ export const initialTasks = [
     priority: "보통",
     category: "자료조사",
     tags: ["AI활용", "외부자료"],
+    workstream: "AI 연구기획 활용사례",
     startDate: "2026-06-04",
     dueDate: "2026-06-18",
     progress: 8,
@@ -147,6 +236,7 @@ export const initialTasks = [
     priority: "높음",
     category: "전략과제",
     tags: ["탄소중립", "투자검토"],
+    workstream: "탄소중립 기술 포트폴리오",
     startDate: "2026-05-27",
     dueDate: "2026-06-03",
     progress: 88,
@@ -168,6 +258,7 @@ export const initialTasks = [
     priority: "높음",
     category: "임원보고",
     tags: ["임원보고", "회의체"],
+    workstream: "임원보고 Q&A 대응",
     startDate: "2026-06-06",
     dueDate: "2026-06-12",
     progress: 0,
@@ -189,6 +280,7 @@ export const initialTasks = [
     priority: "낮음",
     category: "자료조사",
     tags: ["정책", "외부자료"],
+    workstream: "정책 변화 모니터링",
     startDate: "2026-05-30",
     dueDate: "2026-06-07",
     progress: 55,
@@ -217,6 +309,7 @@ export const initialTasks = [
     priority: "보통",
     category: "운영",
     tags: ["회의체", "KPI"],
+    workstream: "팀 운영 리듬 관리",
     startDate: "2026-06-04",
     dueDate: "2026-06-05",
     progress: 64,
@@ -245,6 +338,7 @@ export const initialTasks = [
     priority: "보통",
     category: "기획보고",
     tags: ["외부자료", "KPI"],
+    workstream: "상반기 전략과제 기획보고",
     startDate: "2026-05-28",
     dueDate: "2026-06-02",
     progress: 34,
@@ -266,6 +360,7 @@ export const initialTasks = [
     priority: "낮음",
     category: "운영",
     tags: ["KPI"],
+    workstream: "월간 KPI 관리",
     startDate: "2026-05-20",
     dueDate: "2026-05-31",
     completedAt: "2026-05-31",
@@ -297,6 +392,7 @@ export const initialTasks = [
     priority: "낮음",
     category: "자료조사",
     tags: ["정책", "외부자료"],
+    workstream: "정책 변화 모니터링",
     startDate: "2026-05-01",
     dueDate: "2026-05-30",
     completedAt: "2026-06-01",
@@ -315,5 +411,6 @@ export const initialTasks = [
     links: [{ title: "5월 정책자료 모음", url: "https://intra.research-strategy.local/drive/policy-2026-05", type: "드라이브" }],
     updates: [{ authorId: "sugu05", date: "2026-06-01", text: "완료 자료를 보관 처리. 필요 시 보관함에서 재확인 가능." }],
     statusHistory: [{ from: "진행중", to: "완료", actorId: "sugu05", date: "2026-06-01", note: "완료 처리" }]
-  }
+  },
+  ...mindmapSampleTasks
 ];

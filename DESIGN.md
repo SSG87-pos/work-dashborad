@@ -35,7 +35,18 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Search input is compact; placeholder text should not dominate the page.
 - Account button shows emoji/profile, name, and role on one line when possible.
 - Admin indication belongs in the top account area, not in every team list row.
-- Admin roster management belongs inside the account modal. Keep roster add/edit controls compact, avoid horizontal overflow, and do not make the admin section dominate ordinary profile switching.
+- Account modal stays focused on account switching and personal profile edits.
+- Admin-only operational management belongs in the sidebar `관리자` tab, not inside the account modal.
+
+### Admin
+
+- The `관리자` sidebar tab is visible only to users with `permissionRole: admin`.
+- The admin page groups operational management into `사람 관리`, `태그 관리`, and `업무흐름 관리`.
+- `사람 관리` owns roster add/edit, permission role, team display, and active-state controls.
+- `태그 관리` should use a compact tree/editor layout: Category folders on the left, tag-file rows under each folder, and a right-side editor for the selected Category or tag.
+- Admins can collapse/expand Category folders, click tags to rename/delete them, and drag tags between Category folders to keep the tag dictionary scannable as the list grows.
+- `업무흐름 관리` should use the same compact tree/editor pattern: current `상위 업무흐름` labels on the left, selected-flow details on the right, and similar-flow review candidates inside the selected detail panel. Renaming a flow can intentionally merge tasks under one label.
+- Non-admin users must not see the `관리자` tab, and stale persisted admin routes should return to a normal workflow view.
 
 ### Today Briefing
 
@@ -97,17 +108,23 @@ Greetings:
 ### Mindmap
 
 - Mindmap is a workflow peer of board, timeline, recurring work, and archive.
-- The first mindmap mode is `업무 구조`: an automatically generated structure from top-level workflow, Category presets, tags, and visible tasks.
-- The center node should stay compatible with a future `상위 업무흐름` model. Do not hardwire the conceptual center to Category only.
+- The first mindmap mode is `업무 구조`: an automatically generated structure from `상위 업무흐름` and visible tasks.
+- `상위 업무흐름` is the conceptual first branch. Category and tags should stay as secondary chips/context on task nodes rather than separate tree layers, so the map stays readable when a task has multiple tags.
+- When a task has no confirmed `상위 업무흐름`, the app may recommend one from the task title first and tags second.
+- Title-derived workstream names should keep the meaningful core phrase and should not automatically append generic suffixes such as `추진`.
 - Scope modes separate active work from all historical work. `현재 진행업무` keeps richer task cards, while `전체 진행업무` uses a dense title-first/list-like node style because completed and archived work can become large.
 - `현재 진행업무` can also offer a compact node-size mode for scanning many boxes without switching to the historical/all-work scope.
 - The mindmap should auto-generate from the currently visible My/Team task scope and calculate layout positions to avoid node overlap.
 - The mindmap canvas should grow the page vertically as the generated map grows; avoid a separate internal scrollbar for the mindmap area.
 - Provide a visible center/home action for the generated mindmap so users can return to the top/fitted view after scrolling through a long map.
-- A task may appear in multiple Category branches when its Category/tags match more than one group, but total counts should dedupe by task id.
-- Multi-branch tasks should show a compact shared-location indicator such as `공유 N곳` rather than duplicating count semantics.
-- Group and tag nodes are filter actions: clicking them applies the existing tag filter and returns the user to the board result.
+- Local/prototype mindmap may expose a small `샘플` action so users can add workflow-shaped demo tasks and verify workstream grouping without importing external data.
+- Each task node should render only once per workstream so multi-Category tasks do not look duplicated.
+- Multi-Category task classification should not appear as a visible count badge on mindmap nodes. Keep the visible node focused on status/progress, and reserve classification context for hover/detail surfaces.
+- Group nodes are filter actions: clicking them applies the workstream's tag context where available and returns the user to the board result.
 - Task nodes open the same right-side workflow task detail as board/timeline/recurring/archive.
+- Mindmap task status chips should use the same calm status color meaning as the timeline (`계획`, `진행중`, `검토/대기`, `완료`, `보류`), and task importance should use the existing square priority sticker grammar.
+- In compact mindmap mode, task nodes should stay small but show a clearly visible status-colored dot and the owner name so users can scan state and responsibility without opening the card.
+- The mindmap header should include a compact status-color legend when status dots are shown.
 - Do not reserve a blank detail column before a task node is selected.
 
 ### Canvas
@@ -185,6 +202,8 @@ Header:
 Main content:
 
 - Tags sit under the task title and use the same tag chip grammar as the rest of the app.
+- `상위 업무흐름` appears as compact metadata and is used for mindmap/performance grouping, not as a multi-select tag.
+- In the task form, the `상위 업무흐름` label should carry inline help explaining that it is recommended after entering the task name, can be manually edited, and is used to group performance/mindmap work.
 - Progress bar is important and must remain visible.
 - `상세 업무 내용` is the main checklist and should feel more important than metadata.
 - Progress is calculated from completed detail checklist items.
@@ -241,9 +260,11 @@ Metadata and history:
 
 - `업무실적` opens in weekly mode by default.
 - Weekly view shows issue, description/content, completed, and planned lines.
-- Monthly groups by week.
-- Quarterly groups by month.
-- Yearly groups by quarter.
+- Weekly view remains task-oriented.
+- Monthly, quarterly, and yearly views summarize by `상위 업무흐름` inside the period grouping, with source tasks retained for copy/export evidence.
+- Monthly groups by week or week-range 흐름 labels.
+- Quarterly groups by month or month-range 흐름 labels.
+- Yearly groups by quarter or quarter-range 흐름 labels.
 - Long-period reports should be compact and table-like, not covered in nested boxes.
 - Person cards can be two-column on wide screens.
 - Role text stays plain next to the name, not in a large sticker.
@@ -254,6 +275,7 @@ Metadata and history:
 ## Tags and Filters
 
 - Tags are shared metadata.
+- Tags are search/filter metadata, while `상위 업무흐름` is a single report/mindmap grouping field.
 - All users can add tags.
 - Admin can rename/delete tags.
 - Tags can be applied in multiples.
@@ -263,8 +285,8 @@ Metadata and history:
 - Actual tag filtering happens in the expanded tag library by clicking multiple Category rows or individual tags.
 - Multiple selected tags use an OR filter: show work that contains at least one selected tag.
 - Category preset clicks toggle all tags in that Category; they must not open the admin edit UI by themselves.
-- Admin Category editing must use a separate explicit action such as `Category 수정`.
-- Admin tag rename/delete must also use a separate explicit action such as `태그 수정`; clicking one tag should only select/filter it.
+- Admin Category editing and admin tag rename/delete belong in the `관리자 > 태그 관리` surface. The compact workflow tag panel may keep small admin affordances, but it should remain primarily a filter surface.
+- Admin `상위 업무흐름` cleanup belongs in `관리자 > 업무흐름 관리`, with similar-label review and rename/merge actions.
 - The `전체` tag filter is the HOME/all-work filter and should be visually more prominent than normal individual tag chips.
 - Tag and importance filter controls should show a clear active state whenever the selected value is not `전체`.
 - The tag library below workflow filters should start collapsed as a compact header with counts, selected-filter context, and an obvious expand/collapse control.

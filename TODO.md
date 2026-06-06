@@ -2,6 +2,45 @@
 
 ## Now
 
+- [x] Add an admin-only management tab for people, tags, and workstreams.
+  - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a sidebar `관리자` tab visible only to admin users and guarded stale non-admin access back to the normal board.
+  - Done: moved roster/permission/team-display management into `관리자 > 사람 관리` so the account modal can stay focused on account switching and personal profile edits.
+  - Done: added `관리자 > 태그 관리` as a compact Category-folder/tag-file tree with a selected-item editor, task counts, uncategorized tag visibility, add/rename/delete controls, and drag/drop tag movement between Category folders.
+  - Done: added Category folder collapse/expand behavior to `태그 관리` so large tag dictionaries can be scanned without every tag row staying open.
+  - Done: added `관리자 > 업무흐름 관리` as a compact flow list plus selected-flow editor with status/source-task evidence, included-task rows, similar-flow candidates, and rename-based flow merging.
+  - Note: workstream rename is reflected in local/app state now; signed-in shared persistence still needs the future `tasks.workstream` Supabase migration.
+  - Verified: `/Users/seulgi/Library/pnpm/bin/pnpm run check:workstreams`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:mindmap-structure`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `git diff --check`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed.
+  - Browser QA on `http://127.0.0.1:5178/` verified: non-admin 류강묵 cannot see the `관리자` nav and is returned to Team Flow board; admin 소슬기 sees the `관리자` nav; account modal no longer contains the old admin roster section; `사람 관리`, `태그 관리`, and `업무흐름 관리` render; tag/workstream management has no horizontal overflow; monthly Highlights includes the `혁신아이디어` workstream and workstream grouping; 820px admin layout has no horizontal overflow; console errors/warnings were 0.
+  - 2026-06-06 follow-up verified on `http://127.0.0.1:5178/`: `태그 관리` renders the new tree/editor UI with 14 draggable tag-file rows and no old `.admin-tag-row` table rows; `업무흐름 관리` renders 8 compact tree rows, shows `포함 업무`, has no old `.admin-workstream-row` card rows, no clipped workstream/task text, no horizontal overflow at 1366px or 820px, and console errors/warnings were 0.
+  - 2026-06-06 tag-folder follow-up verified on `http://127.0.0.1:5178/`: first Category folder toggled from `aria-expanded=true` to `false`, visible tag rows changed from 14 to 12, one `.is-collapsed` folder appeared, toggling again restored 14 visible tag rows, no horizontal overflow, and console errors/warnings were 0.
+  - 2026-06-06 final tag-tree fix: aligned the `미분류` folder with the same arrow/folder/count grid as normal Category folders so the label no longer truncates and the count pill no longer stretches.
+
+- [x] Clarify workstream grouping in performance reports and remove duplicate task nodes in mindmap.
+  - Files: `src/App.jsx`, `src/MindmapView.jsx`, `src/mindmapData.js`, `src/styles.css`, `scripts/check-mindmap-structure.mjs`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: changed long-period performance badge copy from `상위흐름 N건` to `묶인 업무 N건` and added a `포함 업무` line listing the source task titles under each workstream.
+  - Done: quarterly/yearly performance cards now hide checklist/detail rows by default and keep the workstream source-task summary as the main evidence. The detailed rows can still be included when `이슈/설명 포함 상세실적 보기` is enabled.
+  - Done: changed mindmap rendering to remove the Category bucket layer entirely. The structure is now root → `상위 업무흐름` → individual task nodes, and multi-Category context is kept out of visible node badges.
+  - Done: retuned mindmap task chips to use the timeline/status color meaning, restored the existing square priority sticker style for importance, and added compact-mode status dots plus owner names without widening the nodes.
+  - Verified: `check:mindmap-structure`, `check:workstreams`, `check:summary-filter`, `git diff --check`, and production build passed. Browser QA on `http://127.0.0.1:5178/` confirmed monthly performance shows `묶인 업무` plus `포함 업무`, no old `상위흐름` label remains, `혁신아이디어 행사 기획` renders as one mindmap task node, console errors/warnings were 0, and horizontal overflow was false.
+  - 2026-06-06 chip follow-up verified on `http://127.0.0.1:5178/`: card mode renders status chips such as `status-진행중`, importance as `.priority-square-높음`, no visible `분류` text, 10 task nodes, 222px task-card width, no horizontal overflow, and console errors/warnings 0. Compact mode renders 10 compact task nodes with status dots such as `status-진행중`, owner text such as `류강묵`, 166px width, 42px height, and no horizontal overflow.
+  - 2026-06-06 status-dot follow-up verified on `http://127.0.0.1:5178/`: mindmap header shows 5 status legend items (`진행중`, `계획`, `검토/대기`, `완료`, `보류`), legend/status dots render at 8x8, compact mode keeps owner text and no horizontal overflow, and console errors/warnings were 0.
+  - 2026-06-06 legend layout follow-up verified on `http://127.0.0.1:5178/`: mindmap controls and status legend are separated into two rows, the legend appears below the controls, 5 legend items render, no horizontal overflow, and console errors/warnings were 0.
+  - 2026-06-06 follow-up verified on `http://127.0.0.1:5178/`: mindmap renders 0 Category/tag bucket nodes, 8 workstream nodes, 10 task nodes, includes `혁신아이디어 행사 기획`, and no longer surfaces Category bucket labels as visual nodes. Quarterly performance shows `포함 업무` and `묶인 업무` while rendering 0 checklist/detail rows and 0 description rows by default.
+
+- [x] Add first-pass `상위 업무흐름` grouping for registration, mindmap, and performance reports.
+  - Files: `src/App.jsx`, `src/MindmapView.jsx`, `src/mindmapData.js`, `src/workstreams.js`, `scripts/check-workstreams.mjs`, `scripts/check-mindmap-structure.mjs`, `package.json`, `docs/superpowers/plans/2026-06-06-workstreams.md`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added deterministic title-first workstream recommendation; task registration/editing now shows `상위 업무흐름` and refreshes the suggestion while the user has not manually overridden it.
+  - Done: task detail shows compact `상위 업무흐름` metadata; monthly/quarterly/yearly performance reports now summarize work by workstream while preserving source task evidence in Markdown export.
+  - Done: workflow mindmap now branches from `상위 업무흐름` first, then Category/tag buckets, while group/tag node clicks still apply existing tag filters.
+  - Done: added workflow-shaped mindmap samples, including the `혁신아이디어` flow across completed/current/future tasks, and added a small `샘플` action in the mindmap header for existing saved/live data states.
+  - Follow-up: prevented short IME/roman fragments such as `g` from becoming `g 추진`, stopped auto-appending generic suffixes such as `추진` to new title-derived workstreams, changed recommendation timing to run after the 업무명 field loses focus, and moved the explanation into an inline badge beside `상위 업무흐름` with direct-edit guidance.
+  - Follow-up: future admin cleanup should be added as `업무흐름 관리` near tag/Category governance, with similar-label review, merge, rename, and ignore actions.
+  - Note: Supabase shared persistence for a confirmed custom `workstream` value needs the backend `tasks.workstream` column/migration before it is reliable across reloads in signed-in mode. Local/prototype mode and derived display work now.
+  - Verified: `/Users/seulgi/Library/pnpm/bin/pnpm run check:workstreams`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:mindmap-structure`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `git diff --check`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed.
+  - Browser QA on `http://127.0.0.1:5177/` in local mode verified: app loaded without framework overlay; Team Flow `마인드맵` rendered workstream-first nodes; the `샘플` button was visible and prevented duplicate sample insertion; `혁신아이디어` grouped active sample work as `2건` with deduped `진행중 1 / 계획 1`; console errors/warnings were 0; page-level horizontal overflow was false at 1280px and 820px widths.
+  - Browser follow-up on `http://127.0.0.1:5175/` verified the task modal renders inline `상위 업무흐름` help beside the label with the old below-field help removed. Browser text-entry automation hit the in-app Browser virtual-clipboard limitation, so the `g` fragment fix is covered by `check:workstreams`.
+
 - [x] Add an automatic workflow mindmap tab without disturbing existing workflow UI.
   - Files: `src/App.jsx`, `src/MindmapView.jsx`, `src/SharedCanvasView.jsx`, `src/mindmapData.js`, `src/styles.css`, `src/styles/foundation.css`, `vite.config.js`, `scripts/check-mindmap-structure.mjs`, `package.json`, `pnpm-lock.yaml`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added `마인드맵` as a Team Flow workflow tab with a lazy-loaded React Flow `업무 구조` canvas, generated from the current top-level workflow, Category presets, tags, and currently visible tasks.

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { buildMindmapStructure, filterMindmapTasksByScope } from "../src/mindmapData.js";
+import { initialTasks, mindmapSampleTasks } from "../src/data.js";
+import { buildMindmapStructure, filterMindmapTasksByScope, mindmapGroupStatusSummary } from "../src/mindmapData.js";
 
 const presets = [
   { id: "preset:report", label: "기획/임원보고", tags: ["기획보고", "임원보고"], tone: "report" },
@@ -10,6 +11,7 @@ const tasks = [
   {
     id: "task-1",
     title: "월간 전략보고 초안 정리",
+    workstream: "월간 전략보고 추진",
     category: "기획보고",
     tags: ["전략과제", "임원보고"],
     status: "진행중",
@@ -45,27 +47,53 @@ assert.equal(allTasks.length, 2, "all scope should include completed work");
 const structure = buildMindmapStructure(activeTasks, presets);
 
 assert.equal(structure.uniqueTaskCount, 1, "same task should count once in the whole mindmap");
-assert.equal(structure.groups.length, 2, "same task should appear in two matched categories");
+assert.equal(structure.groups.length, 1, "workstream should be the first mindmap branch");
 
-const reportGroup = structure.groups.find((group) => group.id === "preset:report");
-const strategyGroup = structure.groups.find((group) => group.id === "preset:strategy");
+const workstreamGroup = structure.groups.find((group) => group.label === "월간 전략보고 추진");
 
-assert.ok(reportGroup, "report category group should exist");
-assert.ok(strategyGroup, "strategy category group should exist");
-assert.equal(reportGroup.uniqueTaskCount, 1, "report category count should dedupe tasks");
-assert.equal(strategyGroup.uniqueTaskCount, 1, "strategy category count should dedupe tasks");
+assert.ok(workstreamGroup, "workstream group should exist");
+assert.equal(workstreamGroup.uniqueTaskCount, 1, "workstream count should dedupe multi-category tasks");
 
-const reportTask = reportGroup.tagBuckets.flatMap((bucket) => bucket.tasks).find((task) => task.id === "task-1");
-const strategyTask = strategyGroup.tagBuckets.flatMap((bucket) => bucket.tasks).find((task) => task.id === "task-1");
+const workstreamTask = workstreamGroup.tasks.find((task) => task.id === "task-1");
 
-assert.ok(reportTask, "task should be visible under report category");
-assert.ok(strategyTask, "task should be visible under strategy category");
-assert.equal(reportTask.connectedLocations.length, 2, "task node should know it is shared across two locations");
+assert.ok(workstreamTask, "task should be visible once under the workstream");
+assert.equal(workstreamGroup.tasks.filter((task) => task.id === "task-1").length, 1, "task should not be duplicated by category");
+assert.equal(workstreamTask.connectedLocations.length, 2, "task node should know it is classified across two categories");
 assert.deepEqual(
-  reportTask.connectedLocations.map((location) => location.groupLabel),
+  workstreamTask.connectedLocations.map((location) => location.groupLabel),
   ["기획/임원보고", "전략/투자"],
   "shared task locations should remain stable and readable"
 );
-assert.equal(reportTask.progress, 50, "task progress should come from subtask completion");
+assert.equal(workstreamTask.progress, 50, "task progress should come from subtask completion");
+
+const sampleStructure = buildMindmapStructure(filterMindmapTasksByScope(initialTasks, "all"), presets);
+const innovationSampleGroup = sampleStructure.groups.find((group) => group.label === "혁신아이디어");
+
+assert.ok(innovationSampleGroup, "mindmap sample data should include an innovation workstream");
+assert.equal(
+  innovationSampleGroup.uniqueTaskCount,
+  mindmapSampleTasks.length,
+  "innovation sample tasks should be grouped into one workstream"
+);
+assert.equal(
+  innovationSampleGroup.tasks.length,
+  mindmapSampleTasks.length,
+  "innovation sample workstream should render one task node per source task"
+);
+assert.deepEqual(
+  mindmapGroupStatusSummary(innovationSampleGroup),
+  ["진행중 1", "계획 1", "완료 1"],
+  "sample status summary should count unique tasks, not duplicated category placements"
+);
+
+const activeSampleStructure = buildMindmapStructure(filterMindmapTasksByScope(initialTasks, "active"), presets);
+const activeInnovationGroup = activeSampleStructure.groups.find((group) => group.label === "혁신아이디어");
+
+assert.ok(activeInnovationGroup, "active mindmap sample data should include active innovation work");
+assert.deepEqual(
+  mindmapGroupStatusSummary(activeInnovationGroup),
+  ["진행중 1", "계획 1"],
+  "active sample status summary should dedupe multi-category planned work"
+);
 
 console.log("mindmap structure checks passed");
