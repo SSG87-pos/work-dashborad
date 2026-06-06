@@ -139,6 +139,12 @@ Key product decisions now in the prototype:
 
 Recent UI/UX refinements from the latest session:
 
+- Current branch demo-readiness QA:
+  - after the compact mindmap adjustment, `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `git diff --check`, and `/Users/seulgi/Library/pnpm/bin/pnpm run demo:urls` passed.
+  - `pnpm run demo:urls` printed `http://127.0.0.1:5173/` plus current network candidates `http://192.168.45.109:5173/` and `http://192.168.55.223:5173/`.
+  - Browser desktop QA at 1366px verified POSLAB entry session restore, `Supabase 연결`, the 6-person real roster, Team Flow board, compact mindmap, Canvas, Calendar, Updates, Highlights, and scoped admin management surfaces with no horizontal overflow. Admin tabs `사람 관리`, `태그 관리`, and `업무흐름 관리` rendered after clicking the scoped sidebar `관리자` nav.
+  - Browser narrow QA at 820px verified Team Flow board, compact mindmap, Canvas, Calendar, and Admin with no horizontal overflow and no console errors. Known warnings during broader browser work came from third-party 3D/lanyard deprecation messages.
+
 - Added POSLAB entry landing:
   - created `src/PoslabLanyard.jsx` with the React Bits-style lanyard implementation: original card/clip/clamp GLB geometry, logo-free meshline strap, Rapier rope/spherical joints, and the selected `Executive Blue` POSLAB-only generated card face
   - added POSLAB entry screen styles to `src/styles.css` and a `hasEnteredDashboard` session gate in `src/App.jsx`
@@ -162,7 +168,9 @@ Recent UI/UX refinements from the latest session:
   - quarterly/yearly performance cards hide checklist/detail rows by default and keep `포함 업무` as the main evidence unless the detailed-report option is enabled
   - mindmap no longer renders Category buckets as a separate layer; it now branches root -> `상위 업무흐름` -> task nodes
   - multi-Category task context is no longer shown as a visible `분류 N개` badge because it was unclear after removing Category bucket nodes.
-  - mindmap task status chips now follow the timeline/status color meaning, importance uses the existing square priority sticker grammar, and compact task nodes show a small status-colored dot plus owner name without widening the node.
+  - mindmap task status chips now follow the timeline/status color meaning, importance uses the existing square priority sticker grammar, and compact task nodes show a small status-colored dot plus owner name in a wider one-line row.
+  - Latest compact mindmap follow-up changes the previous fixed narrow compact task nodes into content-aware one-line nodes: status dot, task title, and owner sit in one row, short labels keep compact boxes, long labels widen within a cap, count/owner metadata is right-aligned inside each box, and compact row/column gaps are tighter so generated maps are easier to scan as work grows downward.
+  - Compact mindmap QA on `http://127.0.0.1:5173/` verified a live workstream node at about 196px and task node at about 293px, one-line `nowrap` title behavior, no title overflow for the current live task, aligned workstream/task column left edges, and no horizontal overflow.
   - Latest follow-up QA on `http://127.0.0.1:5178/` verified mindmap has 0 Category/tag bucket nodes, 8 workstream nodes, 10 task nodes, includes `혁신아이디어 행사 기획`, and quarterly performance shows `포함 업무`/`묶인 업무` with 0 checklist/detail rows and 0 description rows by default.
   - Chip follow-up QA on `http://127.0.0.1:5178/` verified card mode status classes such as `status-진행중`, priority square classes such as `priority-square-높음`, no visible `분류` text, 10 task nodes, 222px task node width, and no horizontal overflow. Compact mode verified 10 task nodes with status dots, owner text such as `류강묵`, 166px width, 42px height, no console errors/warnings, and no horizontal overflow.
   - Status-dot follow-up QA on `http://127.0.0.1:5178/` verified 5 status legend items in the mindmap header, legend/status dots at 8x8, compact owner text retained, no console errors/warnings, and no horizontal overflow.

@@ -139,6 +139,7 @@ Greetings:
 - Task nodes open the same right-side workflow task detail as board/timeline/recurring/archive.
 - Mindmap task status chips should use the same calm status color meaning as the timeline (`계획`, `진행중`, `검토/대기`, `완료`, `보류`), and task importance should use the existing square priority sticker grammar.
 - In compact mindmap mode, task nodes should stay small but show a clearly visible status-colored dot and the owner name so users can scan state and responsibility without opening the card.
+- In compact mindmap mode, task nodes may grow horizontally by title length and should keep status dot, task title, and owner on one line whenever possible. Keep count/owner metadata right-aligned inside each box, but avoid a large fixed minimum width; short labels should stay compact, and only long labels should widen the box.
 - The mindmap header should include a compact status-color legend when status dots are shown.
 - Do not reserve a blank detail column before a task node is selected.
 

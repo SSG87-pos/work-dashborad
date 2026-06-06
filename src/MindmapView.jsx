@@ -18,9 +18,9 @@ const nodeWidth = {
 };
 
 const compactNodeWidth = {
-  root: 164,
-  group: 158,
-  task: 172
+  root: 220,
+  group: 170,
+  task: 220
 };
 const statusLegendItems = ["진행중", "계획", "검토/대기", "완료", "보류"];
 
@@ -36,6 +36,22 @@ function MindmapNode({ data }) {
   const isTask = data.kind === "task";
   const isRoot = data.kind === "root";
   const statusClass = data.status ? `status-${data.status.replace("/", "")}` : "";
+  if (isTask && data.compact) {
+    return (
+      <button
+        className={nodeClass(data.kind, data.tone)}
+        title={`${data.label} · ${data.ownerName} · ${data.status}`}
+        type="button"
+      >
+        <Handle className="mindmap-handle" position={Position.Left} type="target" />
+        <span className="mindmap-compact-line">
+          <i className={`mindmap-status-dot ${statusClass}`} aria-label={data.status} />
+          <strong>{data.label}</strong>
+          <small>{data.ownerName}</small>
+        </span>
+      </button>
+    );
+  }
   return (
     <button
       className={nodeClass(data.kind, data.tone)}
@@ -60,12 +76,6 @@ function MindmapNode({ data }) {
           </span>
         </>
       )}
-      {isTask && data.compact && (
-        <span className="mindmap-compact-meta">
-          <i className={`mindmap-status-dot ${statusClass}`} aria-label={data.status} />
-          <small>{data.ownerName}</small>
-        </span>
-      )}
       {!isTask && !data.compact && data.statusSummary?.length > 0 && (
         <span className="mindmap-node-chips">
           {data.statusSummary.map((item) => (
@@ -82,13 +92,32 @@ const nodeTypes = {
   mindmap: MindmapNode
 };
 
+function compactWidthForText(text, baseWidth, maxWidth) {
+  const normalized = String(text ?? "").replace(/\s+/g, " ").trim();
+  const koreanChars = [...normalized].filter((char) => /[가-힣]/.test(char)).length;
+  const wideChars = [...normalized].filter((char) => !/[가-힣A-Za-z0-9\s]/.test(char)).length;
+  const weightedLength = normalized.length + koreanChars * 0.35 + wideChars * 0.25;
+  return Math.min(maxWidth, Math.max(baseWidth, Math.round(weightedLength * 7.6 + 72)));
+}
+
+function mindmapNodeWidth(data) {
+  if (!data.compact) return nodeWidth[data.kind] ?? 180;
+  if (data.kind === "task") {
+    return compactWidthForText(`${data.label} ${data.ownerName}`, compactNodeWidth.task, 520);
+  }
+  if (data.kind === "group") {
+    return compactWidthForText(`${data.label} ${data.countLabel ?? ""}`, compactNodeWidth.group, 360);
+  }
+  return compactNodeWidth[data.kind] ?? compactNodeWidth.task;
+}
+
 function addNode(nodes, node) {
   nodes.push({
     ...node,
     type: "mindmap",
     draggable: false,
     style: {
-      width: node.data.compact ? compactNodeWidth[node.data.kind] ?? compactNodeWidth.task : nodeWidth[node.data.kind] ?? 180
+      width: mindmapNodeWidth(node.data)
     }
   });
 }
@@ -108,14 +137,25 @@ function buildFlowElements(structure, people, density = "card") {
   const nodes = [];
   const edges = [];
   const isCompact = density === "compact";
-  const rowGap = isCompact ? 52 : 86;
-  const groupGap = isCompact ? 38 : 58;
-  const canvasHeightPadding = isCompact ? 150 : 190;
+  const rowGap = isCompact ? 40 : 86;
+  const groupGap = isCompact ? 24 : 58;
+  const compactColumnGap = 54;
+  const canvasHeightPadding = isCompact ? 120 : 190;
+  const rootX = 0;
+  const rootWidth = isCompact ? compactNodeWidth.root : nodeWidth.root;
+  const maxGroupWidth = isCompact
+    ? Math.max(
+      compactNodeWidth.group,
+      ...structure.groups.map((group) => compactWidthForText(`${group.label} ${group.uniqueTaskCount}건`, compactNodeWidth.group, 360))
+    )
+    : nodeWidth.group;
+  const groupX = isCompact ? rootX + rootWidth + compactColumnGap : 260;
+  const taskX = isCompact ? groupX + maxGroupWidth + compactColumnGap : 540;
   let cursorY = 0;
   const groupLayouts = structure.groups.map((group) => {
     const uniqueTasks = group.tasks ?? [];
     const taskRows = Math.max(1, uniqueTasks.length);
-    const height = Math.max(128, taskRows * rowGap);
+    const height = Math.max(isCompact ? 80 : 128, taskRows * rowGap);
     const layout = { group, uniqueTasks, y: cursorY, height };
     cursorY += height + groupGap;
     return layout;
@@ -125,7 +165,7 @@ function buildFlowElements(structure, people, density = "card") {
 
   addNode(nodes, {
     id: "root",
-    position: { x: 0, y: rootY },
+    position: { x: rootX, y: rootY },
     data: {
       kind: "root",
       compact: isCompact,
@@ -141,7 +181,7 @@ function buildFlowElements(structure, people, density = "card") {
     const groupId = `group:${group.id}`;
     addNode(nodes, {
       id: groupId,
-      position: { x: 260, y: y + height / 2 - 42 },
+      position: { x: groupX, y: y + height / 2 - (isCompact ? 18 : 42) },
       data: {
         kind: "group",
         compact: isCompact,
@@ -159,7 +199,7 @@ function buildFlowElements(structure, people, density = "card") {
       const taskNodeId = `task:${group.id}:${task.id}`;
       addNode(nodes, {
         id: taskNodeId,
-        position: { x: 540, y: y + taskIndex * rowGap },
+        position: { x: taskX, y: y + taskIndex * rowGap },
         data: {
           kind: "task",
           label: task.title,

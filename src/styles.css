@@ -11561,9 +11561,9 @@ body[data-page="team"] .briefing-panel {
 }
 
 .mindmap-canvas.is-compact .mindmap-node-task {
-  gap: 3px;
-  min-height: 44px;
-  padding: 8px 9px;
+  gap: 0;
+  min-height: 34px;
+  padding: 7px 9px;
   box-shadow: 0 5px 14px rgba(15, 23, 42, 0.06);
 }
 
@@ -11581,19 +11581,22 @@ body[data-page="team"] .briefing-panel {
 }
 
 .mindmap-canvas.is-compact .mindmap-node-task .mindmap-node-topline strong {
-  display: -webkit-box;
+  display: block;
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   font-size: 11.5px;
   line-height: 1.25;
   font-weight: 660;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mindmap-canvas.is-compact .mindmap-node-card .mindmap-node-topline strong {
+  overflow: hidden;
   font-size: 11.5px;
   line-height: 1.25;
   font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mindmap-canvas.is-compact .mindmap-node-task .mindmap-node-topline em {
@@ -11690,6 +11693,49 @@ body[data-page="team"] .briefing-panel {
 
 .mindmap-task-meta {
   display: block;
+}
+
+.mindmap-compact-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  width: 100%;
+}
+
+.mindmap-compact-line strong {
+  overflow: hidden;
+  color: #1f2937;
+  font-size: 11.5px;
+  font-weight: 660;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mindmap-compact-line small {
+  overflow: hidden;
+  max-width: 72px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 620;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mindmap-canvas.is-compact .mindmap-node-topline {
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.mindmap-canvas.is-compact .mindmap-node-topline strong {
+  flex: 1 1 auto;
+}
+
+.mindmap-canvas.is-compact .mindmap-node-topline em {
+  flex: 0 0 auto;
 }
 
 .mindmap-compact-meta {

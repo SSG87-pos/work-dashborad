@@ -2,6 +2,20 @@
 
 ## Now
 
+- [x] Run current POSLAB/mindmap branch demo-readiness QA.
+  - Files: `TODO.md`, `HANDOFF.md`.
+  - Done: rechecked the current `codex/poslab-entry-landing` branch after the compact mindmap adjustment.
+  - Verified scripts: `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `git diff --check`, and `/Users/seulgi/Library/pnpm/bin/pnpm run demo:urls` passed. Current local URL is `http://127.0.0.1:5173/`; current network candidates are `http://192.168.45.109:5173/` and `http://192.168.55.223:5173/`.
+  - Verified browser desktop QA at 1366px: POSLAB entry restored the signed-in session, `Supabase 연결` rendered, real roster showed 6 visible members, Team Flow board, compact mindmap, Canvas, Calendar, Updates, Highlights, and admin management surfaces rendered without horizontal overflow. Admin `사람 관리`, `태그 관리`, and `업무흐름 관리` were verified through a scoped sidebar nav click.
+  - Verified browser narrow QA at 820px: Team Flow board, compact mindmap, Canvas, Calendar, and Admin all rendered with no horizontal overflow and no console errors. Console warnings observed during the broader session were existing third-party 3D/lanyard deprecation warnings, not app errors.
+
+- [x] Tighten compact mindmap layout for wider one-line task nodes.
+  - Files: `src/MindmapView.jsx`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: compact task nodes now render status dot, task title, and owner in one horizontal row; task/group widths grow from title length within a capped range instead of staying at the old narrow fixed width or a too-large fixed minimum.
+  - Done: owner/count metadata is right-aligned inside each compact box, while column left edges stay aligned so the map remains orderly.
+  - Done: compact layout uses shorter row gaps and tighter column gaps so generated workstreams are easier to scan at once.
+  - Verified: `/Users/seulgi/Library/pnpm/bin/pnpm run check:mindmap-structure`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:workstreams`, `git diff --check`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed. Browser QA on `http://127.0.0.1:5173/` verified compact mode rendered the current live workstream node at about 196px and task node at about 293px, kept `nowrap` title behavior without title overflow, right-aligned count/owner metadata, aligned the workstream/task column left edges, and had no horizontal overflow.
+
 - [x] Add a POSLAB entry landing before the dashboard.
   - Files: `src/App.jsx`, `src/PoslabLanyard.jsx`, `src/styles.css`, `vite.config.js`, `package.json`, `pnpm-lock.yaml`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
   - Done: created branch `codex/poslab-entry-landing` for the entry experiment.
