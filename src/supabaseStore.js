@@ -19,6 +19,12 @@ function recurringFrequencyFromDb(value) {
   return null;
 }
 
+function changeTypeToDb(value) {
+  if (value === "dueDate") return "due_date";
+  if (["status", "archive", "delete", "recurring"].includes(value)) return value;
+  return "status";
+}
+
 function toTaskRow(task, currentUserId) {
   const recurringFrequency = recurringFrequencyToDb(task.recurring);
   const ownerIsUser = isUuid(task.ownerId);
@@ -39,7 +45,7 @@ function toTaskRow(task, currentUserId) {
     start_date: task.startDate || TODAY,
     due_date: task.dueDate || task.startDate || TODAY,
     completed_at: task.completedAt || null,
-    completed_by: isUuid(task.completedBy) ? userMap.get(task.completedBy) ?? task.completedBy : null,
+    completed_by: isUuid(task.completedBy) ? task.completedBy : null,
     progress_before_complete: task.progressBeforeComplete ?? null,
     progress: Number.isFinite(Number(task.progress)) ? Number(task.progress) : 0,
     archived_at: task.archived ? new Date().toISOString() : null,
@@ -547,6 +553,7 @@ async function saveTask(task) {
   const client = requireSupabaseClient();
   const currentUser = await readCurrentUser(client);
   if (!currentUser || !canPersistTask(task)) return { skipped: true, reason: "requires-real-users" };
+  const isNewTask = !isUuid(task.id);
   await ensureRosterPeople(
     client,
     [task.ownerId, task.creatorId, task.assignerId],
@@ -595,6 +602,21 @@ async function saveTask(task) {
     if (error) throw error;
   }
 
+  const updates = isNewTask
+    ? (task.updates ?? []).filter((update) => update.text?.trim())
+    : [];
+  if (updates.length) {
+    const { error } = await client.from("task_updates").insert(
+      updates.map((update) => ({
+        task_id: taskId,
+        author_id: isUuid(update.authorId) ? update.authorId : currentUser.id,
+        body: update.text.trim(),
+        created_at: update.date ? `${update.date}T00:00:00.000Z` : new Date().toISOString()
+      }))
+    );
+    if (error) throw error;
+  }
+
   const tagRows = await ensureTags(client, task.tags ?? [], currentUser.id);
   await client.from("task_tags").delete().eq("task_id", taskId);
   if (tagRows.length) {
@@ -620,7 +642,114 @@ async function saveTask(task) {
     if (error) throw error;
   }
 
+  const initialHistory = isNewTask
+    ? (task.statusHistory ?? []).filter((entry) => entry?.type)
+    : [];
+  if (initialHistory.length) {
+    const { error } = await client.from("task_change_history").insert(
+      initialHistory.map((entry) => ({
+        task_id: taskId,
+        change_type: changeTypeToDb(entry.type),
+        from_value: entry.from ?? null,
+        to_value: entry.to ?? entry.note ?? "",
+        actor_id: isUuid(entry.actorId) ? entry.actorId : currentUser.id,
+        note: entry.note ?? null
+      }))
+    );
+    if (error) throw error;
+  }
+
   return { id: taskId };
+}
+
+async function importDashboardData(imported, options = {}) {
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser || currentUser.permissionRole !== "admin") {
+    return { skipped: true, reason: "requires-admin" };
+  }
+  const directory = options.directory ?? [];
+  const profileOverrides = imported?.profileOverrides ?? {};
+  const tasks = Array.isArray(imported?.tasks) ? imported.tasks : [];
+  const calendarEvents = Array.isArray(imported?.calendarEvents) ? imported.calendarEvents : [];
+  const availableTags = Array.isArray(imported?.availableTags) ? imported.availableTags : [];
+  const tagGroups = Array.isArray(imported?.tagGroups) ? imported.tagGroups : [];
+
+  const rosterIds = Array.from(new Set([
+    ...tasks.flatMap((task) => [rosterIdFor(task.ownerId), rosterIdFor(task.creatorId), rosterIdFor(task.assignerId)]),
+    ...calendarEvents.map((event) => rosterIdFor(event.ownerId)),
+    ...Object.keys(profileOverrides).map(rosterIdFor)
+  ].filter(Boolean)));
+  const knownDirectoryIds = new Set(directory.map((person) => person.id));
+  const unknownRosterIds = rosterIds.filter((id) => !knownDirectoryIds.has(id));
+  if (unknownRosterIds.length) {
+    return { skipped: true, reason: "unknown-roster-ids", unknownRosterIds };
+  }
+  await ensureRosterPeople(client, rosterIds, directory, currentUser);
+  for (const [personId, profile] of Object.entries(profileOverrides)) {
+    if (!rosterIdFor(personId)) continue;
+    await updateUserAdministration(personId, {
+      name: profile.name,
+      title: profile.role,
+      profileEmoji: profile.emoji,
+      permissionRole: profile.permissionRole,
+      isTeamMember: profile.isTeamMember,
+      isActive: profile.isActive,
+      expectedEmail: profile.expectedEmail,
+      authUserId: profile.authUserId
+    });
+  }
+
+  const tagNames = Array.from(new Set([
+    ...availableTags,
+    ...tasks.flatMap((task) => task.tags ?? [])
+  ].map((tag) => tag?.trim()).filter(Boolean)));
+  if (tagNames.length) await ensureTags(client, tagNames, currentUser.id);
+  for (const group of tagGroups) {
+    if (group?.id && group?.label) await saveTagGroup(group);
+  }
+
+  const taskIdMap = new Map();
+  const taskOrder = [
+    ...tasks.filter((task) => !task.recurringTemplateId),
+    ...tasks.filter((task) => task.recurringTemplateId)
+  ];
+  for (const task of taskOrder) {
+    const mappedTemplateId = task.recurringTemplateId && taskIdMap.has(task.recurringTemplateId)
+      ? taskIdMap.get(task.recurringTemplateId)
+      : task.recurringTemplateId;
+    const result = await saveTask({
+      ...task,
+      recurringTemplateId: mappedTemplateId,
+      peopleDirectory: directory
+    });
+    if (result?.id) taskIdMap.set(task.id, result.id);
+  }
+
+  for (const event of calendarEvents) {
+    await addCalendarEvent({ ...event, peopleDirectory: directory });
+  }
+
+  if (imported?.memoByPage) {
+    await writeUserPreferences({
+      activePage: options.activePage ?? "team",
+      activeView: options.activeView ?? "board",
+      category: "전체",
+      timelineMode: options.timelineMode ?? "month",
+      timelineMonth: options.timelineMonth ?? TODAY.slice(0, 7),
+      timelineYear: options.timelineYear ?? TODAY.slice(0, 4),
+      selectedTaskId: "",
+      memoByPage: imported.memoByPage
+    });
+  }
+
+  return {
+    taskCount: tasks.length,
+    calendarEventCount: calendarEvents.length,
+    tagCount: tagNames.length,
+    tagGroupCount: tagGroups.length,
+    rosterCount: rosterIds.length
+  };
 }
 
 async function updateTaskStatus(taskId, status) {
@@ -823,7 +952,7 @@ function seedSnapshot() {
     tasks: initialTasks,
     availableTags: [],
     calendarEvents: initialCalendarEvents,
-    selectedPersonId: "seoyeon",
+    selectedPersonId: "kmryu",
     timelineMonth: TODAY.slice(0, 7),
     timelineYear: TODAY.slice(0, 4)
   });
@@ -869,6 +998,7 @@ export const supabaseDashboardStore = {
     update: updateCalendarEvent,
     delete: deleteCalendarEvent
   },
+  importData: importDashboardData,
   mappers: {
     fromTaskRow,
     toTaskRow,

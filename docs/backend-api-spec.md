@@ -31,7 +31,7 @@ The current app persists one dashboard payload:
   "availableTags": [],
   "calendarEvents": [],
   "isAuthenticated": true,
-  "selectedPersonId": "seoyeon",
+  "selectedPersonId": "kmryu",
   "activePage": "my",
   "activeView": "board",
   "category": "전체",
@@ -151,7 +151,7 @@ Progress rule:
 | --- | --- | --- | --- |
 | id | text pk | yes | Stable change id. |
 | task_id | text fk tasks.id | yes | Parent task. |
-| change_type | enum | yes | `status`, `due_date`. |
+| change_type | enum | yes | `status`, `due_date`, `archive`, `delete`, `recurring`. |
 | from_value | text | no | Previous status or due date. |
 | to_value | text | yes | New status or due date. |
 | actor_id | text fk users.id | yes | User who changed the status. |
@@ -252,7 +252,7 @@ Generated recurring instances are normal `tasks` rows linked by `recurring_templ
 | user_id | text pk fk users.id | yes | Preference owner. |
 | active_page | text | no | Last selected page scope. |
 | active_view | text | no | Last nav view. |
-| selected_tag | text | no | Last tag filter. |
+| selected_tag | text | no | Last selected tag filters serialized for the frontend preference, using `전체` or delimiter-separated tag names. |
 | timeline_mode | text | no | `month` or `year`. |
 | timeline_month | text | no | `YYYY-MM`. |
 | timeline_year | text | no | `YYYY`. |
@@ -308,10 +308,10 @@ Use `/api/v1` as the initial namespace.
 
 | Method | Path | Role | Notes |
 | --- | --- | --- | --- |
-| GET | `/calendar/events` | user | Team events plus own personal events. |
-| POST | `/calendar/events` | user | Create team event if allowed, or own personal event. |
-| PATCH | `/calendar/events/:id` | owner/lead/admin | Edit event by scope rules. |
-| DELETE | `/calendar/events/:id` | owner/lead/admin | Delete event by scope rules. |
+| GET | `/calendar/events` | user | Shared team calendar entries, including team and personal schedule blocks. |
+| POST | `/calendar/events` | user | Create a team event, or create a personal event for self/delegated assignee when allowed. |
+| PATCH | `/calendar/events/:id` | owner/creator/lead/admin | Edit event by scope rules. |
+| DELETE | `/calendar/events/:id` | owner/creator/lead/admin | Delete event by scope rules. |
 | GET | `/notes/today` | user | Own note for current date. |
 | PUT | `/notes/:date` | user | Upsert own note. |
 
@@ -349,7 +349,15 @@ Minimum rules:
 
 ## Migration from Prototype JSON
 
-The current `JSON 내보내기` payload can seed the backend.
+The current `JSON 내보내기` payload can seed the backend when a legacy migration is explicitly needed. The current launch path skips old local JSON migration and starts fresh in Supabase, so this flow is retained as an admin backup/future migration tool.
+
+Current app behavior:
+
+- `src/supabaseImportPlan.js` summarizes exported prototype JSON before any backend writes.
+- In signed-in Supabase mode, `JSON 가져오기` displays the import summary and requires administrator confirmation before live DB writes.
+- Actual Supabase import execution is merge/upsert oriented: local-id rows are inserted as new rows, same UUID rows can update, and related subtasks/links/tags/calendar events/memos/profile-roster data are written through the existing Supabase store boundary.
+- After a successful Supabase import, the browser records a local JSON fingerprint. Selecting the same JSON again shows an additional duplicate-risk confirmation because local-id rows can be inserted again as new rows.
+- If an import references local person IDs that are not present in the current people directory/team roster, the Supabase import must be blocked until the ID-to-person mapping is fixed. Unknown local IDs must not be auto-created as operational roster rows.
 
 Migration order:
 

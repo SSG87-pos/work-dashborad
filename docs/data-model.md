@@ -28,7 +28,7 @@ Stores team members before or after signup. This lets the dashboard run with rea
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| id | string | Stable roster id used by existing task data, such as `seoyeon`. |
+| id | string | Stable roster id used by existing task data, such as `kmryu`. |
 | expected_email | string nullable | Email the person is expected to use when signing up. |
 | auth_user_id | user id nullable | Linked `users.id` after signup. |
 | name | string | Display name. |

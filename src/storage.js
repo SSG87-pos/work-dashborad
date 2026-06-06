@@ -1,6 +1,8 @@
 export const dashboardStorageKey = "research-strategy-dashboard:v1";
+export const supabaseImportHistoryKey = `${dashboardStorageKey}:supabase-import-history`;
 
 export const dashboardStateVersion = 1;
+export const maxSupabaseImportHistory = 20;
 
 export const defaultDashboardPreferences = {
   activePage: "my",
@@ -26,6 +28,14 @@ export const localDashboardStore = {
   clear: clearDashboardState
 };
 
+export const supabaseImportHistoryStore = {
+  canUse: canUseBrowserStorage,
+  read: readSupabaseImportHistory,
+  find: findSupabaseImportRecord,
+  write: writeSupabaseImportRecord,
+  clear: clearSupabaseImportHistory
+};
+
 export function createDashboardSnapshot(state) {
   return {
     version: dashboardStateVersion,
@@ -34,7 +44,7 @@ export function createDashboardSnapshot(state) {
     tagGroups: state.tagGroups ?? [],
     calendarEvents: state.calendarEvents ?? [],
     isAuthenticated: state.isAuthenticated ?? true,
-    selectedPersonId: state.selectedPersonId ?? "seoyeon",
+    selectedPersonId: state.selectedPersonId ?? "kmryu",
     activePage: state.activePage ?? defaultDashboardPreferences.activePage,
     activeView: state.activeView ?? defaultDashboardPreferences.activeView,
     category: state.category ?? defaultDashboardPreferences.category,
@@ -73,5 +83,45 @@ export function writeDashboardState(state) {
 export function clearDashboardState() {
   if (!canUseBrowserStorage()) return false;
   window.localStorage.removeItem(dashboardStorageKey);
+  return true;
+}
+
+export function readSupabaseImportHistory() {
+  if (!canUseBrowserStorage()) return [];
+  try {
+    const raw = window.localStorage.getItem(supabaseImportHistoryKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn("Supabase 가져오기 이력을 불러오지 못했습니다.", error);
+    return [];
+  }
+}
+
+export function findSupabaseImportRecord(fingerprint) {
+  if (!fingerprint) return null;
+  return readSupabaseImportHistory().find((record) => record?.fingerprint === fingerprint) ?? null;
+}
+
+export function writeSupabaseImportRecord(record) {
+  if (!canUseBrowserStorage() || !record?.fingerprint) return false;
+  const nextRecord = {
+    ...record,
+    importedAt: record.importedAt ?? new Date().toISOString()
+  };
+  const history = readSupabaseImportHistory().filter((item) => item?.fingerprint !== nextRecord.fingerprint);
+  const nextHistory = [nextRecord, ...history].slice(0, maxSupabaseImportHistory);
+  try {
+    window.localStorage.setItem(supabaseImportHistoryKey, JSON.stringify(nextHistory));
+    return true;
+  } catch (error) {
+    console.warn("Supabase 가져오기 이력을 저장하지 못했습니다.", error);
+    return false;
+  }
+}
+
+export function clearSupabaseImportHistory() {
+  if (!canUseBrowserStorage()) return false;
+  window.localStorage.removeItem(supabaseImportHistoryKey);
   return true;
 }

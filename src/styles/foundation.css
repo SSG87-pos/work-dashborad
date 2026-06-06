@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--panel);
+  --color-muted-foreground: var(--muted);
+  --color-border: var(--line);
+  --radius-md: var(--radius);
+}
+
+:where(button, input, select, textarea, a, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.12);
+}

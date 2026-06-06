@@ -118,8 +118,8 @@ Team events:
 
 Personal events:
 
-- visible only to owner and admin
-- editable only by owner and admin
+- visible in the shared calendar so the team can coordinate schedules
+- editable only by owner, creator, lead, or admin
 
 Task due dates appear in the calendar as derived work items and are edited through task detail, not calendar event editing.
 

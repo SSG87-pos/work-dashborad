@@ -3,8 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@11.5.1",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "demo:urls": "node scripts/print-demo-urls.mjs",
+    "check:demo-readiness": "node scripts/check-demo-readiness.mjs",
+    "check:import-plan": "node scripts/check-supabase-import-plan.mjs",
+    "check:summary-filter": "node scripts/check-summary-filter.mjs",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0"
   },
@@ -14,6 +19,7 @@
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "emoji-picker-react": "^4.19.1",
     "lucide-react": "^0.468.0",
     "motion": "^12.40.0",
     "react": "^19.0.0",

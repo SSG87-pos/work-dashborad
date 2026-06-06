@@ -18,7 +18,7 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 ## Golden Rules
 
 - Keep `HANDOFF.md` and `TODO.md` aligned after meaningful product, UX, or architecture changes.
-- Treat `prototype.html` as legacy visual reference only. Do not implement new features there.
+- Treat `legacy/prototype.html` as legacy visual reference only. Do not implement new features there.
 - Preserve user-approved UI decisions unless the user explicitly asks to revisit them.
 - For frontend changes, run the build and verify the rendered app in the browser when practical.
 - Do not reserve empty task-detail space before explicit user selection.

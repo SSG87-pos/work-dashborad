@@ -38,8 +38,8 @@ Supabase/Postgres fits this model better than a document-only database because j
 update public.users
 set
   permission_role = 'admin',
-  title = '관리자',
-  is_team_member = false
+  title = '관리자 또는 실제 직책',
+  is_team_member = false -- admin-only support account이면 false, 실제 팀원이면 true
 where email = 'ADMIN_EMAIL_HERE';
 ```
 
@@ -103,6 +103,28 @@ Because `Automatically expose new tables` is disabled, every new public table th
 - Only `admin` can rename/delete shared tags.
 - Personal calendar events and personal notes stay owner/admin only.
 - Page memos used by the current dashboard are shared by page key (`my`, `team`), not private personal notes.
+
+## Team Onboarding Inputs
+
+Use these files when moving from prototype/sample users to real team operation:
+
+- `docs/company-supabase-review-brief.md` is the company-facing review summary for Supabase use, data scope, security boundaries, and temporary URL decisions.
+- `docs/company-demo-readiness-checklist.md` explains the company-approval demo stop point, real-name demo policy, temporary URL decision, and approval boundaries.
+- `docs/supabase-auth-security-checklist.md` explains the remaining Auth dashboard security check for leaked password protection and password policy.
+- `docs/internal-port-demo-runbook.md` is the no-temporary-URL runbook for port/local-network demos inside the company network.
+- `docs/company-clone-runbook.md` explains the later Windows/Linux company PC clone, install, environment, check, and run flow.
+- `docs/team-onboarding-checklist.md` explains when real user information is needed and the recommended validation order.
+- `docs/team-roster-template.csv` is the fill-in template for initial roster setup.
+
+Minimum fields needed for each real user:
+
+- name
+- title
+- permission_role: `admin`, `lead`, or `member`
+- expected_email: the email they will use to sign up
+- is_team_member: whether they should appear in the team list
+
+The current app can create roster rows before a teammate signs up. When the teammate later signs up with the matching `expected_email`, the roster row can link to the real auth user.
 
 ## Future SSO
 

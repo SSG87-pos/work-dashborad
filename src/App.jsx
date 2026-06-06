@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
@@ -40,9 +41,11 @@ import {
   X
 } from "lucide-react";
 import { TODAY, assignerTypes, categories, initialCalendarEvents, initialTasks, people, statuses, tagOptions } from "./data.js";
-import { localDashboardStore } from "./storage.js";
+import { localDashboardStore, supabaseImportHistoryStore } from "./storage.js";
+import { buildSupabaseImportPlan, formatSupabaseImportPlanMessage } from "./supabaseImportPlan.js";
 import { supabaseConfig } from "./supabaseClient.js";
 import { supabaseDashboardStore } from "./supabaseStore.js";
+import { summaryFilterLabels, summaryFilterMatches } from "./summaryFilters.js";
 
 const dayMs = 24 * 60 * 60 * 1000;
 const boardStatuses = ["검토/대기", "계획", "진행중", "완료", "보류"];
@@ -72,6 +75,7 @@ const statusStickerLabels = {
   완료: "✅ 완료",
   보류: "⏸ 보류"
 };
+const tagFilterDelimiter = "||";
 const defaultAvailableTags = normalizeTags([...categories.filter((item) => item !== "전체"), ...tagOptions]);
 const defaultTagFilterPresets = [
   { id: "preset:planning-report", label: "기획/임원보고", tags: ["기획보고", "임원보고"], tone: "report" },
@@ -93,38 +97,6 @@ const weekdayOptions = [
   { value: 5, label: "금" },
   { value: 6, label: "토" },
   { value: 0, label: "일" }
-];
-const emojiCatalog = [
-  { emoji: "🌿", label: "나뭇잎", keywords: "leaf plant nature calm green" },
-  { emoji: "🌱", label: "새싹", keywords: "sprout plant growth start" },
-  { emoji: "🍀", label: "클로버", keywords: "clover lucky plant" },
-  { emoji: "🌵", label: "선인장", keywords: "cactus plant desert" },
-  { emoji: "🌸", label: "꽃", keywords: "flower bloom" },
-  { emoji: "🌻", label: "해바라기", keywords: "sunflower flower bright" },
-  { emoji: "🦉", label: "부엉이", keywords: "owl wise night" },
-  { emoji: "🐳", label: "고래", keywords: "whale calm sea" },
-  { emoji: "🦊", label: "여우", keywords: "fox clever" },
-  { emoji: "🐢", label: "거북이", keywords: "turtle steady" },
-  { emoji: "🦦", label: "수달", keywords: "otter playful" },
-  { emoji: "🐧", label: "펭귄", keywords: "penguin" },
-  { emoji: "🐿️", label: "다람쥐", keywords: "squirrel quick" },
-  { emoji: "🦔", label: "고슴도치", keywords: "hedgehog" },
-  { emoji: "🛡️", label: "방패", keywords: "shield admin protect" },
-  { emoji: "✨", label: "반짝임", keywords: "sparkle clean highlight" },
-  { emoji: "🙂", label: "미소", keywords: "smile good" },
-  { emoji: "👍", label: "좋아요", keywords: "thumb ok approve" },
-  { emoji: "🙏", label: "부탁", keywords: "please thanks request" },
-  { emoji: "💡", label: "아이디어", keywords: "idea insight" },
-  { emoji: "📌", label: "고정", keywords: "pin important note" },
-  { emoji: "📝", label: "메모", keywords: "memo write plan" },
-  { emoji: "🔎", label: "확인", keywords: "search check review" },
-  { emoji: "⚠️", label: "주의", keywords: "warning issue risk" },
-  { emoji: "✅", label: "완료", keywords: "done complete check" },
-  { emoji: "⏳", label: "대기", keywords: "wait pending" },
-  { emoji: "🚀", label: "시작", keywords: "start launch" },
-  { emoji: "🎯", label: "집중", keywords: "focus target" },
-  { emoji: "📎", label: "첨부", keywords: "clip attach link" },
-  { emoji: "🤝", label: "협업", keywords: "team together" }
 ];
 const permissionLabels = {
   admin: "관리자",
@@ -182,7 +154,9 @@ function persistedOption(value, options, fallback) {
 }
 
 function persistedPerson(value) {
-  return typeof value === "string" && value ? value : "seoyeon";
+  if (value === "seoyeon") return "kmryu";
+  if (value === "haram") return "sugu05";
+  return typeof value === "string" && value ? value : "kmryu";
 }
 
 function persistedObject(value) {
@@ -191,6 +165,40 @@ function persistedObject(value) {
 
 function persistedString(value, fallback = "") {
   return typeof value === "string" ? value : fallback;
+}
+
+function fallbackTextFingerprint(value) {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `fallback-${(hash >>> 0).toString(16).padStart(8, "0")}-${value.length}`;
+}
+
+async function textFingerprint(value) {
+  if (typeof window !== "undefined" && window.crypto?.subtle && window.TextEncoder) {
+    const buffer = await window.crypto.subtle.digest("SHA-256", new window.TextEncoder().encode(value));
+    return Array.from(new Uint8Array(buffer))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  return fallbackTextFingerprint(value);
+}
+
+function formatImportHistoryDate(value) {
+  if (!value) return "이전";
+  try {
+    return new Intl.DateTimeFormat("ko-KR", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(value));
+  } catch {
+    return "이전";
+  }
 }
 
 function initialSharedMemoFrom(persistedState) {
@@ -217,8 +225,33 @@ function persistedTaskId(value, taskList) {
   return taskList.some((task) => task.id === value) ? value : taskList[0]?.id ?? "";
 }
 
+function readTagFilterValues(value, presets = defaultTagFilterPresets) {
+  if (!value || value === "전체") return [];
+  const tokens = Array.isArray(value) ? value : String(value).split(tagFilterDelimiter);
+  return normalizeTags(tokens.flatMap((token) => {
+    const cleanToken = String(token).trim();
+    if (!cleanToken || cleanToken === "전체") return [];
+    const preset = presets.find((item) => item.id === cleanToken || item.label === cleanToken);
+    return preset ? preset.tags : [cleanToken];
+  }));
+}
+
+function serializeTagFilters(filters) {
+  const cleanFilters = normalizeTags(filters);
+  return cleanFilters.length ? cleanFilters.join(tagFilterDelimiter) : "전체";
+}
+
 function persistedTag(value, tags, presets = defaultTagFilterPresets) {
-  return value === "전체" || tags.includes(value) || presets.some((preset) => preset.id === value) ? value : "전체";
+  const validTags = new Set([...tags, ...presets.flatMap((preset) => preset.tags)]);
+  const filters = readTagFilterValues(value, presets).filter((tag) => validTags.has(tag));
+  return serializeTagFilters(filters);
+}
+
+function tagFilterSummaryLabel(filters) {
+  if (!filters.length) return "전체";
+  if (filters.length === 1) return filters[0];
+  if (filters.length === 2) return filters.join(", ");
+  return `${filters[0]} 외 ${filters.length - 1}개`;
 }
 
 function uniqueById(items) {
@@ -243,16 +276,17 @@ function displayTaskTitle(task) {
   return title.replace(/\s*\((?:\d{1,2}월\s*)?\d{1,2}일\s*반복\)\s*$/u, "").trim() || title;
 }
 
-function cleanImportedTask(task, index) {
-  const ownerId = people.some((person) => person.id === task.ownerId && person.isTeamMember !== false)
+function cleanImportedTask(task, index, options = {}) {
+  const knownPersonIds = options.knownPersonIds ?? new Set(people.map((person) => person.id));
+  const ownerId = knownPersonIds.has(task.ownerId)
     ? task.ownerId
-    : "seoyeon";
+    : "kmryu";
   const tags = normalizeTags(Array.isArray(task.tags) ? task.tags : [task.category || "운영"]);
   const status = statuses.includes(task.status) ? task.status : "계획";
   const startDate = isISODate(task.startDate) ? task.startDate : TODAY;
   const dueDate = isISODate(task.dueDate) ? task.dueDate : startDate;
   const completedAt = isISODate(task.completedAt) && status === "완료" ? task.completedAt : "";
-  const completedBy = completedAt && people.some((person) => person.id === task.completedBy) ? task.completedBy : "";
+  const completedBy = completedAt && knownPersonIds.has(task.completedBy) ? task.completedBy : "";
   return {
     id: typeof task.id === "string" && task.id ? task.id : `imported-task-${Date.now()}-${index}`,
     title: typeof task.title === "string" && task.title.trim() ? displayTaskTitle(task) : "가져온 업무",
@@ -332,13 +366,14 @@ function cleanImportedTask(task, index) {
   };
 }
 
-function cleanImportedEvent(event, index) {
+function cleanImportedEvent(event, index, options = {}) {
+  const knownPersonIds = options.knownPersonIds ?? new Set(people.map((person) => person.id));
   const scope = event.scope === "personal" ? "personal" : "team";
-  const ownerId = people.some((person) => person.id === event.ownerId && person.isTeamMember !== false)
+  const ownerId = knownPersonIds.has(event.ownerId)
     ? event.ownerId
     : "lead";
   const creatorCandidate = event.creatorId || event.createdBy;
-  const creatorId = people.some((person) => person.id === creatorCandidate)
+  const creatorId = knownPersonIds.has(creatorCandidate)
     ? creatorCandidate
     : ownerId;
   const startDate = isISODate(event.startDate) ? event.startDate : isISODate(event.date) ? event.date : TODAY;
@@ -364,7 +399,12 @@ function normalizeImportedDashboard(payload) {
   if (!Array.isArray(payload.tasks)) {
     throw new Error("tasks 배열이 있는 대시보드 JSON만 가져올 수 있습니다.");
   }
-  const importedTasks = uniqueById(payload.tasks.map(cleanImportedTask));
+  const profileOverrides = persistedObject(payload.profileOverrides);
+  const knownPersonIds = new Set([
+    ...people.filter((person) => person.isTeamMember !== false).map((person) => person.id),
+    ...Object.keys(profileOverrides)
+  ]);
+  const importedTasks = uniqueById(payload.tasks.map((task, index) => cleanImportedTask(task, index, { knownPersonIds })));
   if (!importedTasks.length) {
     throw new Error("가져올 업무가 없습니다.");
   }
@@ -376,9 +416,9 @@ function normalizeImportedDashboard(payload) {
     tasks: importedTasks,
     availableTags: importedTags.length ? importedTags : normalizeTags(defaultAvailableTags),
     tagGroups: Array.isArray(payload.tagGroups) ? payload.tagGroups : defaultTagFilterPresets,
-    calendarEvents: uniqueById((Array.isArray(payload.calendarEvents) ? payload.calendarEvents : []).map(cleanImportedEvent)),
+    calendarEvents: uniqueById((Array.isArray(payload.calendarEvents) ? payload.calendarEvents : []).map((event, index) => cleanImportedEvent(event, index, { knownPersonIds }))),
     memoByPage: initialMemoByPageFrom(payload),
-    profileOverrides: persistedObject(payload.profileOverrides)
+    profileOverrides
   };
 }
 
@@ -429,6 +469,17 @@ function eventRangeLabel(event) {
   const start = eventStartDate(event);
   const end = eventEndDate(event);
   return start === end ? formatDate(start) : `${formatDate(start)} - ${formatDate(end)}`;
+}
+
+function compactDate(value) {
+  const [, month, day] = value.split("-");
+  return `${Number(month)}/${Number(day)}`;
+}
+
+function eventCompactRangeLabel(event) {
+  const start = eventStartDate(event);
+  const end = eventEndDate(event);
+  return start === end ? compactDate(start) : `${compactDate(start)}~${compactDate(end)}`;
 }
 
 function eventCreatorId(event) {
@@ -823,6 +874,12 @@ function canAssignPersonalCalendarFor(personId) {
   return role === "admin" || role === "lead";
 }
 
+function canManageCalendarEventFor(event, personId) {
+  if (!event) return false;
+  const role = permissionRole(personId);
+  return role === "admin" || role === "lead" || event.ownerId === personId || eventCreatorId(event) === personId;
+}
+
 function normalizeTags(tags) {
   return Array.from(new Set(tags.map((tag) => tag.trim()).filter(Boolean)));
 }
@@ -835,15 +892,10 @@ function primaryTag(task) {
   return taskTags(task)[0] ?? "태그 없음";
 }
 
-function tagFilterPreset(value, presets = defaultTagFilterPresets) {
-  return presets.find((preset) => preset.id === value);
-}
-
 function matchesTagFilter(taskTagList, filterValue, presets = defaultTagFilterPresets) {
-  if (filterValue === "전체") return true;
-  const preset = tagFilterPreset(filterValue, presets);
-  if (preset) return preset.tags.some((tag) => taskTagList.includes(tag));
-  return taskTagList.includes(filterValue);
+  const selectedTags = readTagFilterValues(filterValue, presets);
+  if (!selectedTags.length) return true;
+  return selectedTags.some((tag) => taskTagList.includes(tag));
 }
 
 function recurringSummary(task) {
@@ -1498,6 +1550,98 @@ function createBlankTask(ownerId, creatorId = ownerId) {
   };
 }
 
+function archiveDemoTasks(selectedPersonId) {
+  const teamOwnerIds = ["kmryu", "junho", "minji", "sugu05", "lead"];
+  const ownerIds = [selectedPersonId, ...teamOwnerIds.filter((id) => id !== selectedPersonId)];
+  const completedTitles = [
+    ["전략과제 5월 회의록 정리", ["회의체", "전략과제"], "기획회의 회의록과 후속 액션을 보관했습니다."],
+    ["임원보고 참고자료 패키징", ["임원보고", "외부자료"], "보고 참고자료 링크와 원본 위치를 정리했습니다."],
+    ["월간 KPI 원본 시트 검수", ["KPI", "월간보고"], "월간 실적 원본 시트 검수 결과를 보관했습니다."],
+    ["AI 활용사례 1차 조사본", ["AI활용", "자료조사"], "AI 업무 활용사례 1차 조사본을 완료 처리했습니다."],
+    ["정책 동향 주간 브리핑 보관", ["정책", "외부자료"], "주간 정책 브리핑 자료를 보관했습니다."],
+    ["탄소중립 투자자료 색인", ["탄소중립", "투자검토"], "투자 검토용 자료 색인을 완료했습니다."],
+    ["운영회의 안건별 결정사항 정리", ["운영", "회의체"], "운영회의 결정사항과 담당자를 정리했습니다."],
+    ["시장동향 메모 5월 합본", ["시장동향", "자료조사"], "시장동향 메모를 월 단위로 묶어 보관했습니다."],
+    ["기획보고 문구 검수 체크", ["기획보고", "임원보고"], "기획보고 핵심 문구 검수 체크를 마쳤습니다."],
+    ["외부 자문 결과 요약", ["외부자료", "전략과제"], "외부 자문 결과를 업무 참고용으로 요약했습니다."],
+    ["상반기 운영지표 백업", ["운영", "KPI"], "운영지표 백업본 위치와 설명을 남겼습니다."],
+    ["보고서 템플릿 개정 이력", ["월간보고", "운영"], "보고서 템플릿 개정 이력을 정리했습니다."]
+  ];
+  const heldTitles = [
+    ["중장기 투자 후보군 비교", ["투자검토", "전략과제"], "외부 기준 변경 대기 중이라 보류 보관했습니다."],
+    ["신규 정책과제 제안서 초안", ["정책", "기획보고"], "상위 계획 확정 전까지 재개 시점을 보류했습니다."],
+    ["AI 도구 PoC 검토 메모", ["AI활용", "운영"], "도구 보안 검토가 끝나면 다시 진행할 예정입니다."],
+    ["탄소중립 협력기관 후보 조사", ["탄소중립", "외부자료"], "협력 범위 재정의 전까지 보류했습니다."],
+    ["임원보고 부록 데이터 확장", ["임원보고", "KPI"], "본 보고 범위에서 제외되어 보류 상태로 보관했습니다."],
+    ["시장전망 민감도 분석", ["시장동향", "투자검토"], "가정값 재검토 전까지 진행을 멈췄습니다."],
+    ["월간보고 자동화 항목 정의", ["월간보고", "운영"], "자동화 범위 승인 전까지 보류했습니다."],
+    ["연구기획 교육자료 개편", ["운영", "자료조사"], "교육 일정 재조정 후 다시 진행할 업무입니다."]
+  ];
+
+  function makeDemoTask(item, index, status) {
+    const ownerId = ownerIds[index % ownerIds.length];
+    const isCompleted = status === "완료";
+    const monthDay = String((index % 24) + 1).padStart(2, "0");
+    const startDay = String(Math.max(1, Number(monthDay) - 4)).padStart(2, "0");
+    const dueDate = `2026-05-${monthDay}`;
+    const completedAt = isCompleted ? `2026-05-${String(Math.min(28, Number(monthDay) + 1)).padStart(2, "0")}` : "";
+    return {
+      id: `archive-demo-${isCompleted ? "done" : "hold"}-${index + 1}`,
+      title: item[0],
+      description: item[2],
+      ownerId,
+      assignerId: "lead",
+      assignerType: "팀장님",
+      creatorId: ownerId,
+      status,
+      priority: index % 4 === 0 ? "높음" : index % 3 === 0 ? "낮음" : "보통",
+      category: item[1][0],
+      tags: item[1],
+      startDate: `2026-05-${startDay}`,
+      dueDate,
+      completedAt,
+      completedBy: isCompleted ? ownerId : "",
+      progress: isCompleted ? 100 : 45,
+      subtasks: [
+        { id: `archive-demo-${isCompleted ? "done" : "hold"}-${index + 1}-1`, title: "자료 위치 확인", done: true },
+        { id: `archive-demo-${isCompleted ? "done" : "hold"}-${index + 1}-2`, title: isCompleted ? "완료 근거 정리" : "재개 조건 정리", done: isCompleted }
+      ],
+      archived: true,
+      isNewAssignment: false,
+      recurring: null,
+      recurringDetail: "",
+      recurringInterval: 1,
+      recurringWeekdays: [weekdayOf(dueDate)],
+      recurringStartDate: `2026-05-${startDay}`,
+      recurringEndDate: "",
+      recurringNoEnd: false,
+      recurringDurationDays: 1,
+      links: [],
+      updates: [
+        {
+          authorId: ownerId,
+          date: completedAt || dueDate,
+          text: isCompleted ? "완료 후 보관함 데모 기록으로 추가했습니다." : "보류 후 재개 조건을 남기고 보관함 데모 기록으로 추가했습니다."
+        }
+      ],
+      statusHistory: [
+        {
+          from: isCompleted ? "진행중" : "검토/대기",
+          to: status,
+          actorId: ownerId,
+          date: completedAt || dueDate,
+          note: isCompleted ? "완료 처리" : "보류 처리"
+        }
+      ]
+    };
+  }
+
+  return [
+    ...completedTitles.map((item, index) => makeDemoTask(item, index, "완료")),
+    ...heldTitles.map((item, index) => makeDemoTask(item, index, "보류"))
+  ];
+}
+
 function makeBriefingGroup(title, caption, icon, tone, tasks) {
   const dueLabels = tasks.map((task) => briefingDueLabel(task));
   const uniqueDueLabels = [...new Set(dueLabels.filter(Boolean))];
@@ -1561,7 +1705,8 @@ function dashboardSummary(tasks, activePage, selectedPersonId) {
       key: "open",
       label: activePage === "my" ? "내 진행 업무" : "팀 진행 업무",
       value: open.length,
-      caption: `평균 진행률 ${averageProgress}%`,
+      caption: open.length ? `평균 진행률 ${averageProgress}%` : `정상 · 평균 ${averageProgress}%`,
+      actionLabel: activePage === "my" ? "내 업무 보기 →" : "진행 업무 보기 →",
       tone: "blue",
       icon: Activity,
       preview: open
@@ -1570,7 +1715,8 @@ function dashboardSummary(tasks, activePage, selectedPersonId) {
       key: "soon",
       label: "3일 내 마감",
       value: dueSoon.length,
-      caption: dueSoon.length ? "오늘 먼저 확인" : "마감 압박 낮음",
+      caption: dueSoon.length ? "오늘 먼저 확인" : "마감 여유",
+      actionLabel: "마감 업무 보기 →",
       tone: "amber",
       icon: TimerReset,
       preview: dueSoon
@@ -1580,15 +1726,17 @@ function dashboardSummary(tasks, activePage, selectedPersonId) {
       label: "지연 업무",
       value: overdue.length,
       caption: overdue.length ? "조정 필요" : "지연 없음",
+      actionLabel: "지연 업무 보기 →",
       tone: "red",
       icon: AlertTriangle,
       preview: overdue
     },
     {
-      key: "done",
+      key: "completed",
       label: "완료 업무",
       value: completed.length,
       caption: archived.length ? `보관 ${archived.length}건 별도 관리` : "보관 전 검토 가능",
+      actionLabel: "완료 업무 보기 →",
       tone: "green",
       icon: CheckCircle2,
       preview: completed
@@ -1623,6 +1771,7 @@ function App() {
   const [authMessage, setAuthMessage] = useState("");
   const [category, setCategory] = useState(() => persistedTag(persisted.category, initialPersistedTags, initialTagGroups));
   const [priorityFilter, setPriorityFilter] = useState(() => persistedOption(persisted.priorityFilter, priorityFilters, "전체"));
+  const [summaryFilter, setSummaryFilter] = useState("");
   const [query, setQuery] = useState("");
   const [activeView, setActiveView] = useState(() => persistedOption(persisted.activeView, viewOptions, "board"));
   const [activePage, setActivePage] = useState(() => persistedOption(persisted.activePage, pageOptions, "my"));
@@ -1642,14 +1791,18 @@ function App() {
   const [pendingRecurringSave, setPendingRecurringSave] = useState(null);
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isTagLibraryOpen, setIsTagLibraryOpen] = useState(false);
   const [memoByPage, setMemoByPage] = useState(initialMemoByPage);
   const [profileOverrides, setProfileOverrides] = useState(initialProfileOverrides);
   const briefingFeedbackTimerRef = useRef(null);
   const navigationScrollRef = useRef({ page: activePage, view: activeView });
+  const workflowSurfaceRef = useRef(null);
   const workflowDetailColumnRef = useRef(null);
+  const tagLibraryRef = useRef(null);
   const supabaseHydratedRef = useRef(false);
   const supabaseWriteTimerRef = useRef(null);
   const syncNoticeTimerRef = useRef(null);
+  const autoRecurringGenerationRef = useRef(new Set());
   const [syncNotice, setSyncNotice] = useState("");
 
   const directory = useMemo(
@@ -1675,10 +1828,13 @@ function App() {
     [profileOverrides]
   );
   peopleDirectory = directory;
-  const selectedPerson = directory.find((person) => person.id === selectedPersonId) ?? directory.find((person) => person.id === "seoyeon");
+  const selectedPerson = directory.find((person) => person.id === selectedPersonId) ?? directory.find((person) => person.id === "kmryu");
   const defaultTaskOwnerId = selectedPerson?.isTeamMember === false ? "lead" : selectedPersonId;
   const canManageTags = canManageTagsFor(selectedPersonId);
   const teamMembers = useMemo(() => teamCompositionOrder(teamAssignablePeople(directory)), [directory]);
+  const selectedTagFilters = useMemo(() => readTagFilterValues(category, tagGroups), [category, tagGroups]);
+  const tagFilterLabel = selectedTagFilters.length ? `선택됨 ${selectedTagFilters.length}개` : "전체";
+  const tagFilterTitle = selectedTagFilters.length ? tagFilterSummaryLabel(selectedTagFilters) : "전체 태그";
   const selectedTask = tasks.find((task) => task.id === selectedTaskId && !isDeletedTask(task)) ?? null;
   const todayAgenda = useMemo(
     () => todayAgendaFor(tasks, calendarEvents, selectedPersonId, activePage === "team"),
@@ -1772,9 +1928,10 @@ function App() {
       const byScope = activePage === "team" || task.ownerId === selectedPersonId;
       const byArchive = activeView === "archive" ? task.archived : !task.archived;
       const byPriority = !["board", "timeline", "recurring", "archive"].includes(activeView) || priorityFilter === "전체" || task.priority === priorityFilter;
-      return byScope && byCategory && byArchive && byPriority && text.includes(query.trim().toLowerCase());
+      const bySummary = activeView !== "board" || summaryFilterMatches(task, summaryFilter, TODAY);
+      return byScope && byCategory && byArchive && byPriority && bySummary && text.includes(query.trim().toLowerCase());
     });
-  }, [activePage, activeView, category, priorityFilter, query, selectedPersonId, tagGroups, tasks]);
+  }, [activePage, activeView, category, priorityFilter, query, selectedPersonId, summaryFilter, tagGroups, tasks]);
 
   const briefing = useMemo(
     () => briefingFor(tasks, activePage === "my" ? selectedPersonId : null),
@@ -1952,6 +2109,40 @@ function App() {
     if (selectedTaskId && tasks.some((task) => task.id === selectedTaskId && !isDeletedTask(task))) return;
     setSelectedTaskId(tasks.find((task) => !isDeletedTask(task) && !task.archived)?.id ?? tasks.find((task) => !isDeletedTask(task))?.id ?? "");
   }, [selectedTaskId, tasks]);
+
+  useEffect(() => {
+    if (!isAuthenticated || authStatus === "checking") return;
+    const generated = [];
+    const nextKeys = new Set(autoRecurringGenerationRef.current);
+    tasks.forEach((task) => {
+      if (!task.recurring || task.archived || task.isRecurringInstance || isDeletedTask(task)) return;
+      const dueDates = recurringDueDates(task, { count: 8, afterDate: task.dueDate });
+      dueDates.forEach((dueDate) => {
+        const occurrence = occurrenceFromDueDate(task, dueDate);
+        const key = `${task.id}:${dueDate}`;
+        const alreadySaved = tasks.some((item) =>
+          item.recurringTemplateId === task.id &&
+          item.dueDate === dueDate &&
+          !isDeletedTask(item)
+        );
+        if (alreadySaved || nextKeys.has(key) || diffDays(occurrence.startDate, TODAY) > 0) return;
+        nextKeys.add(key);
+        generated.push(buildMaterializedRecurringTask(task, occurrence, {
+          id: `t-${Date.now()}-${generated.length}-${dueDate.replaceAll("-", "")}`,
+          actorId: selectedPersonId,
+          note: `${formatDate(occurrence.startDate)} 회차를 자동 생성`
+        }));
+      });
+    });
+    if (!generated.length) {
+      autoRecurringGenerationRef.current = nextKeys;
+      return;
+    }
+    autoRecurringGenerationRef.current = nextKeys;
+    setTasks((current) => [...generated, ...current]);
+    generated.forEach((task) => persistTaskToSupabase({ ...task, peopleDirectory: directory }, task.id));
+    showSyncNotice(`시작일이 도래한 반복 회차 ${generated.length}건을 개별 업무로 만들었습니다.`);
+  }, [authStatus, directory, isAuthenticated, selectedPersonId, tasks]);
 
   function saveTask(task, options = {}) {
     const isNew = !task.id;
@@ -2144,6 +2335,10 @@ function App() {
   }
 
   function updateCalendarEvent(event) {
+    if (!canManageCalendarEventFor(event, selectedPersonId)) {
+      showSyncNotice("이 일정은 수정 권한이 없습니다.");
+      return;
+    }
     const nextEvent = {
       ...event,
       title: event.title.trim(),
@@ -2167,6 +2362,10 @@ function App() {
   function deleteCalendarEvent(eventId) {
     const targetEvent = calendarEvents.find((event) => event.id === eventId);
     if (!targetEvent) return;
+    if (!canManageCalendarEventFor(targetEvent, selectedPersonId)) {
+      showSyncNotice("이 일정은 삭제 권한이 없습니다.");
+      return;
+    }
     const confirmed = window.confirm(`${targetEvent.title} 일정을 삭제할까요?`);
     if (!confirmed) return;
     setCalendarEvents((current) => current.filter((event) => event.id !== eventId));
@@ -2196,6 +2395,27 @@ function App() {
       const nextVisibleTask = tasks.find((task) => task.id !== taskId && !isDeletedTask(task) && !task.archived && task.ownerId === selectedPersonId);
       if (nextVisibleTask) setSelectedTaskId(nextVisibleTask.id);
     }
+  }
+
+  function fillArchiveDemoData() {
+    const demoTasks = archiveDemoTasks(selectedPersonId);
+    const currentIds = new Set(tasks.map((task) => task.id));
+    const missingDemoTasks = demoTasks.filter((task) => !currentIds.has(task.id));
+    setTasks((current) => {
+      if (!missingDemoTasks.length) return current;
+      return [...current, ...missingDemoTasks];
+    });
+    setActiveView("archive");
+    setDetailContext("workflow");
+    closeTaskDetail();
+    setCategory("전체");
+    setPriorityFilter("전체");
+    setSummaryFilter("");
+    showSyncNotice(
+      missingDemoTasks.length
+        ? `보관함 데모 데이터 ${missingDemoTasks.length}건을 추가했습니다. 완료/보류 섹션 표를 확인해 보세요.`
+        : "보관함 데모 데이터가 이미 추가되어 있습니다."
+    );
   }
 
   function stopRecurring(taskId) {
@@ -2311,7 +2531,7 @@ function App() {
         tags: normalizeTags(task.tags.map((tag) => (tag === oldTag ? cleanTag : tag)))
       }))
     );
-    if (category === oldTag) setCategory(cleanTag);
+    setCategory((current) => serializeTagFilters(readTagFilterValues(current, tagGroups).map((tag) => (tag === oldTag ? cleanTag : tag))));
     if (isSupabaseReady && isAuthenticated) {
       supabaseDashboardStore.tags.rename(oldTag, cleanTag).catch((error) => {
         console.warn("Supabase 태그 수정에 실패했습니다.", error);
@@ -2338,7 +2558,7 @@ function App() {
     setTasks((current) =>
       current.map((task) => ({ ...task, tags: task.tags.filter((tag) => tag !== tagToDelete) }))
     );
-    if (category === tagToDelete) setCategory("전체");
+    setCategory((current) => serializeTagFilters(readTagFilterValues(current, tagGroups).filter((tag) => tag !== tagToDelete)));
     if (isSupabaseReady && isAuthenticated) {
       supabaseDashboardStore.tags.delete(tagToDelete).catch((error) => {
         console.warn("Supabase 태그 삭제에 실패했습니다.", error);
@@ -2388,14 +2608,24 @@ function App() {
 
   function deleteTagGroup(groupId) {
     if (!canManageTagsFor(selectedPersonId)) return;
+    const groupToDelete = tagGroups.find((group) => group.id === groupId);
     setTagGroups((current) => current.filter((group) => group.id !== groupId));
-    if (category === groupId) setCategory("전체");
+    if (groupToDelete) {
+      setCategory((current) => serializeTagFilters(readTagFilterValues(current, tagGroups).filter((tag) => !groupToDelete.tags.includes(tag))));
+    }
     if (isSupabaseReady && isAuthenticated) {
       supabaseDashboardStore.tags.deleteGroup(groupId).catch((error) => {
         console.warn("Supabase 태그 Category 삭제에 실패했습니다.", error);
         showSyncNotice("태그 Category 삭제는 마이그레이션 적용 후 Supabase에 반영됩니다.");
       });
     }
+  }
+
+  function openTagFilterPanel() {
+    setIsTagLibraryOpen(true);
+    window.requestAnimationFrame(() => {
+      tagLibraryRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
   }
 
   function changePage(page) {
@@ -2427,6 +2657,26 @@ function App() {
     setActiveView(view);
     setDetailContext("workflow");
     closeTaskDetail();
+  }
+
+  function applySummaryFilter(filterKey) {
+    setSummaryFilter(filterKey);
+    setCategory("전체");
+    setPriorityFilter("전체");
+    setQuery("");
+    setActiveView("board");
+    setDetailContext("workflow");
+    closeTaskDetail();
+    window.setTimeout(() => {
+      const workflowTarget = workflowSurfaceRef.current?.querySelector(".board-view") ?? workflowSurfaceRef.current;
+      if (!workflowTarget) return;
+      const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+      const targetTop = window.scrollY + workflowTarget.getBoundingClientRect().top - 12;
+      window.scrollTo({
+        top: Math.max(0, targetTop),
+        behavior: prefersReducedMotion ? "auto" : "smooth"
+      });
+    }, 90);
   }
 
   async function authenticateWithSupabase(payload) {
@@ -2564,6 +2814,9 @@ function App() {
       ...current,
       [personId]: {
         ...(current[personId] ?? {}),
+        ...(typeof nextPatch.name === "string" && nextPatch.name.trim() ? { name: nextPatch.name.trim() } : {}),
+        ...(typeof nextPatch.title === "string" && nextPatch.title.trim() ? { role: nextPatch.title.trim() } : {}),
+        ...(typeof nextPatch.profileEmoji === "string" && nextPatch.profileEmoji.trim() ? { emoji: nextPatch.profileEmoji.trim() } : {}),
         ...(nextPatch.permissionRole ? { permissionRole: nextPatch.permissionRole } : {}),
         ...(typeof nextPatch.isTeamMember === "boolean" ? { isTeamMember: nextPatch.isTeamMember } : {}),
         ...(typeof nextPatch.isActive === "boolean" ? { isActive: nextPatch.isActive } : {}),
@@ -2581,16 +2834,11 @@ function App() {
     }
   }
 
-  function materializeRecurringInstance(instance) {
-    if (!instance?.isRecurringInstance || !instance.recurringTemplateId) return instance?.id ?? "";
-    const existing = tasks.find((task) => task.recurringTemplateId === instance.recurringTemplateId && task.dueDate === instance.dueDate);
-    if (existing) return existing.id;
-    const source = tasks.find((task) => task.id === instance.recurringTemplateId) ?? instance;
-    const instanceId = `t-${Date.now()}-${instance.dueDate.replaceAll("-", "")}`;
-    const nextTask = {
+  function buildMaterializedRecurringTask(source, instance, options = {}) {
+    return {
       ...source,
       ...instance,
-      id: instanceId,
+      id: options.id || `t-${Date.now()}-${instance.dueDate.replaceAll("-", "")}`,
       recurring: null,
       recurringDetail: "",
       recurringInterval: 1,
@@ -2609,11 +2857,11 @@ function App() {
       updates: [],
       statusHistory: [{
         date: TODAY,
-        actorId: selectedPersonId,
+        actorId: options.actorId || selectedPersonId,
         type: "recurring",
         from: "반복 예정",
         to: "개별 업무",
-        note: `${formatDate(instance.startDate)} 회차를 개별 업무로 전환`
+        note: options.note || `${formatDate(instance.startDate)} 회차를 개별 업무로 전환`
       }],
       subtasks: (source.subtasks ?? []).map((subtask, index) => ({
         ...subtask,
@@ -2621,9 +2869,18 @@ function App() {
         done: false
       }))
     };
+  }
+
+  function materializeRecurringInstance(instance) {
+    if (!instance?.isRecurringInstance || !instance.recurringTemplateId) return instance?.id ?? "";
+    const existing = tasks.find((task) => task.recurringTemplateId === instance.recurringTemplateId && task.dueDate === instance.dueDate);
+    if (existing) return existing.id;
+    const source = tasks.find((task) => task.id === instance.recurringTemplateId) ?? instance;
+    const nextTask = buildMaterializedRecurringTask(source, instance);
     setTasks((current) => [nextTask, ...current]);
     persistTaskToSupabase({ ...nextTask, peopleDirectory: directory }, nextTask.id);
-    return instanceId;
+    showSyncNotice("반복 회차를 개별 업무로 만들었습니다.");
+    return nextTask.id;
   }
 
   function selectTask(taskOrId, context = "workflow") {
@@ -2706,7 +2963,80 @@ function App() {
     if (!file) return;
     try {
       const text = await file.text();
+      const importFingerprint = await textFingerprint(text);
       const imported = normalizeImportedDashboard(JSON.parse(text));
+      if (isSupabaseReady && isAuthenticated) {
+        const plan = buildSupabaseImportPlan({ imported, directory, selectedPerson });
+        if (plan.blockingIssues.length) {
+          window.alert(`${formatSupabaseImportPlanMessage(plan)}\n\n담당자 매핑이 불명확해서 Supabase 가져오기를 중단했습니다.`);
+          setIsDataMenuOpen(false);
+          return;
+        }
+        const previousImport = supabaseImportHistoryStore.find(importFingerprint);
+        const duplicateWarning = previousImport
+          ? `\n\n주의: 같은 JSON 파일을 ${formatImportHistoryDate(previousImport.importedAt)}에 이미 Supabase로 가져온 기록이 있습니다. 로컬 ID 자료는 다시 실행하면 중복 업무/일정이 생길 수 있습니다.`
+          : "";
+        const confirmed = window.confirm(
+          `${formatSupabaseImportPlanMessage(plan)}\n\n` +
+          "라이브 Supabase DB에 가져오기를 실행할까요? 기존 DB에 없는 로컬 ID 행은 새로 추가되고, 같은 UUID 행은 갱신될 수 있습니다." +
+          duplicateWarning
+        );
+        if (!confirmed) {
+          setIsDataMenuOpen(false);
+          return;
+        }
+        if (previousImport) {
+          const reconfirmed = window.confirm(
+            "같은 JSON 가져오기 기록이 있습니다. 그래도 다시 실행할까요?\n\n로컬 ID 업무/일정은 새 행으로 다시 추가될 수 있습니다."
+          );
+          if (!reconfirmed) {
+            setIsDataMenuOpen(false);
+            return;
+          }
+        }
+        if (!plan.canRunFromCurrentUser) {
+          window.alert("이 가져오기는 관리자 계정에서만 실행할 수 있습니다.");
+          setIsDataMenuOpen(false);
+          return;
+        }
+        const result = await supabaseDashboardStore.importData(imported, {
+          directory,
+          activePage,
+          activeView,
+          timelineMode,
+          timelineMonth,
+          timelineYear
+        });
+        if (result?.skipped) {
+          if (result.reason === "unknown-roster-ids") {
+            const unknownIds = result.unknownRosterIds?.join(", ") || "확인되지 않은 담당자 ID";
+            window.alert(`Supabase 가져오기를 실행하지 못했습니다.\n\n현재 인원 목록에 없는 담당자 ID가 있습니다: ${unknownIds}\n먼저 실제 이름/직책/예상 이메일로 로스터 매핑을 정리해 주세요.`);
+          } else {
+            window.alert("Supabase 가져오기를 실행하지 못했습니다. 관리자 권한과 로그인 상태를 확인해 주세요.");
+          }
+          setIsDataMenuOpen(false);
+          return;
+        }
+        const snapshot = await supabaseDashboardStore.read();
+        applySupabaseSnapshot(snapshot);
+        setCategory("전체");
+        setSelectedBriefingKey("");
+        setIsDetailOpen(false);
+        closeTaskEditor();
+        setActiveView("board");
+        supabaseImportHistoryStore.write({
+          fingerprint: importFingerprint,
+          fileName: file.name,
+          fileSize: file.size,
+          taskCount: result.taskCount,
+          calendarEventCount: result.calendarEventCount,
+          tagCount: result.tagCount,
+          rosterCount: result.rosterCount
+        });
+        showSyncNotice(`Supabase 가져오기 완료: 업무 ${result.taskCount}건, 일정 ${result.calendarEventCount}건`);
+        setIsDataMenuOpen(false);
+        return;
+      }
       const confirmed = window.confirm(
         `업무 ${imported.tasks.length}건, 일정 ${imported.calendarEvents.length}건을 가져와 현재 저장 데이터를 교체할까요?`
       );
@@ -2738,7 +3068,7 @@ function App() {
     setTasks(resetTasks);
     setAvailableTags(resetTags);
     setCalendarEvents(cloneList(initialCalendarEvents));
-    setSelectedPersonId("seoyeon");
+    setSelectedPersonId("kmryu");
     setIsAuthenticated(true);
     setActivePage("my");
     setActiveView("board");
@@ -2892,11 +3222,6 @@ function App() {
         <header className="topbar">
           <div>
             <h1>Strategy Work Hub</h1>
-            <p>
-              {activePage === "my"
-                ? `${selectedPerson.name}님 기준으로 오늘 필요한 업무, 본인 업무 카드, 본인 타임라인을 보여줍니다.`
-                : "팀장과 팀원이 함께 보는 전체 업무카드, 담당자별 흐름, 타임라인을 모아봅니다."}
-            </p>
           </div>
           <div className="top-actions">
             <label className="search-box">
@@ -2913,10 +3238,16 @@ function App() {
             </button>
             <span
               className={`backend-status ${supabaseConfig.isConfigured ? "connected" : "local"}`}
-              title={supabaseConfig.isConfigured ? "Supabase 환경변수가 설정되어 있습니다." : "Supabase URL과 anon key가 없어 로컬 프로토타입 저장소를 사용합니다."}
+              title={
+                supabaseConfig.isConfigured
+                  ? authStatus === "signed-in"
+                    ? "Supabase에 로그인되어 실데이터를 사용합니다."
+                    : "Supabase 환경변수가 설정되어 있습니다."
+                  : "Supabase URL과 anon key가 없어 로컬 프로토타입 저장소를 사용합니다."
+              }
             >
               <Database size={14} />
-              {supabaseConfig.isConfigured ? "Supabase 준비" : "로컬 저장"}
+              {supabaseConfig.isConfigured ? (authStatus === "signed-in" ? "Supabase 연결" : "Supabase 준비") : "로컬 저장"}
             </span>
             <div className="data-menu-wrap">
               <button
@@ -2968,7 +3299,7 @@ function App() {
           </div>
         </header>
 
-        {activeView !== "performance" && <InsightStrip summary={summary} />}
+        {activeView !== "performance" && <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />}
 
         <section className={`dashboard-grid ${activeView === "timeline" ? "timeline-layout" : ""} ${fullPageViews.includes(activeView) ? "calendar-layout" : ""} ${isWorkflowDetailContext ? "workflow-detail-mode" : ""} ${isBriefingDetailContext ? "briefing-detail-mode" : ""}`}>
           <div className="main-column">
@@ -3007,24 +3338,27 @@ function App() {
                     </button>
                   ))}
                 </div>
-                <label className="filter-select">
+                {summaryFilter && activeView === "board" && (
+                  <button className="summary-filter-pill" onClick={() => setSummaryFilter("")} type="button">
+                    요약: {summaryFilterLabels[summaryFilter]}
+                    <X size={13} />
+                  </button>
+                )}
+                <div className={`filter-select tag-filter-select ${selectedTagFilters.length ? "is-filtered" : ""}`}>
                   <Filter size={16} />
-                  <select aria-label="태그 필터" onChange={(event) => setCategory(event.target.value)} value={category}>
-                    <option value="전체">태그: 전체</option>
-                    <optgroup label="Category">
-                      {tagGroups.map((preset) => (
-                        <option key={preset.id} value={preset.id}>Category: {preset.label}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="태그">
-                      {availableTags.map((item) => (
-                        <option key={item} value={item}>태그: {item}</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </label>
+                  <button
+                    aria-controls="tag-library-content"
+                    aria-expanded={isTagLibraryOpen}
+                    className="tag-filter-open-button"
+                    onClick={openTagFilterPanel}
+                    title={tagFilterTitle}
+                    type="button"
+                  >
+                    태그: {tagFilterLabel}
+                  </button>
+                </div>
                 {["board", "timeline", "recurring", "archive"].includes(activeView) && (
-                  <label className="filter-select priority-filter">
+                  <label className={`filter-select priority-filter ${priorityFilter !== "전체" ? "is-filtered" : ""}`}>
                     <select aria-label="중요도 필터" onChange={(event) => setPriorityFilter(event.target.value)} value={priorityFilter}>
                       {priorityFilters.map((priority) => (
                         <option key={priority} value={priority}>
@@ -3039,21 +3373,25 @@ function App() {
 
             {!fullPageViews.includes(activeView) && (
               <TagLibrary
-                activeTag={category}
+                activeTags={selectedTagFilters}
                 canManageTags={canManageTags}
+                isOpen={isTagLibraryOpen}
                 onAdd={addTag}
+                onClearFilters={() => setCategory("전체")}
                 onDelete={deleteTag}
                 onDeletePreset={deleteTagGroup}
                 onFilter={setCategory}
                 onRename={renameTag}
                 onSavePreset={saveTagGroup}
+                onToggleOpen={setIsTagLibraryOpen}
                 presets={tagGroups}
+                libraryRef={tagLibraryRef}
                 tags={availableTags}
               />
             )}
 
             {activeView === "board" && (
-              <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`}>
+              <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`} ref={workflowSurfaceRef}>
                 <BoardView
                   canManageTask={(task) => canManageTaskFor(task, selectedPersonId)}
                   counts={counts}
@@ -3093,6 +3431,7 @@ function App() {
             )}
             {activeView === "calendar" && (
               <CalendarView
+                canManageEvent={(event) => canManageCalendarEventFor(event, selectedPersonId)}
                 canManageTask={(task) => canManageTaskFor(task, selectedPersonId)}
                 events={calendarEvents}
                 month={timelineMonth}
@@ -3132,8 +3471,11 @@ function App() {
             {activeView === "archive" && (
               <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`}>
                 <ArchiveView
+                  isTeamScope={activePage === "team"}
+                  onFillDemo={!isSupabaseReady ? fillArchiveDemoData : null}
                   onRestore={(task) => toggleArchive(task.id, false)}
                   onSelect={(taskId) => selectTask(taskId, "workflow")}
+                  people={teamMembers}
                   tasks={filteredTasks}
                 />
                 {isWorkflowDetailContext && (
@@ -3209,13 +3551,33 @@ function orderedAccounts(accounts) {
 function EmojiPopover({ onSelect, selectedEmoji, triggerLabel = "이모지 선택", triggerClassName = "" }) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ left: 0, top: 0 });
-  const [query, setQuery] = useState("");
+  const [emojiPickerComponent, setEmojiPickerComponent] = useState(null);
+  const [emojiPickerLoadError, setEmojiPickerLoadError] = useState(false);
   const popoverRef = useRef(null);
   const triggerRef = useRef(null);
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredEmojis = normalizedQuery
-    ? emojiCatalog.filter((item) => `${item.emoji} ${item.label} ${item.keywords}`.toLowerCase().includes(normalizedQuery))
-    : emojiCatalog;
+
+  useEffect(() => {
+    if (!isOpen || emojiPickerComponent || emojiPickerLoadError) return undefined;
+
+    let isCurrent = true;
+    import("emoji-picker-react")
+      .then((module) => {
+        if (isCurrent) {
+          setEmojiPickerLoadError(false);
+          setEmojiPickerComponent(() => module.default);
+        }
+      })
+      .catch((error) => {
+        console.warn("이모지 선택기 로드에 실패했습니다.", error);
+        if (isCurrent) {
+          setEmojiPickerLoadError(true);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [emojiPickerComponent, emojiPickerLoadError, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -3224,11 +3586,11 @@ function EmojiPopover({ onSelect, selectedEmoji, triggerLabel = "이모지 선�
       const trigger = triggerRef.current;
       if (!trigger) return;
       const rect = trigger.getBoundingClientRect();
-      const width = 256;
+      const width = 320;
       const gap = 8;
       const margin = 12;
       const left = Math.min(Math.max(margin, rect.right - width), window.innerWidth - width - margin);
-      const top = Math.min(rect.bottom + gap, window.innerHeight - 340);
+      const top = Math.min(rect.bottom + gap, window.innerHeight - 400);
 
       setPosition({ left, top: Math.max(margin, top) });
     }
@@ -3270,13 +3632,19 @@ function EmojiPopover({ onSelect, selectedEmoji, triggerLabel = "이모지 선�
   function chooseEmoji(emoji) {
     onSelect(emoji);
     setIsOpen(false);
-    setQuery("");
   }
+
+  function retryEmojiPickerLoad() {
+    setEmojiPickerLoadError(false);
+  }
+
+  const Picker = emojiPickerComponent;
 
   return (
     <div className="emoji-popover" ref={triggerRef}>
       <button
         aria-expanded={isOpen}
+        aria-haspopup="dialog"
         aria-label={triggerLabel}
         className={`emoji-popover-trigger ${triggerClassName}`}
         onClick={() => setIsOpen((current) => !current)}
@@ -3292,30 +3660,29 @@ function EmojiPopover({ onSelect, selectedEmoji, triggerLabel = "이모지 선�
           aria-label="이모지 선택기"
           style={{ left: position.left, top: position.top }}
         >
-          <label className="emoji-search">
-            <Search size={14} />
-            <input
-              autoFocus
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="이모지 검색"
-              value={query}
+          {Picker ? (
+            <Picker
+              autoFocusSearch
+              className="dashboard-emoji-picker"
+              emojiStyle="native"
+              height={360}
+              lazyLoadEmojis
+              onEmojiClick={(emojiData) => chooseEmoji(emojiData.emoji)}
+              previewConfig={{ showPreview: false }}
+              searchPlaceHolder="이모지 검색"
+              searchPlaceholder="이모지 검색"
+              suggestedEmojisMode="recent"
+              theme="light"
+              width={300}
             />
-          </label>
-          <div className="emoji-option-grid">
-            {filteredEmojis.map((item) => (
-              <button
-                aria-label={`${item.label} 선택`}
-                className={selectedEmoji === item.emoji ? "selected" : ""}
-                key={`${item.emoji}-${item.label}`}
-                onClick={() => chooseEmoji(item.emoji)}
-                title={item.label}
-                type="button"
-              >
-                <span>{item.emoji}</span>
-              </button>
-            ))}
-          </div>
-          {!filteredEmojis.length && <p className="emoji-empty">검색 결과가 없습니다.</p>}
+          ) : emojiPickerLoadError ? (
+            <div className="emoji-picker-loading failed">
+              <span>이모지 선택기를 불러오지 못했습니다.</span>
+              <button type="button" onClick={retryEmojiPickerLoad}>다시 시도</button>
+            </div>
+          ) : (
+            <div className="emoji-picker-loading">이모지 불러오는 중</div>
+          )}
         </div>,
         document.body
       )}
@@ -3387,7 +3754,7 @@ function LoginScreen({ authMessage, authStatus, isSupabaseReady, onLogin, onSupa
             {mode === "signup" && (
               <label className="auth-field">
                 <span>이름</span>
-                <input autoComplete="name" onChange={(event) => setName(event.target.value)} placeholder="예: 김서연" value={name} />
+                <input autoComplete="name" onChange={(event) => setName(event.target.value)} placeholder="예: 장형민" value={name} />
               </label>
             )}
 
@@ -3460,6 +3827,12 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
   const currentPerson = people.find((person) => person.id === currentPersonId) ?? people[0];
   const isAdmin = currentPerson.permissionRole === "admin";
   const adminManageablePeople = orderedAccounts(people);
+  const [rosterDraft, setRosterDraft] = useState({
+    name: "",
+    role: "책임",
+    expectedEmail: "",
+    permissionRole: "member"
+  });
   const [profileDraft, setProfileDraft] = useState({
     name: currentPerson.name,
     role: currentPerson.role,
@@ -3478,6 +3851,32 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
     event.preventDefault();
     if (!profileDraft.name.trim() || !profileDraft.role.trim()) return;
     onUpdateProfile(currentPersonId, profileDraft);
+  }
+
+  function isRosterProfile(person) {
+    return !person.authUserId && person.permissionRole !== "admin";
+  }
+
+  function addRosterMember(event) {
+    event.preventDefault();
+    const cleanName = rosterDraft.name.trim();
+    const cleanRole = rosterDraft.role.trim();
+    if (!cleanName || !cleanRole) return;
+    onUpdateUserAdministration(`roster-${Date.now().toString(36)}`, {
+      name: cleanName,
+      title: cleanRole,
+      profileEmoji: "🌿",
+      expectedEmail: rosterDraft.expectedEmail.trim(),
+      permissionRole: rosterDraft.permissionRole,
+      isTeamMember: true,
+      isActive: true
+    });
+    setRosterDraft({
+      name: "",
+      role: "책임",
+      expectedEmail: "",
+      permissionRole: "member"
+    });
   }
 
   return (
@@ -3579,6 +3978,46 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
               </span>
               <strong>권한, 팀 표시, 활성 상태를 관리합니다.</strong>
             </div>
+            <form className="admin-roster-add-form" onSubmit={addRosterMember}>
+              <label>
+                <small>이름</small>
+                <input
+                  onChange={(event) => setRosterDraft((current) => ({ ...current, name: event.target.value }))}
+                  placeholder="신규 팀원"
+                  value={rosterDraft.name}
+                />
+              </label>
+              <label>
+                <small>직책</small>
+                <input
+                  onChange={(event) => setRosterDraft((current) => ({ ...current, role: event.target.value }))}
+                  value={rosterDraft.role}
+                />
+              </label>
+              <label>
+                <small>예정 이메일</small>
+                <input
+                  onChange={(event) => setRosterDraft((current) => ({ ...current, expectedEmail: event.target.value }))}
+                  placeholder="name@company.com"
+                  type="email"
+                  value={rosterDraft.expectedEmail}
+                />
+              </label>
+              <label>
+                <small>권한</small>
+                <select
+                  onChange={(event) => setRosterDraft((current) => ({ ...current, permissionRole: event.target.value }))}
+                  value={rosterDraft.permissionRole}
+                >
+                  <option value="member">팀원</option>
+                  <option value="lead">팀장</option>
+                </select>
+              </label>
+              <button className="secondary-button small" type="submit">
+                <Plus size={14} />
+                로스터 추가
+              </button>
+            </form>
             <div className="admin-user-list">
               {adminManageablePeople.map((person) => (
                 <div className="admin-user-row" key={person.id}>
@@ -3586,8 +4025,37 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
                     {person.emoji}
                   </span>
                   <span className="admin-user-identity">
-                    <strong>{person.name}</strong>
-                    <small>{person.role}</small>
+                    {isRosterProfile(person) ? (
+                      <span className="admin-roster-name-fields">
+                        <label>
+                          <small>이름</small>
+                          <input
+                            aria-label={`${person.name} 이름`}
+                            defaultValue={person.name}
+                            onBlur={(event) => onUpdateUserAdministration(person.id, { name: event.target.value })}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") event.currentTarget.blur();
+                            }}
+                          />
+                        </label>
+                        <label>
+                          <small>직책</small>
+                          <input
+                            aria-label={`${person.name} 직책`}
+                            defaultValue={person.role}
+                            onBlur={(event) => onUpdateUserAdministration(person.id, { title: event.target.value })}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") event.currentTarget.blur();
+                            }}
+                          />
+                        </label>
+                      </span>
+                    ) : (
+                      <>
+                        <strong>{person.name}</strong>
+                        <small>{person.role}</small>
+                      </>
+                    )}
                   </span>
                   <label className="admin-email-field">
                     <small>예정 이메일</small>
@@ -3640,41 +4108,49 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
   );
 }
 
-function InsightStrip({ summary }) {
+function InsightStrip({ activeFilter, onSelect, summary }) {
   return (
     <section className="insight-strip" aria-label="업무 요약">
-      {summary.map(({ caption, icon: Icon, key, label, preview, tone, value }, index) => (
-        <motion.article
-          animate={{ opacity: 1, y: 0 }}
-          className={`insight-card ${tone}`}
-          initial={{ opacity: 0, y: 8 }}
-          key={key}
-          tabIndex={0}
-          transition={{ delay: index * 0.04, duration: 0.22 }}
-        >
-          <span className="insight-icon">
-            <Icon size={18} />
-          </span>
-          <span>
-            <strong>{value}</strong>
-            <small>{label}</small>
-          </span>
-          <em>{caption}</em>
-          <div className="insight-hover" role="tooltip">
-            <strong>{label}</strong>
-            {preview.length ? (
-              preview.slice(0, 5).map((task) => (
-                <span key={`${key}-${task.id}`}>
-                  <b>{personName(task.ownerId)}</b>
-                  {displayTaskTitle(task)}
-                </span>
-              ))
-            ) : (
-              <span className="empty">해당 업무가 없습니다.</span>
-            )}
-          </div>
-        </motion.article>
-      ))}
+      {summary.map(({ actionLabel, caption, icon: Icon, key, label, preview, tone, value }, index) => {
+        const hasItems = preview.length > 0;
+        return (
+          <motion.button
+            animate={{ opacity: 1, y: 0 }}
+            aria-disabled={!hasItems}
+            aria-label={`${label} ${value}건${hasItems ? `, ${actionLabel}` : ""}`}
+            className={`insight-card ${tone} ${hasItems ? "has-items" : "empty"} ${activeFilter === key ? "active" : ""}`}
+            initial={{ opacity: 0, y: 8 }}
+            key={key}
+            onClick={() => {
+              if (hasItems) onSelect(key);
+            }}
+            type="button"
+            transition={{ delay: index * 0.04, duration: 0.22 }}
+          >
+            <span className="insight-icon">
+              <Icon size={18} />
+            </span>
+            <span>
+              <strong>{value}</strong>
+              <small>{label}</small>
+            </span>
+            <em>{caption}</em>
+            {hasItems && <i>{actionLabel}</i>}
+            <div className="insight-hover" role="tooltip">
+              {preview.length ? (
+                preview.slice(0, 5).map((task) => (
+                  <span key={`${key}-${task.id}`}>
+                    <b>{personName(task.ownerId)}</b>
+                    {displayTaskTitle(task)}
+                  </span>
+                ))
+              ) : (
+                <span className="empty">해당 업무가 없습니다.</span>
+              )}
+            </div>
+          </motion.button>
+        );
+      })}
     </section>
   );
 }
@@ -3780,16 +4256,37 @@ function BriefingPanel({ briefing, briefingFeedbackKey, isTeam, note, onNoteChan
   );
 }
 
-function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset, onFilter, onRename, onSavePreset, presets, tags }) {
+function TagLibrary({ activeTags, canManageTags, isOpen, libraryRef, onAdd, onClearFilters, onDelete, onDeletePreset, onFilter, onRename, onSavePreset, onToggleOpen, presets, tags }) {
   const [draftTag, setDraftTag] = useState("");
   const [editingValue, setEditingValue] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [isAddingPreset, setIsAddingPreset] = useState(false);
+  const [editingTagName, setEditingTagName] = useState("");
   const [editingPresetId, setEditingPresetId] = useState("");
+  const [openPresetIds, setOpenPresetIds] = useState(() => new Set());
   const [presetDraft, setPresetDraft] = useState({ id: "", label: "", tagsText: "" });
-  const activePreset = presets.find((preset) => preset.id === activeTag);
   const editingPreset = presets.find((preset) => preset.id === editingPresetId);
-  const presetForTag = (tag) => presets.find((preset) => preset.tags.includes(tag));
+  const activeTagLabel = tagFilterSummaryLabel(activeTags);
+  const activeTagSet = new Set(activeTags);
+  const singleEditableTag = activeTags.length === 1 ? activeTags[0] : "";
+  const groupedTagNames = new Set(presets.flatMap((preset) => preset.tags));
+  const uncategorizedTags = tags.filter((tag) => !groupedTagNames.has(tag));
+  const tagMapRows = [
+    ...presets.map((preset) => ({
+      id: preset.id,
+      label: preset.label,
+      tags: normalizeTags(preset.tags),
+      tone: preset.tone,
+      type: "preset"
+    })),
+    ...(uncategorizedTags.length ? [{
+      id: "uncategorized",
+      label: "미분류",
+      tags: normalizeTags(uncategorizedTags),
+      tone: "custom",
+      type: "loose"
+    }] : [])
+  ];
 
   function submitTag(event) {
     event.preventDefault();
@@ -3798,12 +4295,36 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
     setIsAdding(false);
   }
 
-  function selectTag(tag) {
-    onFilter(tag);
-    setEditingValue(tag === "전체" || tagFilterPreset(tag, presets) ? "" : tag);
+  function updateSelectedTags(nextTags) {
+    onFilter(serializeTagFilters(nextTags));
+    setEditingValue("");
+    setEditingTagName("");
     setIsAdding(false);
     setIsAddingPreset(false);
     setEditingPresetId("");
+  }
+
+  function toggleTag(tag) {
+    const nextTags = activeTagSet.has(tag)
+      ? activeTags.filter((item) => item !== tag)
+      : [...activeTags, tag];
+    updateSelectedTags(nextTags);
+  }
+
+  function clearTagFilters() {
+    onClearFilters();
+    setEditingValue("");
+    setEditingTagName("");
+    setIsAdding(false);
+    closePresetEditor();
+  }
+
+  function togglePresetTags(rowTags) {
+    const allSelected = rowTags.every((tag) => activeTagSet.has(tag));
+    const nextTags = allSelected
+      ? activeTags.filter((tag) => !rowTags.includes(tag))
+      : normalizeTags([...activeTags, ...rowTags]);
+    updateSelectedTags(nextTags);
   }
 
   function closePresetEditor() {
@@ -3813,15 +4334,37 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
   }
 
   function openPresetEditor(preset) {
+    setEditingTagName("");
+    setEditingValue("");
     setIsAddingPreset(false);
     setEditingPresetId(preset.id);
     setPresetDraft({ id: preset.id, label: preset.label, tagsText: preset.tags.join(", ") });
   }
 
+  function openTagEditor(tag) {
+    setIsAdding(false);
+    closePresetEditor();
+    setEditingTagName(tag);
+    setEditingValue(tag);
+  }
+
+  function togglePresetRow(rowId) {
+    setOpenPresetIds((current) => {
+      const next = new Set(current);
+      if (next.has(rowId)) {
+        next.delete(rowId);
+      } else {
+        next.add(rowId);
+      }
+      return next;
+    });
+  }
+
   function submitEdit(event) {
     event.preventDefault();
-    if (activeTag === "전체") return;
-    onRename(activeTag, editingValue);
+    if (!editingTagName) return;
+    onRename(editingTagName, editingValue);
+    setEditingTagName("");
     setEditingValue("");
   }
 
@@ -3838,169 +4381,249 @@ function TagLibrary({ activeTag, canManageTags, onAdd, onDelete, onDeletePreset,
     });
     setIsAddingPreset(false);
     setEditingPresetId("");
+    setEditingTagName("");
     setPresetDraft({ id: "", label: "", tagsText: "" });
   }
 
+  function toggleOpen() {
+    onToggleOpen((current) => {
+      if (current) {
+        setIsAdding(false);
+        closePresetEditor();
+      }
+      return !current;
+    });
+  }
+
   return (
-    <section className="tag-library" aria-label="태그">
+    <section className={`tag-library ${isOpen ? "is-open" : "is-collapsed"}`} aria-label="태그" ref={libraryRef}>
       <div className="tag-library-head">
-        <span>
-          <Tag size={16} />
-          태그
-        </span>
-        <small className="tag-permission-note">
-          <Info size={14} />
-          태그 추가는 모두 가능하고, 수정/삭제는 관리자만 가능합니다.
-        </small>
-      </div>
-      <div className="tag-preset-row" aria-label="태그 Category">
-        <small>Category</small>
-        {presets.map((preset) => (
-          <button
-            className={`tag-preset-chip preset-${preset.tone} ${activeTag === preset.id ? "active" : ""}`}
-            key={preset.id}
-            onClick={() => selectTag(preset.id)}
-            title={preset.tags.join(", ")}
-            type="button"
-          >
-            {preset.label}
-          </button>
-        ))}
-        {canManageTags && !isAddingPreset && (
-          <button
-            className="tag-preset-add"
-            onClick={() => {
-              setIsAddingPreset(true);
-              setEditingPresetId("");
-              setPresetDraft({ id: "", label: "", tagsText: "" });
-              onFilter("전체");
-            }}
-            type="button"
-          >
-            <Plus size={13} />
-            Category
-          </button>
-        )}
-        {canManageTags && activePreset && !isAddingPreset && !editingPreset && (
-          <button className="tag-preset-manage" onClick={() => openPresetEditor(activePreset)} type="button">
-            Category 수정
-          </button>
-        )}
-      </div>
-      {canManageTags && isAddingPreset && (
-        <form className="tag-edit-panel tag-preset-edit-panel" onSubmit={submitPreset}>
-          <span>새 Category</span>
-          <input
-            aria-label="태그 Category 이름"
-            onChange={(event) => setPresetDraft((current) => ({ ...current, label: event.target.value }))}
-            placeholder="Category 이름"
-            value={presetDraft.label}
-          />
-          <input
-            aria-label="Category 포함 태그"
-            onChange={(event) => setPresetDraft((current) => ({ ...current, tagsText: event.target.value }))}
-            placeholder="기획보고, 임원보고"
-            value={presetDraft.tagsText}
-          />
-          <button type="submit">저장</button>
-          <button onClick={closePresetEditor} type="button">닫기</button>
-        </form>
-      )}
-      <div className="tag-library-body">
+        <div className="tag-library-title">
+          <span>
+            <Tag size={16} />
+            태그
+          </span>
+          <small>{`Category ${presets.length} · 태그 ${tags.length}`}</small>
+          {activeTags.length > 0 && <em>{activeTagLabel}</em>}
+        </div>
         <button
-          className={`tag-filter-chip tag-filter-home ${activeTag === "전체" ? "active" : ""}`}
-          onClick={() => selectTag("전체")}
+          aria-controls="tag-library-content"
+          aria-expanded={isOpen}
+          className="tag-library-toggle"
+          onClick={toggleOpen}
           type="button"
         >
-          전체
+          {isOpen ? "접기" : "펼치기"}
+          <ChevronDown size={15} />
         </button>
-        {tags.map((tag) => (
-          <button
-            className={`tag-filter-chip tag-tone-${tagTone(tag)} ${presetForTag(tag) ? `tag-category-member preset-${presetForTag(tag).tone}` : ""} ${activeTag === tag ? "active" : ""}`}
-            key={tag}
-            onClick={() => selectTag(tag)}
-            title={presetForTag(tag) ? `Category: ${presetForTag(tag).label}` : tag}
-            type="button"
-          >
-            {tag}
-          </button>
-        ))}
-        {!isAdding && (
-          <button className="tag-add-trigger" onClick={() => setIsAdding(true)} type="button">
-            <Plus size={14} />
-            태그
-          </button>
-        )}
-        {isAdding && (
-          <form className="tag-add-form" onSubmit={submitTag}>
-            <input
-              aria-label="새 태그"
-              autoFocus
-              onChange={(event) => setDraftTag(event.target.value)}
-              placeholder="새 태그"
-              value={draftTag}
-            />
-            <button type="submit" title="태그 추가">
-              <Check size={14} />
-            </button>
-            <button onClick={() => setIsAdding(false)} type="button" title="태그 추가 취소">
-              <X size={14} />
-            </button>
-          </form>
-        )}
       </div>
-      {canManageTags && activeTag !== "전체" && !activePreset && (
-        <form className="tag-edit-panel" onSubmit={submitEdit}>
-          <span>선택한 태그</span>
-          <input
-            aria-label={`${activeTag} 태그 이름 수정`}
-            onChange={(event) => setEditingValue(event.target.value)}
-            placeholder={activeTag}
-            value={editingValue || activeTag}
-          />
-          <button type="submit">수정</button>
-          <button
-            className="danger"
-            onClick={() => {
-              onDelete(activeTag);
-              setEditingValue("");
-            }}
-            type="button"
-          >
-            삭제
-          </button>
-        </form>
-      )}
-      {canManageTags && editingPreset && (
-        <form className="tag-edit-panel tag-preset-edit-panel" onSubmit={submitPreset}>
-          <span>선택한 Category</span>
-          <input
-            aria-label={`${editingPreset.label} Category 이름 수정`}
-            onChange={(event) => setPresetDraft((current) => ({ ...current, id: editingPreset.id, tagsText: current.tagsText || editingPreset.tags.join(", "), label: event.target.value }))}
-            value={presetDraft.id === editingPreset.id ? presetDraft.label : editingPreset.label}
-          />
-          <input
-            aria-label={`${editingPreset.label} 포함 태그 수정`}
-            onChange={(event) => setPresetDraft((current) => ({ ...current, id: editingPreset.id, label: presetDraft.label || editingPreset.label, tagsText: event.target.value }))}
-            value={presetDraft.id === editingPreset.id ? presetDraft.tagsText : editingPreset.tags.join(", ")}
-          />
-          <button
-            type="submit"
-          >
-            수정
-          </button>
-          <button
-            className="danger"
-            onClick={() => {
-              onDeletePreset(editingPreset.id);
-              closePresetEditor();
-            }}
-            type="button"
-          >
-            삭제
-          </button>
-          <button onClick={closePresetEditor} type="button">닫기</button>
-        </form>
+      {isOpen && (
+        <div className="tag-library-content" id="tag-library-content">
+          <small className="tag-permission-note">
+            <Info size={14} />
+            태그 추가는 모두 가능하고, 수정/삭제는 관리자만 가능합니다.
+          </small>
+          <div className="tag-map-toolbar">
+            <button
+              className={`tag-filter-chip tag-filter-home ${activeTags.length === 0 ? "active" : ""}`}
+              onClick={clearTagFilters}
+              type="button"
+            >
+              전체
+            </button>
+            {canManageTags && !isAddingPreset && (
+              <button
+                className="tag-preset-add"
+                onClick={() => {
+                  setIsAddingPreset(true);
+                  setEditingPresetId("");
+                  setEditingTagName("");
+                  setEditingValue("");
+                  setPresetDraft({ id: "", label: "", tagsText: "" });
+                  onFilter("전체");
+                }}
+                type="button"
+              >
+                <Plus size={13} />
+                Category
+              </button>
+            )}
+            {canManageTags && singleEditableTag && !editingTagName && !isAddingPreset && !editingPreset && (
+              <button className="tag-preset-manage tag-selected-manage" onClick={() => openTagEditor(singleEditableTag)} type="button">
+                태그 수정
+              </button>
+            )}
+            {!isAdding && (
+              <button
+                className="tag-add-trigger"
+                onClick={() => {
+                  setEditingTagName("");
+                  setEditingValue("");
+                  setIsAdding(true);
+                }}
+                type="button"
+              >
+                <Plus size={14} />
+                태그
+              </button>
+            )}
+          </div>
+          <div className="tag-map" aria-label="Category별 태그 맵">
+            {tagMapRows.map((row) => {
+              const selectedInRow = row.tags.filter((tag) => activeTagSet.has(tag));
+              const allTagsSelected = row.tags.length > 0 && selectedInRow.length === row.tags.length;
+              const isExpanded = openPresetIds.has(row.id) || selectedInRow.length > 0;
+              const previewTags = row.tags.slice(0, 5);
+              const hiddenCount = Math.max(row.tags.length - previewTags.length, 0);
+              return (
+                <article className={`tag-map-row preset-${row.tone} ${isExpanded ? "is-expanded" : ""}`} key={row.id}>
+                  <div className="tag-map-row-head">
+                    <button
+                      aria-expanded={isExpanded}
+                      aria-pressed={allTagsSelected}
+                      className={`tag-map-category ${allTagsSelected ? "active" : ""} ${selectedInRow.length > 0 && !allTagsSelected ? "partial" : ""}`}
+                      disabled={row.type !== "preset"}
+                      onClick={() => togglePresetTags(row.tags)}
+                      title={row.tags.join(", ")}
+                      type="button"
+                    >
+                      <strong>{row.label}</strong>
+                      <small>{row.tags.length}개</small>
+                    </button>
+                    <div className="tag-map-preview">
+                      {(isExpanded ? row.tags : previewTags).map((tag) => (
+                        <button
+                          aria-pressed={activeTagSet.has(tag)}
+                          className={`tag-filter-chip tag-tone-${tagTone(tag)} ${row.type === "preset" ? `tag-category-member preset-${row.tone}` : ""} ${activeTagSet.has(tag) ? "active" : ""}`}
+                          key={tag}
+                          onClick={() => toggleTag(tag)}
+                          title={`${row.label} · ${tag}`}
+                          type="button"
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                      {!isExpanded && hiddenCount > 0 && <span className="tag-map-more">+{hiddenCount}개</span>}
+                    </div>
+                    {hiddenCount > 0 ? (
+                      <button className="tag-map-expand" onClick={() => togglePresetRow(row.id)} type="button">
+                        {isExpanded ? "접기" : "더보기"}
+                        <ChevronDown size={14} />
+                      </button>
+                    ) : (
+                      <span className="tag-map-expand-spacer" aria-hidden="true" />
+                    )}
+                    {canManageTags && row.type === "preset" && !isAddingPreset && !editingPreset && (
+                      <button className="tag-preset-manage" onClick={() => openPresetEditor(row)} type="button">
+                        수정
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+            {!tagMapRows.length && <p className="empty-note tag-map-empty">아직 등록된 태그가 없습니다.</p>}
+          </div>
+          {canManageTags && isAddingPreset && (
+            <form className="tag-edit-panel tag-preset-edit-panel" onSubmit={submitPreset}>
+              <span>새 Category</span>
+              <input
+                aria-label="태그 Category 이름"
+                onChange={(event) => setPresetDraft((current) => ({ ...current, label: event.target.value }))}
+                placeholder="Category 이름"
+                value={presetDraft.label}
+              />
+              <input
+                aria-label="Category 포함 태그"
+                onChange={(event) => setPresetDraft((current) => ({ ...current, tagsText: event.target.value }))}
+                placeholder="기획보고, 임원보고"
+                value={presetDraft.tagsText}
+              />
+              <button type="submit">저장</button>
+              <button onClick={closePresetEditor} type="button">닫기</button>
+            </form>
+          )}
+          {isAdding && (
+            <form className="tag-add-form tag-map-add-form" onSubmit={submitTag}>
+              <input
+                aria-label="새 태그"
+                autoFocus
+                onChange={(event) => setDraftTag(event.target.value)}
+                placeholder="새 태그"
+                value={draftTag}
+              />
+              <button type="submit" title="태그 추가">
+                <Check size={14} />
+              </button>
+              <button onClick={() => setIsAdding(false)} type="button" title="태그 추가 취소">
+                <X size={14} />
+              </button>
+            </form>
+          )}
+          {canManageTags && editingTagName && (
+            <form className="tag-edit-panel" onSubmit={submitEdit}>
+              <span>선택한 태그</span>
+              <input
+                aria-label={`${editingTagName} 태그 이름 수정`}
+                onChange={(event) => setEditingValue(event.target.value)}
+                placeholder={editingTagName}
+                value={editingValue}
+              />
+              <button type="submit">수정</button>
+              <button
+                className="danger"
+                onClick={() => {
+                  onDelete(editingTagName);
+                  setEditingTagName("");
+                  setEditingValue("");
+                }}
+                type="button"
+              >
+                삭제
+              </button>
+              <button
+                onClick={() => {
+                  setEditingTagName("");
+                  setEditingValue("");
+                }}
+                type="button"
+              >
+                닫기
+              </button>
+            </form>
+          )}
+          {canManageTags && editingPreset && (
+            <form className="tag-edit-panel tag-preset-edit-panel" onSubmit={submitPreset}>
+              <span>선택한 Category</span>
+              <input
+                aria-label={`${editingPreset.label} Category 이름 수정`}
+                onChange={(event) => setPresetDraft((current) => ({ ...current, id: editingPreset.id, tagsText: current.tagsText || editingPreset.tags.join(", "), label: event.target.value }))}
+                value={presetDraft.id === editingPreset.id ? presetDraft.label : editingPreset.label}
+              />
+              <input
+                aria-label={`${editingPreset.label} 포함 태그 수정`}
+                onChange={(event) => setPresetDraft((current) => ({ ...current, id: editingPreset.id, label: presetDraft.label || editingPreset.label, tagsText: event.target.value }))}
+                value={presetDraft.id === editingPreset.id ? presetDraft.tagsText : editingPreset.tags.join(", ")}
+              />
+              <button
+                type="submit"
+              >
+                수정
+              </button>
+              <button
+                className="danger"
+                onClick={() => {
+                  onDeletePreset(editingPreset.id);
+                  closePresetEditor();
+                }}
+                type="button"
+              >
+                삭제
+              </button>
+              <button onClick={closePresetEditor} type="button">닫기</button>
+            </form>
+          )}
+        </div>
       )}
     </section>
   );
@@ -4153,6 +4776,7 @@ function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEd
 }
 
 function TimelineView({ mode, month, onModeChange, onMonthChange, onSelect, onYearChange, tasks, year }) {
+  const [timelineTooltip, setTimelineTooltip] = useState(null);
   const [monthYear, monthValue] = month.split("-").map(Number);
   const monthDays = daysInMonth(monthYear, monthValue);
   const businessDates = businessDatesInMonth(monthYear, monthValue);
@@ -4203,6 +4827,38 @@ function TimelineView({ mode, month, onModeChange, onMonthChange, onSelect, onYe
   function goToday() {
     onMonthChange(TODAY.slice(0, 7));
     onYearChange(TODAY.slice(0, 4));
+  }
+
+  function showTimelineTooltip(anchor, details) {
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const tooltipWidth = Math.min(280, window.innerWidth - 32);
+    const estimatedHeight = details.lines.length * 18 + 54;
+    const topBelow = rect.bottom + 8;
+    const topAbove = rect.top - estimatedHeight - 8;
+    const top = topBelow + estimatedHeight > window.innerHeight && topAbove > 12 ? topAbove : topBelow;
+    setTimelineTooltip({
+      ...details,
+      left: Math.min(window.innerWidth - tooltipWidth - 16, Math.max(16, rect.left)),
+      top: Math.max(12, top),
+      width: tooltipWidth
+    });
+  }
+
+  function tooltipDetails(task, risk, clippedStart, clippedEnd) {
+    const tags = taskTags(task);
+    const lines = [
+      tags.join(", "),
+      `${formatDate(task.startDate)} - ${formatDate(task.dueDate)}`
+    ];
+    if (risk) lines.push(`${risk.label}: ${risk.reason}`);
+    if (task.recurring) lines.push(recurringLabel(task));
+    if (clippedStart || clippedEnd) lines.push("선택한 기간 밖으로 이어지는 업무입니다.");
+    return {
+      title: displayTaskTitle(task),
+      meta: `${personName(task.ownerId)} · ${task.status} · ${taskProgress(task)}%`,
+      lines
+    };
   }
 
   const periodLabel = mode === "month" ? `${monthYear}년 ${monthValue}월` : `${year}년`;
@@ -4256,7 +4912,7 @@ function TimelineView({ mode, month, onModeChange, onMonthChange, onSelect, onYe
           진한 끝선: 기간 밖으로 이어짐
         </span>
       </div>
-      <div className="timeline-grid">
+      <div className="timeline-grid" onScroll={() => setTimelineTooltip(null)}>
         {todayColumn > 0 && <span aria-hidden="true" className="timeline-today-guide" />}
         <div className="timeline-axis">
           <span />
@@ -4288,11 +4944,14 @@ function TimelineView({ mode, month, onModeChange, onMonthChange, onSelect, onYe
           const progress = taskProgress(task);
           const risk = timelineRisk(task);
           const title = displayTaskTitle(task);
+          const tooltip = tooltipDetails(task, risk, clippedStart, clippedEnd);
           return (
             <button
               aria-label={`${title} 타임라인 업무 상세 보기, ${task.status}, 진행률 ${progress}%${risk ? `, ${risk.label}` : ""}`}
               className="timeline-row"
               key={task.id}
+              onBlur={() => setTimelineTooltip(null)}
+              onFocus={(event) => showTimelineTooltip(event.currentTarget.querySelector(".timeline-bar"), tooltip)}
               onClick={() => onSelect(task)}
               type="button"
             >
@@ -4305,6 +4964,8 @@ function TimelineView({ mode, month, onModeChange, onMonthChange, onSelect, onYe
               <span className="timeline-track">
                 <span
                   className={`timeline-bar status-${task.status.replace("/", "")} ${task.recurring ? "recurring" : ""} ${risk ? `has-risk risk-${risk.tone}` : ""} ${clippedStart ? "clipped-start" : ""} ${clippedEnd ? "clipped-end" : ""}`}
+                  onMouseEnter={(event) => showTimelineTooltip(event.currentTarget, tooltip)}
+                  onMouseLeave={() => setTimelineTooltip(null)}
                   style={{ gridColumn: `${offset + 1} / span ${span}` }}
                 >
                   <span className="timeline-bar-copy">
@@ -4316,15 +4977,6 @@ function TimelineView({ mode, month, onModeChange, onMonthChange, onSelect, onYe
                     {risk && <span className={`timeline-sticker ${risk.tone}`}>{risk.label}</span>}
                     <em>{progress}%</em>
                   </span>
-                  <span className="timeline-tooltip" role="tooltip">
-                    <strong>{title}</strong>
-                    <small>{personName(task.ownerId)} · {task.status} · {progress}%</small>
-                    <span>{tags.join(", ")}</span>
-                    <span>{formatDate(task.startDate)} - {formatDate(task.dueDate)}</span>
-                    {risk && <span>{risk.label}: {risk.reason}</span>}
-                    {task.recurring && <span>{recurringLabel(task)}</span>}
-                    {(clippedStart || clippedEnd) && <span>선택한 기간 밖으로 이어지는 업무입니다.</span>}
-                  </span>
                 </span>
               </span>
             </button>
@@ -4332,11 +4984,25 @@ function TimelineView({ mode, month, onModeChange, onMonthChange, onSelect, onYe
         })}
         {!visibleTasks.length && <p className="empty-note timeline-empty">선택한 기간에 표시할 업무가 없습니다.</p>}
       </div>
+      {timelineTooltip && (
+        <div
+          className="timeline-floating-tooltip"
+          role="tooltip"
+          style={{ left: timelineTooltip.left, top: timelineTooltip.top, width: timelineTooltip.width }}
+        >
+          <strong>{timelineTooltip.title}</strong>
+          <small>{timelineTooltip.meta}</small>
+          {timelineTooltip.lines.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 
 function CalendarView({
+  canManageEvent,
   canManageTask,
   events,
   month,
@@ -4388,6 +5054,7 @@ function CalendarView({
     selectedCalendarItem?.type === "event"
       ? events.find((event) => event.id === selectedCalendarItem.id) ?? selectedCalendarItem.event
       : null;
+  const hasSelectedCalendarDetail = Boolean(selectedTask || selectedEvent);
 
   function changeMonth(direction) {
     const next = new Date(year, monthValue - 1 + direction, 1);
@@ -4548,7 +5215,7 @@ function CalendarView({
         <span className="calendar-legend-task">업무 일정</span>
         <small className="calendar-legend-note">ⓘ 업무 일정은 계획된 업무 종료일 기준입니다.</small>
       </div>
-      <div className="calendar-body">
+      <div className={`calendar-body ${hasSelectedCalendarDetail ? "has-calendar-detail" : ""}`}>
         <div className="calendar-board">
           <div className="calendar-weekdays" aria-hidden="true">
             {["일", "월", "화", "수", "목", "금", "토"].map((day, index) => (
@@ -4596,7 +5263,7 @@ function CalendarView({
                       >
                         <i />
                         <b>{event.scope === "personal" ? `${personName(event.ownerId)} · ${event.title}` : event.title}</b>
-                        {eventStartDate(event) !== eventEndDate(event) && <em>{eventRangeLabel(event)}</em>}
+                        {eventStartDate(event) !== eventEndDate(event) && <em>({eventCompactRangeLabel(event)})</em>}
                       </button>
                     ))}
                     {date && events.filter((event) => eventSpansDate(event, date)).length + tasks.filter((task) => task.dueDate === date).length > 5 && (
@@ -4608,34 +5275,38 @@ function CalendarView({
             })}
           </div>
         </div>
-        <CalendarDetailPanel
-          canManageTask={canManageTask}
-          event={selectedEvent}
-          onAddLink={onAddLink}
-          onAddUpdate={onAddUpdate}
-          onArchive={onArchive}
-          onClose={() => setSelectedCalendarItem(null)}
-          onDelete={onDelete}
-          onDeleteEvent={(eventId) => {
-            onDeleteEvent(eventId);
-            setSelectedCalendarItem(null);
-          }}
-          onEdit={onEdit}
-          onRestore={onRestore}
-          onToggleSubtask={onToggleSubtask}
-          onUpdateEvent={(event) => {
-            onUpdateEvent(event);
-            setSelectedCalendarItem({ type: "event", id: event.id, event });
-          }}
-          selectedPersonId={selectedPersonId}
-          task={selectedTask}
-        />
+        {hasSelectedCalendarDetail && (
+          <CalendarDetailPanel
+            canManageEvent={canManageEvent}
+            canManageTask={canManageTask}
+            event={selectedEvent}
+            onAddLink={onAddLink}
+            onAddUpdate={onAddUpdate}
+            onArchive={onArchive}
+            onClose={() => setSelectedCalendarItem(null)}
+            onDelete={onDelete}
+            onDeleteEvent={(eventId) => {
+              onDeleteEvent(eventId);
+              setSelectedCalendarItem(null);
+            }}
+            onEdit={onEdit}
+            onRestore={onRestore}
+            onToggleSubtask={onToggleSubtask}
+            onUpdateEvent={(event) => {
+              onUpdateEvent(event);
+              setSelectedCalendarItem({ type: "event", id: event.id, event });
+            }}
+            selectedPersonId={selectedPersonId}
+            task={selectedTask}
+          />
+        )}
       </div>
     </section>
   );
 }
 
 function CalendarDetailPanel({
+  canManageEvent,
   canManageTask,
   event,
   onAddLink,
@@ -4660,6 +5331,7 @@ function CalendarDetailPanel({
   const visibleLinks = isTask ? (task.links ?? []).filter((link) => link.title || link.url).slice(0, 3) : [];
   const visibleUpdates = isTask ? (task.updates ?? []).slice(0, 3) : [];
   const canAssignPersonalCalendar = canAssignPersonalCalendarFor(selectedPersonId);
+  const canManageSelectedEvent = event ? canManageEvent(event) : false;
   const personalCalendarOwnerOptions = canAssignPersonalCalendar
     ? teamAssignablePeople()
     : teamAssignablePeople().filter((person) => person.id === selectedPersonId || person.id === event?.ownerId);
@@ -4720,12 +5392,18 @@ function CalendarDetailPanel({
         </div>
         {!isEditingEvent && (
           <div className="calendar-event-actions">
-            <button className="icon-button" onClick={() => setIsEditingEvent(true)} type="button" title="일정 수정">
-              <Edit3 size={14} />
-            </button>
-            <button className="icon-button danger-icon" onClick={() => onDeleteEvent(event.id)} type="button" title="일정 삭제">
-              <Trash2 size={14} />
-            </button>
+            {canManageSelectedEvent ? (
+              <>
+                <button className="icon-button" onClick={() => setIsEditingEvent(true)} type="button" title="일정 수정">
+                  <Edit3 size={14} />
+                </button>
+                <button className="icon-button danger-icon" onClick={() => onDeleteEvent(event.id)} type="button" title="일정 삭제">
+                  <Trash2 size={14} />
+                </button>
+              </>
+            ) : (
+              <span className="permission-readonly">읽기 전용</span>
+            )}
             <button className="icon-button" onClick={onClose} type="button" title="일정 상세 닫기">
               <X size={15} />
             </button>
@@ -4896,9 +5574,11 @@ function RecurringView({ canManageTask, onEditRecurring, onSelect, onSelectOccur
                         isRecurringInstance: true,
                         recurringTemplateId: task.id
                       })}
+                      aria-label={`${formatDate(occurrence.startDate)} 시작 회차를 개별 업무로 만들기`}
                       title={`${formatDate(occurrence.startDate)} 시작 · ${formatDate(occurrence.dueDate)} 마감`}
                       type="button"
                     >
+                      <em>회차 생성</em>
                       <b>{formatDate(occurrence.startDate)} 시작</b>
                       <small>{formatDate(occurrence.dueDate)} 마감</small>
                     </button>
@@ -4942,35 +5622,232 @@ function RecurringView({ canManageTask, onEditRecurring, onSelect, onSelectOccur
   );
 }
 
-function ArchiveView({ onRestore, onSelect, tasks }) {
+function ArchiveView({ isTeamScope, onFillDemo, onRestore, onSelect, people: archivePeople = [], tasks }) {
+  const [ownerFilter, setOwnerFilter] = useState("전체");
+  const [periodFilter, setPeriodFilter] = useState("전체");
+  const [isOwnerFilterOpen, setIsOwnerFilterOpen] = useState(false);
+  const [isPeriodFilterOpen, setIsPeriodFilterOpen] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState({ completed: true, held: true });
+  const periods = [
+    { id: "전체", label: "전체기간" },
+    { id: "Q1", label: "1분기" },
+    { id: "Q2", label: "2분기" },
+    { id: "Q3", label: "3분기" },
+    { id: "Q4", label: "4분기" }
+  ];
+
+  function archiveDateLabel(task) {
+    if (task.status === "완료") return completionDate(task) || task.dueDate;
+    return task.dueDate;
+  }
+
+  function archivePeriod(task) {
+    const date = archiveDateLabel(task);
+    if (!isISODate(date)) return "전체";
+    return `Q${quarterNumberFromDate(date)}`;
+  }
+
+  const filteredArchiveTasks = tasks.filter((task) => {
+    const byOwner = !isTeamScope || ownerFilter === "전체" || task.ownerId === ownerFilter;
+    const byPeriod = periodFilter === "전체" || archivePeriod(task) === periodFilter;
+    return byOwner && byPeriod;
+  });
+  const completedTasks = filteredArchiveTasks.filter((task) => task.status === "완료");
+  const heldTasks = filteredArchiveTasks.filter((task) => task.status === "보류");
+  const otherTasks = filteredArchiveTasks.filter((task) => !["완료", "보류"].includes(task.status));
+  const sections = [
+    {
+      key: "completed",
+      title: "완료 업무",
+      description: "처리 완료 후 보관한 업무입니다. 필요하면 메인 완료 컬럼으로 복원할 수 있습니다.",
+      empty: "보관된 완료 업무가 없습니다.",
+      tasks: completedTasks
+    },
+    {
+      key: "held",
+      title: "보류 업무",
+      description: "복원하면 메인 보드의 보류 컬럼으로 돌아갑니다. 이후 진행중/계획 상태로 다시 전환할 수 있습니다.",
+      empty: "보관된 보류 업무가 없습니다.",
+      tasks: heldTasks
+    }
+  ];
+  if (otherTasks.length) {
+    sections.push({
+      key: "other",
+      title: "기타 보관 업무",
+      description: "완료/보류 외 상태로 보관된 업무입니다.",
+      empty: "",
+      tasks: otherTasks
+    });
+  }
+  const ownerOptions = [
+    { id: "전체", label: "전체 담당", count: tasks.filter((task) => periodFilter === "전체" || archivePeriod(task) === periodFilter).length },
+    ...archivePeople.map((person) => ({
+      id: person.id,
+      label: `${person.emoji ?? ""} ${person.name}`.trim(),
+      count: tasks.filter((task) => task.ownerId === person.id && (periodFilter === "전체" || archivePeriod(task) === periodFilter)).length
+    }))
+  ];
+  const periodOptions = periods.map((period) => ({
+    ...period,
+    count: tasks.filter((task) => {
+      const byOwner = !isTeamScope || ownerFilter === "전체" || task.ownerId === ownerFilter;
+      return byOwner && (period.id === "전체" || archivePeriod(task) === period.id);
+    }).length
+  }));
+  const activeOwnerLabel = ownerOptions.find((option) => option.id === ownerFilter)?.label ?? "전체 담당";
+  const activePeriodLabel = periodOptions.find((option) => option.id === periodFilter)?.label ?? "전체기간";
+  const hasFilteredTasks = filteredArchiveTasks.length > 0;
+
+  function toggleArchiveSection(key) {
+    setCollapsedSections((current) => ({ ...current, [key]: !current[key] }));
+  }
+
+  function visibleTags(task) {
+    return normalizeTags(taskTags(task).filter((tag) => tag !== task.category));
+  }
+
   return (
     <section className="archive-view">
       <div className="archive-heading">
         <div>
           <span className="panel-label">보관함</span>
           <h2>메인 업무흐름에서 숨긴 완료/보류 업무</h2>
+          <p>누적되는 기록은 표로 훑고, 필요한 업무만 상세를 열거나 메인 보드로 복원합니다.</p>
         </div>
-        <Archive size={20} />
+        <div className="archive-heading-actions">
+          {onFillDemo ? (
+            <button className="secondary-button small" onClick={onFillDemo} type="button">
+              <Sparkles size={15} />
+              데모 데이터 채우기
+            </button>
+          ) : null}
+          <Archive size={20} />
+        </div>
       </div>
       {tasks.length ? (
-        <div className="archive-list">
-          {tasks.map((task) => (
-            <article className="archive-row" key={task.id}>
-              <button className="archive-main" onClick={() => onSelect(task.id)} type="button">
-                <span className="status-dot" data-status={task.status} />
+        <div className="archive-sections">
+          <div className="archive-filter-stack">
+            {isTeamScope ? (
+              <div className={`archive-filter-panel ${isOwnerFilterOpen ? "is-open" : ""}`}>
+                <button className="archive-filter-head" onClick={() => setIsOwnerFilterOpen((open) => !open)} type="button">
+                  <span>
+                    <strong>담당자</strong>
+                    <small>{activeOwnerLabel} · {filteredArchiveTasks.length}건</small>
+                  </span>
+                  <ChevronDown size={16} />
+                </button>
+                {isOwnerFilterOpen ? (
+                  <div className="archive-filter-options">
+                    {ownerOptions.map((option) => (
+                      <button
+                        className={ownerFilter === option.id ? "active" : ""}
+                        disabled={option.count === 0 && option.id !== ownerFilter}
+                        key={option.id}
+                        onClick={() => {
+                          setOwnerFilter(option.id);
+                          setIsOwnerFilterOpen(false);
+                        }}
+                        type="button"
+                      >
+                        <span>{option.label}</span>
+                        <em>{option.count}</em>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            <div className={`archive-filter-panel ${isPeriodFilterOpen ? "is-open" : ""}`}>
+              <button className="archive-filter-head" onClick={() => setIsPeriodFilterOpen((open) => !open)} type="button">
                 <span>
-                  <strong>{displayTaskTitle(task)}</strong>
-                  <small>
-                    {personName(task.ownerId)} · {task.status} · {taskTags(task).slice(0, 2).join(", ")} · {formatDate(task.startDate)} - {formatDate(task.dueDate)}
-                  </small>
+                  <strong>기간</strong>
+                  <small>{activePeriodLabel} · {filteredArchiveTasks.length}건</small>
+                </span>
+                <ChevronDown size={16} />
+              </button>
+              {isPeriodFilterOpen ? (
+                <div className="archive-filter-options period-options">
+                  {periodOptions.map((option) => (
+                    <button
+                      className={periodFilter === option.id ? "active" : ""}
+                      disabled={option.count === 0 && option.id !== periodFilter}
+                      key={option.id}
+                      onClick={() => {
+                        setPeriodFilter(option.id);
+                        setIsPeriodFilterOpen(false);
+                      }}
+                      type="button"
+                    >
+                      <span>{option.label}</span>
+                      <em>{option.count}</em>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+          {!hasFilteredTasks ? <p className="empty-note archive-section-empty">선택한 조건에 맞는 보관 업무가 없습니다.</p> : null}
+          {hasFilteredTasks ? sections.map((section) => (
+            <section className={`archive-section archive-section-${section.key}`} key={section.key}>
+              <button
+                className={`archive-section-head ${collapsedSections[section.key] ? "is-collapsed" : ""}`}
+                onClick={() => toggleArchiveSection(section.key)}
+                type="button"
+              >
+                <div>
+                  <h3>{section.title}</h3>
+                  <p>{section.description}</p>
+                </div>
+                <span>
+                  {section.tasks.length}건
+                  <ChevronDown size={15} />
                 </span>
               </button>
-              <button className="secondary-button small" onClick={() => onRestore(task)} type="button">
-                <ArchiveRestore size={15} />
-                복원
-              </button>
-            </article>
-          ))}
+              {!collapsedSections[section.key] && section.tasks.length ? (
+                <div className="archive-table-wrap">
+                  <table className="archive-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">업무</th>
+                        <th scope="col">담당</th>
+                        <th scope="col">카테고리</th>
+                        <th scope="col">태그</th>
+                        <th scope="col">{section.key === "completed" ? "완료일" : "마감일"}</th>
+                        <th scope="col">복원</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {section.tasks.map((task) => (
+                        <tr key={task.id}>
+                          <td className="archive-title-cell">
+                            <button onClick={() => onSelect(task.id)} type="button">
+                              <span className="status-dot" data-status={task.status} />
+                              <strong>{displayTaskTitle(task)}</strong>
+                            </button>
+                          </td>
+                          <td>{personName(task.ownerId)}</td>
+                          <td>{task.category || "미지정"}</td>
+                          <td>
+                            <span className="archive-tag-line">{visibleTags(task).slice(0, 3).join(", ") || "태그 없음"}</span>
+                          </td>
+                          <td>{formatDate(archiveDateLabel(task))}</td>
+                          <td className="archive-restore-cell">
+                            <button className="secondary-button small" onClick={() => onRestore(task)} type="button">
+                              <ArchiveRestore size={15} />
+                              {task.status === "보류" ? "보류로 복원" : "복원"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : !collapsedSections[section.key] ? (
+                <p className="empty-note archive-section-empty">{section.empty}</p>
+              ) : null}
+            </section>
+          )) : null}
         </div>
       ) : (
         <p className="empty-note">보관된 업무가 없습니다. 완료 또는 보류 업무에서 보관을 누르면 이곳에 모입니다.</p>
@@ -5800,7 +6677,12 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
   const [tagDraft, setTagDraft] = useState("");
   const [tagError, setTagError] = useState("");
   const [subtaskError, setSubtaskError] = useState("");
+  const titleInputRef = useRef(null);
   const modalUpdateRef = useRef(null);
+
+  useEffect(() => {
+    titleInputRef.current?.focus();
+  }, []);
 
   function update(field, value) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -5981,7 +6863,7 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task }) {
         )}
         <label className="field wide task-modal-full-field">
           <span>업무명</span>
-          <input required value={draft.title} onChange={(event) => update("title", event.target.value)} />
+          <input ref={titleInputRef} required value={draft.title} onChange={(event) => update("title", event.target.value)} />
         </label>
         <div className="field wide subtask-editor task-modal-full-field">
           <span className="field-label-with-note">

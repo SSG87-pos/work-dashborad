@@ -172,10 +172,10 @@ After that, add recurring automation and report snapshots.
 
 After the first admin login and initial Supabase connection:
 
-1. Add a team-member onboarding flow so real users can join with auth UUID profiles.
-2. Replace temporary sample task ownership with real user IDs as members sign up.
-3. Finish full task CRUD parity for recurring templates, admin permission management, profile management beyond self-editing, and production-grade validation/feedback.
-4. Add an admin/import path for moving approved prototype data into Supabase once real team users exist.
+1. Keep actual team-member signup/auth account linking deferred until the team is ready.
+2. Do not run a legacy JSON import for the current launch; the team will start writing fresh data in Supabase. Keep the approved JSON import flow only as an admin backup/future migration path, and use it only after a source file is selected and local 담당자 IDs are mapped to the current team roster.
+3. Use `docs/supabase-security-next-pass.md` for the next approved security hardening pass around SECURITY DEFINER helper functions and shared memo RLS strictness.
+4. Continue small no-approval stabilization through the existing storage boundary and verification scripts.
 5. Keep JSON export/import as an admin backup and migration tool.
 
 ## Current Integration State
@@ -194,4 +194,7 @@ After the first admin login and initial Supabase connection:
 - Live migration `team_roster_pre_auth` has been applied. The matching local file is `supabase/migrations/004_team_roster_pre_auth.sql`, which lets admins create assignee roster rows with expected signup emails before teammates have accounts.
 - Live migration `roster_task_permissions` has been applied. The matching local file is `supabase/migrations/005_roster_task_permissions.sql`, which lets a linked teammate manage pre-created tasks assigned to their roster row.
 - The UI now shows a short in-app sync notice when a Supabase write fails or when a prototype-only sample item is kept local.
+- Prototype JSON import now has a signed-in Supabase summary guard, administrator confirmation, live merge/upsert execution, and local same-JSON fingerprint warning before duplicate-risk reruns.
+- Prototype JSON import now blocks unknown local 담당자 IDs before live Supabase writes, so stale local IDs are mapped before they can become operational roster rows.
+- Supabase advisor preflight produced `supabase/migrations/013_advisor_preflight_hardening.sql` for `touch_updated_at` search path and FK covering indexes. It passed `BEGIN ... ROLLBACK` syntax verification and was applied live through `execute_sql`.
 - Transition note: tasks can now save against roster assignees before signup. When a teammate signs up with the expected email, the roster row links to the real auth user automatically.

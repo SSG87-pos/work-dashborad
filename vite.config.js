@@ -7,6 +7,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes("/node_modules/emoji-picker-react/") || id.includes("/node_modules/flairup/")) return "emoji-picker";
           if (id.includes("/node_modules/@supabase/")) return "supabase";
           if (id.includes("/node_modules/")) return "vendor";
         }

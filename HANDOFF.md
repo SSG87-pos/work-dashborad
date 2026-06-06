@@ -11,7 +11,7 @@ Last updated: 2026-06-06
 ## Current State
 
 - Canonical app: React/Vite source under `src/`.
-- Legacy reference only: `prototype.html`.
+- Legacy reference only: `legacy/prototype.html`.
 - Main files to read first:
   - `src/App.jsx`
   - `src/data.js`
@@ -33,6 +33,8 @@ Last updated: 2026-06-06
 Key product decisions now in the prototype:
 
 - `오늘 브리핑` is personal-first: briefing task flow, today agenda, and a page-scoped shared memo.
+- The common top header keeps only the `Strategy Work Hub` title; repeated explanatory subtitles are intentionally removed across tabs.
+- Top insight cards are number-first action filters: nonzero cards show a small `보기 →` action and clicking filters the board to that cohort, while zero-value cards stay visually quieter and non-actionable.
 - Memo behavior is page-scoped, not account-scoped: `오늘 브리핑` and `전체 업무흐름` each have an independent memo, and any signed-in team member can edit the memo for the page they are viewing.
 - `전체 업무흐름` is the shared public team board/timeline/recurring/archive area.
 - Task detail placement is contextual:
@@ -56,10 +58,18 @@ Key product decisions now in the prototype:
   - `전략/투자 묶음` = `전략과제`, `투자검토`, `시장동향`
   - `조사/근거 묶음` = `자료조사`, `외부자료`, `정책`
   - `운영/KPI 묶음` = `월간보고`, `회의체`, `운영`, `KPI`
-  - Category preset clicks are filter actions only; admin edit opens through the explicit `Category 수정` action.
+  - The compact top tag filter is now an opener/status button: `태그: 전체` means no tag filter, and `태그: 선택됨 N개` means multiple tags are active.
+  - Actual tag filtering happens in the expanded tag library. Category clicks toggle all tags in the Category, individual tag chips toggle one tag, and `전체` clears all selected tags.
+  - Multiple selected tags use OR matching, so a task appears when it contains at least one selected tag.
+  - Category preset clicks are filter actions only; admin edit opens through the explicit `수정` action.
+  - Individual tag clicks are also filter actions only; admin rename/delete opens through the explicit `태그 수정` action shown after a single tag is selected.
   - `전체` is the HOME/all-work tag filter and should stay visually more prominent than ordinary tag chips.
+  - Tag and importance filter controls show an active visual state when the selected value is not `전체`.
+  - The tag library below workflow filters starts collapsed as a compact header with counts, selected-filter context, and a clear expand/collapse control.
 - Recurring task rules support interval, weekdays, start/end, no-end, and duration. Time-of-day is intentionally excluded.
 - Recurring tab previews future schedules in one line and has `미수행 반복 일정 삭제` to remove future unstarted recurring instances while preserving already progressed history.
+- Automatic recurring generation is bounded by the dashboard date: only a source task's next unsaved occurrence with `startDate <= TODAY` can materialize, and existing `recurringTemplateId + dueDate` pairs are skipped to avoid duplicate rows.
+- Recurring occurrence chips are an explicit manual creation action: clicking `회차 생성` converts that future occurrence into an independent task and persists it through the normal task save path when Supabase is available. The generated task's initial `recurring` change-history entry is also inserted into `task_change_history`. This is not automatic background generation.
 - Virtual recurring instances are generated for timeline/calendar/performance without saving duplicate tasks; saved recurring instances remain independently editable.
 - Timeline monthly mode excludes weekends.
 - Timeline uses solid soft status colors, a `🔁` sticker for recurrence, and schedule-attention stickers for delay/due/start issues.
@@ -86,7 +96,7 @@ Key product decisions now in the prototype:
   - account selection screen after logout
   - admin account exists for permission/admin flow
   - profile emoji picker exists and persists locally
-  - current emoji picker is a lightweight searchable prototype popover for profile, memo, calendar notes, and update logs; production should replace it with `emoji-picker-react` for the full emoji set
+  - shared emoji picker now uses lazy-loaded `emoji-picker-react` with native emoji rendering for profile, memo, calendar notes, and update logs
   - team composition order is `그룹장 -> 팀장 -> 가나다순`.
 - Backend direction is now approved at the architecture level:
   - first backend route: Supabase/Postgres
@@ -99,7 +109,7 @@ Key product decisions now in the prototype:
 - Live Supabase project:
   - URL: `https://nbefvcrcfwacvnohtsmy.supabase.co`
   - first admin email: `seulgis@posco.com`
-  - `seulgis@posco.com` has been promoted to `permission_role = 'admin'`, `title = '관리자'`, `is_team_member = false`.
+  - `seulgis@posco.com` has been promoted to `permission_role = 'admin'`; the visible profile is now `소슬기 / 수석 / is_team_member = true` because 슬기님 is also a team member. Keep admin permission until another administrator exists.
   - Data API table grants are applied manually because automatic table exposure was disabled.
 
 Recent UI/UX refinements from the latest session:
@@ -132,6 +142,20 @@ Recent UI/UX refinements from the latest session:
   - timeline legend/date-axis gap is removed and both surfaces have solid white backgrounds to avoid transparent bleed-through while scrolling
   - tag permission guidance moved next to the `태그` title with an info icon.
 - Added tag filter presets in both the filter select and tag panel.
+- Tightened workflow filter selects: grouped tag menu options now use short labels only, the tag select is narrower, and tag/importance controls visibly highlight non-`전체` filter states.
+- Collapsed the workflow tag library by default so the first screen keeps more work area; expanding reveals a Category-first tag map rather than a long chip cloud.
+- Changed the expanded tag library into compact Category rows: each row shows the Category name, tag count, representative tags, and `+N개/더보기` only when tags exceed the preview. Category and tag clicks still apply the same workflow filter.
+- Changed tag filtering from single-select to multi-select from the expanded tag map: the top tag control now opens the library and shows `전체/선택됨`, while Category rows and individual tags toggle selected tag filters with partial Category states.
+- Separated admin tag editing from tag selection: clicking one tag no longer opens rename/delete directly, and `태그 수정` is now the explicit entry to the selected tag edit panel.
+- Simplified the common top header by removing the repeated per-page subtitle and slightly enlarging `Strategy Work Hub`.
+- Turned the top insight cards into compact action filters: nonzero cards reset tag/priority/search, switch to board, and show a `요약:` filter pill; zero cards are quieter and do not show a `보기 →` action.
+- Tightened top insight card density after action filters: cards now keep a 68px height at 1280-1366px widths by using the right-side space for status copy and the `보기 →` action instead of adding vertical rows.
+- Removed repeated summary titles from insight-card hover panels so the hover preview shows only relevant task rows.
+- Softened the insight-card label weight and added automatic scroll-to-board behavior after clicking a top insight card, so long briefings do not hide the filtered board results.
+- Moved timeline task hover/focus previews to a fixed floating overlay and reduced timeline-grid bottom padding so tooltip space no longer creates excessive blank area below rows.
+- Changed the archive view from card rows to sectioned tables: completed archived tasks and held archived tasks are separated, and held-task copy clarifies that restore returns the task to the main `보류` column for possible reactivation.
+- Added a local prototype `데모 데이터 채우기` control in archive so accumulated completed/held archive tables can be reviewed without waiting for live data volume.
+- Refined archive for high-volume use: added category as its own column, removed the redundant status column, made rows compact, made completed/held sections start collapsed, and added collapsed Team Flow filters with owner as the primary filter and quarter period as the secondary filter.
 - Split `다음 액션 추천` into `nextActionContext(task)` and `nextActionPolicies` so recommendation phrasing can be tuned by policy.
 - Started safe `src/styles.css` cleanup by grouping recent context-detail/calendar-detail/performance/timeline final layers and removing a duplicate `timeline-grid` declaration.
 - Added `docs/backend-decision-brief.md` for the backend/login approval point.
@@ -175,8 +199,10 @@ Recent UI/UX refinements from the latest session:
   - UUID-backed tasks can be saved to Supabase with subtasks, links, and tag joins; status/update/link/archive/delete/subtask-progress have first write paths.
   - Due-date edits on UUID-backed tasks append Supabase change-history rows.
   - Calendar event create/edit/delete writes team/personal events to Supabase; personal events are tied to a real user UUID.
+  - Calendar event edit/delete controls now follow the shared-calendar permission model: team and personal schedule blocks remain visible for coordination, while update/delete is limited to owner, creator, lead, or admin in both the UI and App handlers.
   - Profile name/title/emoji editing writes to Supabase for real auth users.
   - Admin user-management UI can edit permission role, team-list visibility, and active state.
+  - Admin roster management can add pre-signup roster rows from the account modal and edit roster name/title plus expected signup email before the teammate has an auth account.
   - Live migration `admin_user_management_grants` is applied; the matching local file is `supabase/migrations/002_admin_user_management.sql`.
   - Live migration `task_recurring_columns` is applied; the matching local file is `supabase/migrations/003_task_recurring_columns.sql`.
   - Live migration `team_roster_pre_auth` is applied; the matching local file is `supabase/migrations/004_team_roster_pre_auth.sql`.
@@ -184,6 +210,7 @@ Recent UI/UX refinements from the latest session:
   - Admins can maintain assignee roster rows with expected signup emails before teammates have accounts. Tasks and calendar events can save against roster assignees, and later signup with the matching email links the roster to the real auth user.
   - Visible recurring source tasks now round-trip their recurrence rule directly through `tasks` columns, while future generated instances can still use `recurring_template_id`.
   - The app shows a short top-of-workspace sync notice when Supabase writes fail or when sample-only prototype records remain local.
+  - The top status pill says `Supabase 연결` after an authenticated Supabase session is active; before sign-in it still indicates that Supabase is prepared/configured.
   - Important transition guardrail: roster-assigned tasks use the signed-in admin/lead as the auth owner for RLS while displaying/filtering by roster id until the teammate signs up.
 - Final small UI guardrails after design polishing:
   - multi-day agenda event dates render on the first line right side instead of increasing card height
@@ -191,6 +218,79 @@ Recent UI/UX refinements from the latest session:
   - Category preset filtering is separated from admin Category editing
   - empty timeline panels keep rounded-card styling
   - calendar event edit forms keep aligned title, controls, and action buttons.
+- Keyboard/accessibility pre-check:
+  - In-app browser QA verified app identity, no console warnings/errors, visible focusable controls, sidebar/page switching, task modal open/close, calendar legend, updates scope controls, and performance copy/save surface.
+  - Fixed task modal initial focus so opening `업무 추가` places focus on the `업무명` input with the visible focus ring.
+  - Chrome keyboard walkthrough completed with actual Chrome key events: Tab moved through tag controls with visible focus rings, Shift+Tab moved backward, Enter activated `Team Flow`, `업무 추가`, the first board card, `Calendar`, a calendar event, `Updates`, `Team`, and `Highlights`.
+  - Chrome results: task modal initial focus landed on `업무명`, Tab moved to the next modal control, board card opened contextual detail, calendar event opened common task detail in the calendar panel, updates showed 6 cards, performance showed weekly report copy/save controls, and console errors/warnings were 0.
+  - Safari was not separately checked; Chrome satisfies the one real-browser keyboard walkthrough requirement.
+- CSS layering cleanup:
+  - Removed unused legacy calendar mini task-detail styles after calendar task detail moved to the common `업무 상세` component.
+  - Removed unused recurring sticker box remnants after repeat markers became icon-only.
+  - Removed duplicate earlier calendar legend/holiday declarations that were already covered by the later calendar layer.
+  - Removed unused legacy assignment/leader panel styles, old updates feed/owner-chip styles, stale profile emoji row styles, and dead detail/timeline/filter helper selectors.
+  - Removed stale tag preset member, agenda task meta, recurring badge, status-select, and timeline legend text-only remnants; remaining unmatched class names are mostly dynamic report/tag/status classes.
+  - Removed stale `recurring-rule-grid`, `selected-tag-list`, `tag-name-button`, and `tag-filter-chip.editable` selectors after confirming current JSX uses `recurring-config-card` and `tag-option-grid`.
+  - Browser QA after cleanup: board rendered 9 task cards with legacy nodes 0, updates rendered 2 columns and 6 update cards with legacy feed nodes 0, calendar rendered legend/detail panel, and console errors/warnings were 0.
+  - Browser QA after tag/recurring cleanup: task modal rendered 14 tag option buttons, no `selected-tag-list`, weekly recurrence showed `recurring-config-card` with 7 weekday buttons, no `recurring-rule-grid`, and console errors/warnings were 0.
+  - Split CSS setup without changing cascade order: `src/styles/foundation.css` now owns Tailwind/theme/focus setup, `src/styles/pre-base-overrides.css` owns the pre-base interaction/legacy override layer, and `src/styles.css` starts at the base `:root` rules.
+  - CSS audit after split found no exact duplicate rule blocks and no duplicate declarations inside a single rule; remaining repeated selectors are intentional cascade overrides or dynamic status/tag/report classes.
+  - Browser QA after the structural split: app identity loaded, board rendered 9 cards, board detail opened in the workflow column, timeline had no reserved detail before selection, calendar task detail used the common `업무 상세`, updates rendered 2 columns and 6 cards, performance weekly report rendered 9 cards with copy/save controls, 820px viewport had no horizontal overflow, and console errors/warnings were 0.
+- Supabase logged-in design QA:
+  - Verified the real Supabase login path on `http://127.0.0.1:5173/`.
+  - Session restored after reload and the top status pill displayed `Supabase 연결`.
+  - Team Flow used real DB data: summary/briefing showed 1 live task, `태그: 전체` rendered the live board card, and clicking it opened the common workflow-side `업무 상세` panel with the 340px sticky detail column.
+  - Calendar rendered 6 live events with legend order `팀 일정 > 개인 일정 > 업무 일정`; the clicked event opened the calendar detail panel with no legacy mini-card.
+  - Updates rendered the live new-assignment section, and performance rendered 1 weekly work card with `Markdown 복사` and `파일 저장`.
+  - Console errors/warnings were 0 throughout the logged-in QA pass.
+- Backend import safety:
+  - Added `src/supabaseImportPlan.js` and `scripts/check-supabase-import-plan.mjs` to summarize prototype JSON before live backend import.
+  - In authenticated Supabase mode, `JSON 가져오기` now shows the import summary and requires administrator confirmation before writing to the live DB.
+  - After approval, a live Supabase import executor was added behind that confirmation. It reuses `src/supabaseStore.js` to write roster/profile hints, tags, categories, tasks, subtasks, links, initial updates, calendar events, and page memos.
+  - Import guardrail: local-id tasks/events are inserted as new live rows, while same UUID rows can update. Re-running the same legacy local-id JSON can add duplicates, so run import once per approved source file.
+  - Duplicate-run guardrail: after a successful Supabase import, the browser records a local JSON fingerprint; selecting the same JSON again shows an additional duplicate-risk confirmation before any DB write.
+  - Unknown-roster guardrail: if the JSON references local 담당자 IDs not present in the current people directory/team roster, the import summary blocks live Supabase writes and the Supabase store returns `unknown-roster-ids` if called directly. Unknown IDs should be mapped first rather than auto-created as operational roster rows.
+  - Fixed a Supabase task mapper runtime risk where UUID `completedBy` values could reference an undefined `userMap`.
+  - Verification: `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan` passed, build passed, and local fallback browser QA confirmed the data menu/import input with console errors/warnings 0.
+- Supabase advisor preflight:
+  - Current project `work-dashboard` (`nbefvcrcfwacvnohtsmy`) is active/healthy. Import-before baseline rows: users 1, tasks 1, subtasks 3, task_links 1, task_tags 3, tags 3, tag_groups 4, calendar_events 2, dashboard_memos 2, team_roster 3, user_preferences 1.
+  - Security advisor found warnings for `touch_updated_at` missing fixed `search_path`, permissive shared memo write policy, public/signed-in executable SECURITY DEFINER functions, and leaked password protection disabled.
+  - Performance advisor found missing FK covering indexes and RLS policy optimization warnings.
+  - Added and applied `supabase/migrations/013_advisor_preflight_hardening.sql` for the low-risk subset only: `touch_updated_at` search path and missing FK covering indexes. It does not revoke function execute grants or rewrite RLS policies yet.
+  - Verification: syntax first passed through live SQL inside `BEGIN ... ROLLBACK`; after live apply, the `touch_updated_at` search-path warning and prior unindexed-FK advisor items were gone. New covering indexes may appear as unused until real traffic accumulates.
+- Supabase security hardening prep:
+  - Added `supabase/migrations/014_private_rls_helpers_and_memo_policy.sql` locally.
+  - Live `BEGIN ... ROLLBACK` rehearsal showed that a blanket direct `EXECUTE` revoke breaks existing RLS helper calls, so the prepared migration instead creates `private` schema helper functions, rewrites helper-backed policies to `private.*`, revokes direct execute on the public helper/trigger functions, and replaces broad `dashboard_memos` policies with active-user select/insert/update policies.
+  - The rehearsal passed authenticated-role smoke checks for users, team roster, tasks, dashboard memo reads, and dashboard memo update.
+  - After explicit approval, live apply succeeded on project `nbefvcrcfwacvnohtsmy`; migration history shows `20260606091558 014_private_rls_helpers_and_memo_policy`.
+  - Post-apply verification confirmed public helper/trigger functions are executable only by `postgres`, private RLS helper functions are executable by `authenticated`, `dashboard_memos` now uses separate active-user select/insert/update policies, and authenticated-role smoke testing passed for users, team roster, tasks, dashboard memos, and dashboard memo update inside a rolled-back transaction.
+  - Post-apply advisors: security advisor now only reports leaked password protection disabled; prior SECURITY DEFINER/public RPC and dashboard memo write warnings are gone. Performance advisor no longer reports the prior `auth_rls_initplan` warnings; `015_split_read_manage_rls_policies` later removed the multiple-permissive read/manage policy warnings, so remaining performance advisor items are unused-index info until real traffic accumulates.
+  - Verification after live apply: `git diff --check`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.65s`).
+  - Browser QA note: in-app browser reload of `http://127.0.0.1:5175/` was blocked by Browser URL policy, so signed-in browser CRUD smoke QA still needs a later retry.
+  - Follow-up prep/apply: added `docs/supabase-auth-security-checklist.md` for the remaining Auth dashboard leaked-password/password-policy decision. Prepared `supabase/migrations/015_split_read_manage_rls_policies.sql` to split broad `FOR ALL` manage policies into insert/update/delete policies for `personal_notes`, `subtasks`, `task_links`, and `task_tags`; live `BEGIN ... ROLLBACK` rehearsal passed, and after explicit approval the migration was live-applied as `20260606093846 015_split_read_manage_rls_policies`.
+  - Verification after follow-up prep: `git diff --check`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.53s`).
+- Team onboarding prep:
+  - Added `docs/company-supabase-review-brief.md` as the company-facing summary for app purpose, Supabase data scope, current security state, approval-bound work, permission model, internal port demo decision, and IT/security questions.
+  - Added `docs/company-demo-readiness-checklist.md` for the company-approval demo stop point, Supabase approval questions, internal port demo decision, and real-name vs anonymized demo data policy.
+  - Added `docs/internal-port-demo-runbook.md` for no-temporary-URL company demos through port/local-network access, including exact pnpm command, URL patterns, Mac IP checks, demo login cautions, recommended flow, and troubleshooting.
+  - Added `scripts/print-demo-urls.mjs` and `pnpm run demo:urls` to print local/network URL candidates for the current Mac before an internal port demo.
+  - Added `docs/company-clone-runbook.md` for later Windows/Linux company PC clone execution, pinned `packageManager` to `pnpm@11.5.1`, and added `scripts/check-demo-readiness.mjs` plus `pnpm run check:demo-readiness` to verify clone/demo prerequisites without printing secrets.
+  - Added `docs/team-onboarding-checklist.md` to explain when real user information is needed, minimum required fields, import mapping, and validation order.
+  - Added `docs/team-roster-template.csv` as a fill-in roster template with columns for roster id, name, title, permission role, expected signup email, team-list visibility, active state, emoji, and notes.
+  - Current signed-in user profile `seulgis@posco.com` is `소슬기 / 수석 / is_team_member = true` while retaining `permission_role = admin` as a temporary operational guard.
+  - Current live `team_roster` rows now cover the visible real-member set: 박경수/팀장/lead (`lead`, `kyongsupark@posco.com`), 류강묵/수석/member (`kmryu`, `kmryu@posco.com`), 장형민/차장/member (`junho`, `hyungmin.jang@posco.com`), 박관욱/수석/member (`minji`, `kwanwuk@posco.com`), and 조원태/수석/member (`sugu05`, `sugu05@posco.com`). These roster rows are not linked to auth users until those people sign up with the expected emails.
+  - Local fallback roster IDs were aligned to the same live IDs (`kmryu`, `junho`, `minji`, `sugu05`) and the old `seoyeon`/`haram` selected-person values are mapped forward for compatibility, preventing duplicate live roster display when Supabase profile overrides load.
+  - Demo data decision: default examples currently use the real visible roster names. 슬기님 confirmed the first demo is internal, so real-name demo is acceptable for now. For broader sharing or security review, prepare an anonymized roster before any URL-based sharing.
+  - Temporary URL decision: excluded for now. Company review will start through port/local-network access instead of a deployed temporary URL.
+  - Demo cleanup note: individual task deletion and local `데이터 초기화` exist, but there is no dedicated one-click `예시 데이터만 삭제` admin action yet. Add it later only if demo data is seeded into a shared Supabase demo DB or cleanup becomes repetitive.
+- Standard desktop density retune:
+  - Reduced the persistent sidebar to 176px and tightened sidebar spacing so 1366-1440px screens leave more room for the work surface.
+  - Changed the approved briefing split to 56/44 on standard desktop widths, increasing the `오늘 일정` and `메모` columns while keeping the briefing list primary.
+  - Calendar multi-day events now use compact first-line ranges such as `(6/11~6/13)` beside the title instead of the long `6월 11일 - 6월 13일` label.
+  - Calendar task/event detail now appears only after clicking a calendar item; the default calendar grid no longer reserves a blank right detail panel.
+  - Browser QA: at 1366x768, workspace was 1175px, briefing columns were 612px/481px, agenda/memo columns were 227px each, no horizontal overflow; at 1440x900, workspace was 1249px, briefing columns were 654px/513px, agenda/memo columns were 243px each, team-member rows did not overflow, calendar title/date used the same title column, no framework overlay, and console errors/warnings were 0.
+  - Follow-up QA at 1440x900: `전략과제 중간 공유회(6/11~6/13)` rendered on one row, no horizontal overflow, no framework overlay, and console errors/warnings were 0.
+  - Follow-up QA at 1366x768: calendar initial grid used 1133px full width with 0 detail panels; clicking a calendar item opened one 340px detail panel; close returned the grid to 1133px; console errors/warnings were 0.
 
 ## Completed Work
 
@@ -217,7 +317,9 @@ Source/app:
 
 - `src/App.jsx` — main state, views, selection/scroll behavior, task CRUD, recurring logic, role logic, title normalization, task detail, performance report.
 - `src/data.js` — sample users/tasks/tags/calendar events/permission roles/recurring metadata.
-- `src/styles.css` — full UI styling, detail header/actions, Korean line-break rules, tag chip styling, timeline/calendar/board/performance refinements.
+- `src/styles.css` — base UI styling and remaining ordered visual refinements for layout, detail, briefing, board, timeline, calendar, updates, performance, modal, and responsive surfaces.
+- `src/styles/foundation.css` — Tailwind/theme import setup and shared focus-visible ring.
+- `src/styles/pre-base-overrides.css` — pre-base interaction, calendar/update, tag modal, and legacy override layer preserved in its original cascade position.
 - `src/storage.js` — localStorage adapter.
 - `src/main.jsx` — app mount.
 - `src/components/ui/button.jsx`, `src/lib/utils.js` — UI utility scaffolding.
@@ -230,9 +332,15 @@ Docs/config:
 - `HANDOFF.md` — current handoff.
 - `TODO.md` — current next actions.
 - `docs/*.md` — backend, backend decision brief, permission, data model, and performance reporting notes.
+- `docs/team-onboarding-checklist.md`, `docs/team-roster-template.csv` — real-user roster collection and validation inputs.
+- `docs/role-rls-validation-checklist.md` — admin/lead/member app and RLS validation matrix for the first real accounts.
+- `docs/supabase-auth-security-checklist.md` — remaining Auth dashboard security check for leaked password protection and password policy.
+- `docs/supabase-security-next-pass.md` — applied security hardening record and remaining Supabase Auth/dashboard security items.
+- `supabase/migrations/014_private_rls_helpers_and_memo_policy.sql` — live-applied private RLS helper/shared memo policy migration.
+- `supabase/migrations/015_split_read_manage_rls_policies.sql` — live-applied performance-focused RLS policy split.
 - `supabase/migrations/001_initial_dashboard_schema.sql` — initial Supabase/Postgres schema and RLS policy draft.
 - `package.json`, `vite.config.js`, `components.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `.gitignore`, `index.html`.
-- `prototype.html` — legacy static reference only.
+- `legacy/prototype.html` — legacy static reference only.
 
 Assets:
 
@@ -242,9 +350,15 @@ Assets:
 
 See `TODO.md`. Highest-priority items:
 
-- Run one manual keyboard-only walkthrough in a real browser before production handoff.
-- Clean up `src/styles.css` layering before production hardening.
-- Choose backend provider/internal API route before real multi-user persistence work.
+- Keep the reviewed localStorage JSON import/export flow as an admin backup and future migration tool.
+  - Current guard exists: signed-in Supabase `JSON 가져오기` shows the import summary and requires admin confirmation before writing DB rows.
+  - The app also records successful import JSON fingerprints locally and warns before re-running the same JSON from the same browser.
+  - Current launch decision: old local prototype data does not need to be migrated because the team will start writing fresh data in Supabase.
+- Finish remaining Supabase CRUD/security work, excluding real roster user signup/account linking and legacy JSON migration for now: the SECURITY DEFINER/shared memo security pass and the `015` RLS policy split are live-applied; next security steps are Supabase Auth leaked password protection and signed-in browser CRUD re-QA.
+- Company demo readiness is documented in `docs/company-demo-readiness-checklist.md`; the company-facing Supabase review summary is `docs/company-supabase-review-brief.md`; temporary URL deployment is excluded for now, while anonymized demo roster creation remains a later approval-boundary item if sharing scope broadens.
+- Internal port demo execution is documented in `docs/internal-port-demo-runbook.md`. Later Windows/Linux company PC clone execution is documented in `docs/company-clone-runbook.md`. Current dev script already uses `vite --host 0.0.0.0`, so `pnpm run dev` can expose a network URL when the company network/firewall allows it. Use `pnpm run demo:urls` to print candidate access URLs and `pnpm run check:demo-readiness` before a demo.
+- Decide internal login/SSO timeline after the email/password version stabilizes.
+- `prototype.html` has been moved to `legacy/prototype.html`; keep it as a static legacy reference only.
 
 ## Validation Status
 
@@ -257,12 +371,48 @@ CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build
 Latest known result:
 
 ```text
-✓ built in 1.25s
+✓ built in 1.63s
 ```
 
 Validation notes:
 
+- Latest `015` live RLS policy split: after explicit approval, `015_split_read_manage_rls_policies` was applied live to project `nbefvcrcfwacvnohtsmy` as migration `20260606093846`. Policy checks confirmed `personal_notes`, `subtasks`, `task_links`, and `task_tags` now have one read `SELECT` policy plus separate `INSERT`, `UPDATE`, and `DELETE` write policies. Authenticated-role smoke testing passed inside a rolled-back transaction: visible rows were `personal_notes 0`, `subtasks 3`, `task_links 1`, `task_tags 3`, and no-op updates passed for `subtasks`, `task_links`, and `task_tags`. Security advisor still reports only `auth_leaked_password_protection` (`Leaked Password Protection Disabled`). Performance advisor no longer reports the previous multiple-permissive-policy warnings; remaining performance items are unused-index INFOs until real traffic accumulates. In-app browser navigation from the stale `5175` error page to `http://127.0.0.1:5173/` remains blocked by Browser URL policy, so signed-in browser CRUD smoke QA is still pending. `git diff --check`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.63s`).
+- Latest emoji picker upgrade: installed `emoji-picker-react@4.19.1`, replaced the custom emoji grid inside the shared `EmojiPopover`, kept the existing portal/trigger behavior, used native emoji rendering, and lazy-loaded the picker on popover open. `vite.config.js` now splits `emoji-picker-react` and `flairup` into an `emoji-picker` chunk. Added a lazy-load failure state with a `다시 시도` button and marked the trigger as `aria-haspopup="dialog"`. Browser QA on `http://127.0.0.1:5175/` verified the signup profile picker opened with `이모지 검색`, rendered 49 visible emoji buttons, narrowed `rocket` search to 4 results, selected `🚀`, closed the popover, kept horizontal overflow false, and console errors/warnings were 0. Follow-up browser QA after the failure-state guardrail verified the picker still opened normally, `aria-haspopup` was `dialog`, 37 emoji buttons rendered in the initial viewport, retry button was not shown on the normal path, horizontal overflow was false, and console errors/warnings were 0. `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `git diff --check`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.46s`). `/Users/seulgi/Library/pnpm/bin/pnpm peers check` still reports the pre-existing `@tailwindcss/vite` peer expectation for Vite 5+, unrelated to `emoji-picker-react`.
+- Latest company-PC clone prep: added `docs/company-clone-runbook.md` for later Windows/Linux clone execution, linked it from the demo readiness docs and Supabase start guide, pinned `packageManager` to `pnpm@11.5.1`, and added `scripts/check-demo-readiness.mjs` plus `pnpm run check:demo-readiness`. The new readiness check verifies required package scripts, lockfile, demo docs, `.env.example` keys, and `.env.local` key presence without printing Supabase values. The clone/internal-port docs now direct company PCs to copy `.env.example` into `.env.local` and keep secret values out of Git/docs. This keeps the current Mac-specific `/Users/seulgi/Library/pnpm/bin/pnpm` workflow intact while documenting generic company-PC commands for cloned environments. `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `git diff --check`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.35s`). Browser QA was not rerun because this pass only changed docs, package metadata, and Node check scripts.
+- Latest company-demo readiness and JSON migration decision: added `docs/company-demo-readiness-checklist.md`, `docs/company-supabase-review-brief.md`, and `docs/internal-port-demo-runbook.md`, then linked them from `docs/supabase-start-guide.md`. The review brief is the company-facing summary for app purpose, real-name demo stance, Supabase data inventory, current security state, approval-bound work, permission model, internal port demo decision, and IT/security questions. The runbook documents the exact port/local-network demo command and network URL pattern. Added `scripts/print-demo-urls.mjs` plus `pnpm run demo:urls` to print local/network URL candidates from the current Mac. 슬기님 confirmed old local prototype data does not need to be migrated because the team will start writing fresh data in Supabase. Keep JSON export/import as an admin backup/future migration tool only. Default example/demo data uses the real visible roster names (`소슬기`, `박경수`, `류강묵`, `장형민`, `박관욱`, `조원태`); use an anonymized roster before broader sharing or security review. Temporary URL is excluded for now, and company review will start through port/local-network access. `src/supabaseImportPlan.js` now records where each local roster ID came from (`업무 담당자`, `업무 작성자`, `업무 배정자`, `일정 담당자`, `프로필 보정`) and includes those sources in the unknown-roster blocking message, so stale local IDs can be mapped before any future live Supabase write. `src/App.jsx` also shows a specific direct-executor fallback alert if the store returns `unknown-roster-ids`. `/Users/seulgi/Library/pnpm/bin/pnpm run demo:urls`, `git diff --check`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.39s`). Earlier browser QA on `http://127.0.0.1:5173/` was limited by the current tab being on the login screen; the login screen rendered, horizontal overflow was false, and console errors/warnings were 0.
+- Latest import safety hardening: Supabase JSON import now blocks unknown local 담당자 IDs before confirmation and also guards the store boundary against direct execution with unknown roster IDs. This prevents accidental roster rows whose display name is just a stale local ID. `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.38s`). Browser QA on `http://127.0.0.1:5173/` verified `Supabase 연결`, data menu buttons `JSON 내보내기/JSON 가져오기/데이터 초기화`, import input accepting `application/json,.json`, no horizontal overflow, and console errors/warnings 0.
+- Latest no-account security prep: actual team-member signup/account linking is excluded for now. Added `docs/supabase-security-next-pass.md` to capture the current advisor context, SECURITY DEFINER helper function options, shared memo policy direction, leaked password protection note, and verification plan for a later explicitly approved live security pass. `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.45s`).
+- Latest admin tag-edit separation QA: browser QA on `http://127.0.0.1:5173/` verified clicking `월간보고` changes the filter to `태그: 선택됨 1개`, leaves `.tag-edit-panel` count at 0, and shows a `태그 수정` action. Clicking `태그 수정` opens one edit panel with `월간보고 태그 이름 수정`; clicking `전체` resets to `태그: 전체`, clears active tags, and closes the edit panel. No horizontal overflow appeared and console errors/warnings were 0. `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.60s`).
+- Latest role/RLS preparation: added `docs/role-rls-validation-checklist.md` and linked it from `docs/team-onboarding-checklist.md`. It defines the minimum admin/lead/member test accounts, expected roster-auth linking checks, role matrix, app UI walkthrough, read-only Supabase SQL checks, and approval boundaries for JSON import, SECURITY DEFINER grants, shared memo RLS strictness, and future SSO. `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.43s`).
+- Latest signed-in roster QA: browser QA on `http://127.0.0.1:5173/` verified the sidebar shows exactly 6 visible real team members (`박경수`, `류강묵`, `박관욱`, `소슬기`, `장형민`, `조원태`), the account button shows `소슬기 수석 관리자`, duplicate visible names are 0, the top status shows `Supabase 연결`, no horizontal overflow appears, and console errors/warnings are 0. This closes the earlier signed-in visible roster verification gap.
+- Latest multi-tag filter QA: the compact top tag filter now opens the expanded tag library instead of showing a native single-select menu. Browser QA on `http://127.0.0.1:5173/` verified the expanded map showed 4 Category rows and 12 tag buttons, selecting `월간보고` and `KPI` changed the top control to `태그: 선택됨 2개`, active chips rendered, `운영/KPI` showed a partial-selected state, `전체` reset to `태그: 전체`, no horizontal overflow appeared, and console errors/warnings were 0. `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.59s`).
+- Latest Supabase advisor preflight: DB table baseline and Supabase security/performance advisors were checked; `supabase/migrations/013_advisor_preflight_hardening.sql` was added and applied live for `touch_updated_at` search path and FK indexes; live syntax check inside `BEGIN ... ROLLBACK` passed before apply; post-apply advisors no longer show the `touch_updated_at` search-path warning or the prior unindexed-FK items; `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan` passed; `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.59s`). Browser opened Supabase mode at `http://127.0.0.1:5173/`; login succeeded, status pill showed `Supabase 연결`, no horizontal overflow, and console errors/warnings were 0.
+- Latest Supabase security hardening: after explicit approval, `014_private_rls_helpers_and_memo_policy` was applied live to project `nbefvcrcfwacvnohtsmy` as migration `20260606091558`. Post-apply SQL checks confirmed public SECURITY DEFINER helper/trigger functions are executable only by `postgres`, private helper functions are executable by `authenticated`, `dashboard_memos` now has active-user select/insert/update policies, and authenticated-role smoke testing passed for users/roster/tasks/memos/memo update inside a rolled-back transaction. Security advisor now only reports leaked password protection disabled; prior SECURITY DEFINER/public RPC and dashboard memo write warnings are gone. Performance advisor no longer reports the previous `auth_rls_initplan` warnings; at that point remaining items were unused-index info and some multiple-permissive read/manage policy pairs, which the later live `015` migration removed. `git diff --check`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.65s`). In-app browser reload of `http://127.0.0.1:5175/` was blocked by Browser URL policy, so signed-in browser CRUD smoke QA still needs a later retry.
+- Latest team onboarding prep: `docs/team-onboarding-checklist.md` and `docs/team-roster-template.csv` were added, then updated with the real visible team roster. Live Supabase profile for `seulgis@posco.com` now shows 소슬기/수석 and is visible in the team list while retaining admin permission for operations. Live Supabase roster also shows 박경수 (`lead`, `kyongsupark@posco.com`), 류강묵 (`kmryu`, `kmryu@posco.com`), 장형민 (`junho`, `hyungmin.jang@posco.com`), 박관욱 (`minji`, `kwanwuk@posco.com`), and 조원태 (`sugu05`, `sugu05@posco.com`); none of these roster rows is linked to an auth user yet. Local fallback sample people, selected-person defaults, and archive-demo generation were also retuned to the same real-member ID set so Supabase profile overrides do not duplicate 류강묵/조원태.
+- Earlier roster validation: live SQL returned the five real visible roster rows with expected emails; old placeholder display-name search returned no source/doc matches; roster CSV parse passed with 6 rows including admin; `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan` passed; `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.64s`). The later signed-in roster QA above closes the earlier visible-roster reload gap.
+- Latest 소슬기 member follow-up: live SQL confirmed `seulgis@posco.com` is `소슬기 / 수석 / permission_role admin / is_team_member true`; the local fallback `admin` seed stays `isTeamMember: false` so the signed-in auth profile is the only visible 소슬기 team-member row. Browser snapshot on `http://127.0.0.1:5173/` showed `Supabase 연결`, account button `소슬기 수석 관리자`, one squirrel member icon in Team Members, no horizontal overflow, and console errors/warnings 0. CSV parse, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, and build passed (`✓ built in 1.51s`).
+- Latest tag library map update: expanded tag library now renders Category rows instead of a long chip cloud. Browser QA on `http://127.0.0.1:5173/` verified the collapsed header remains compact; clicking `펼치기` shows 4 Category rows with grouped tags; current short rows do not show unnecessary `더보기`; scoped `월간보고` tag click sets the tag filter to `월간보고`; reset to `전체`; no horizontal overflow; console errors/warnings 0. `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, and build passed (`✓ built in 1.63s`).
+- Latest tag map sizing follow-up: Category buttons were reduced to 120x27px in browser QA, rows measured 71px high, and each Category/tag pair kept matching color-family borders (for example `운영/KPI` and `월간보고` both stay in the operations tone). No horizontal overflow, console errors/warnings 0, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed, and build passed (`✓ built in 1.60s`).
+- Latest Supabase import guard check: duplicate JSON fingerprint recording/warning was added through `src/storage.js` and `src/App.jsx`; direct import-history storage check passed; browser QA on `http://127.0.0.1:5191/` verified the data menu still shows export/import/reset, the JSON file input accepts `.json`, no horizontal overflow, and console errors/warnings 0. Live import was not run because no source JSON file was selected in QA.
+- Latest legacy reference move check: `prototype.html` was moved to `legacy/prototype.html`; `rg "prototype\\.html"` now points to the legacy path or the completed TODO note; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.44s`); `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed.
+- Latest bounded automatic recurring generation QA: `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.55s`); browser QA on `http://127.0.0.1:5191/` verified board card count stayed stable at 9 across reloads, the Recurring tab still showed 4 recurring rows and 26 `회차 생성` buttons, no horizontal overflow, and console errors/warnings 0.
+- Latest recurring change-history persistence check: `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.43s`); browser render QA on `http://127.0.0.1:5191/` verified the Recurring tab still shows 4 recurring rows and 26 occurrence buttons with `회차 생성`, no horizontal overflow, and console errors/warnings 0. Live Supabase row creation was intentionally not clicked during QA.
+- Latest recurring manual occurrence QA: `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.49s`); browser QA on `http://127.0.0.1:5191/` verified the Recurring tab shows 4 recurring rows and 26 future occurrence buttons, each occurrence chip includes the visible `회차 생성` label and an accessible label such as `7월 1일 시작 회차를 개별 업무로 만들기`, the first chip measured 126x46px, no horizontal overflow, and console errors/warnings 0.
+- Latest calendar permission QA: `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.51s`); browser QA on `http://127.0.0.1:5191/` verified admin calendar event detail shows edit/delete controls, a regular member view sees the same team event as `읽기 전용` with no edit/delete controls, close remains available, no horizontal overflow, and console errors/warnings 0.
+- Latest archive filter/density QA: `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.45s`); browser QA on `http://127.0.0.1:5191/` verified Team Flow `보관함 21`, completed/held sections default collapsed with 0 visible tables, clicking completed opened one table with 13 rows, collapsed owner and period filters, status column removed, category column present, no horizontal overflow, and console errors/warnings 0.
+- Latest roster-management QA: `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.42s`); browser QA on `http://127.0.0.1:5191/` verified the admin account modal shows a compact roster add form with `이름/직책/예정 이메일/권한`, existing roster rows expose editable name/title fields, draft typing works without submit, modal horizontal overflow is false, and console errors/warnings 0.
+- Latest timeline tooltip QA: `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.35s`); browser QA on `http://127.0.0.1:5191/` at 1366x768 verified timeline grid bottom padding 8px, blank space below the last row 8px, inline `.timeline-tooltip` count 0, fixed `.timeline-floating-tooltip` created on timeline row focus with z-index 999, no horizontal overflow, and console errors/warnings 0.
+- Latest insight-label/scroll QA: `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.54s`); browser QA on `http://127.0.0.1:5191/` at 1366x768 verified the `팀 진행 업무` label computed `font-weight: 680`, no horizontal overflow, console errors/warnings 0, and clicking `팀 진행 업무` changed the board position from `top=684px` to `top=12px` while showing `요약: 진행 업무` and 8 filtered task cards.
+- Latest compact-card/hover QA: `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.43s`); browser QA on `http://127.0.0.1:5191/` verified insight-card height 68px with no internal overflow/no horizontal overflow at both 1366x768 and 1280x720, console errors/warnings 0, `지연 업무` click still showed `요약: 지연 업무` with one filtered task, and Team Flow hover panels no longer repeat summary titles such as `팀 진행 업무`; the hover shows only relevant task rows.
+- Latest validation after insight-card action filters: `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed; browser QA on `http://127.0.0.1:5191/` at 1366x768 verified Team Flow action cards, `지연 업무` click -> `요약: 지연 업무`, reset tag/priority/search to `전체/전체/""`, filtered board to 2 delayed cards, summary clear restored 9 cards, My Desk 0-count cards were quiet `aria-disabled=true`, nonzero cards retained `보기 →`, no horizontal overflow, and console errors/warnings were 0.
+- Latest build passed after adding `src/summaryFilters.js`, the summary filter check script, clickable insight cards, and the summary filter pill.
+- Latest browser QA on `http://127.0.0.1:5191/` at 1366x768 verified the simplified common top header: `Strategy Work Hub` rendered at 24px with 48px topbar height, subtitle `<p>` was absent, old My/Team explanatory strings were absent after switching through My Desk, Team Flow, Calendar, Updates, and Highlights, no horizontal overflow, and console errors/warnings were 0.
+- Latest build passed after removing the common top header subtitle and resizing the `Strategy Work Hub` title to 24px.
+- Latest browser QA on `http://127.0.0.1:5191/` at 1366x768 verified the collapsed tag library: initial height 52px, `aria-expanded=false`, no Category/tag chip buttons mounted while collapsed, selected filter context visible in the compact header, `펼치기` expanded to 166px with Category 4 and tag chips 15 visible, `접기` returned to 52px, no horizontal overflow, and console errors/warnings were 0.
+- Latest build passed after collapsing the workflow tag library by default and adding the compact expand/collapse header.
+- Latest browser QA on `http://127.0.0.1:5191/` at 1366x768 verified the workflow filter polish: grouped tag filter options no longer repeat `Category:`/`태그:` prefixes, the tag select measured 106px, non-`전체` tag and importance filters showed distinct blue/yellow active states, the filtered board reduced to 2 matching cards, there was no horizontal overflow, and console errors/warnings were 0.
 - Repeated build checks passed after the latest task-detail, recurring, tag, and scroll-to-detail changes.
+- Latest build passed after the CSS structural split and `src/main.jsx` import order change.
 - Browser validation was run on `http://localhost:5173/`.
 - Measured task-detail layout after the fix:
   - detail panel width: 340px after restoring the common dashboard/detail balance
@@ -299,7 +449,7 @@ Validation notes:
   - task modal detail checklist checkboxes now have explicit `aria-label`s
   - performance option checkboxes now have explicit `aria-label`s
   - update cards expose current status badges such as `⚙️ 진행`, `⏳ 검토`, and `⏸ 보류`
-  - automated Tab traversal in the in-app browser did not move focus reliably; a short manual keyboard-only walkthrough remains recommended before production handoff.
+  - automated Tab traversal in the in-app browser did not move focus reliably, so the later Chrome keyboard walkthrough was used as the required real-browser pass.
 - Browser validation after the contextual detail placement pass:
   - briefing group selection kept the right detail panel beside the briefing panel (`topDeltaFromBriefing: 0`)
   - board card selection switched to `workflow-detail-mode`, removed the top right column, and rendered task detail beside the board with `position: sticky`
@@ -377,13 +527,13 @@ Validation notes:
   - `오늘 업무 큐` was removed from the briefing side panel
   - briefing split now measures `833.9px 449.1px` at 1920px, matching left 65% and right 35%
   - right side split measures `182.6px 243.5px`, matching today agenda 15% and memo 20%
-  - today agenda first line shows `업무/이준호`; the second line shows status/progress such as `진행중 · 67%`
+  - today agenda first line shows `업무/장형민`; the second line shows status/progress such as `진행중 · 67%`
   - D labels shared a single left and right edge
   - console errors/warnings were 0, viewport override was reset, and build passed.
 - Browser validation after board priority / typography alignment pass:
   - added a board-only `중요도` filter beside the tag filter; selecting `높음` reduced the board from 9 cards to 3 cards, all with `높음`, and returning to `전체` restored 9 cards
   - team briefing due labels (`D-1`, `D-14`, `오늘`, `D+2`, `D+1`, `D-3`, `D-6`) all shared right edge `1057` in the 1920px viewport
-  - today agenda now shows task assignee on the first line (`업무/이준호`) and task status as a small status chip such as `⚙️ 진행`
+  - today agenda now shows task assignee on the first line (`업무/장형민`) and task status as a small status chip such as `⚙️ 진행`
   - board status-guide text, board card title/date text, task-detail title, stickers, and compact metadata use calmer font weights
   - top account identity measured `scrollWidth === clientWidth`, so the one-line name/role display was not clipped
   - build passed. Browser logs still retained an old React HMR dependency-length message from the live-edit moment; it did not block rendering and should disappear after a dev-server restart.
@@ -458,7 +608,9 @@ Validation notes:
   - emoji options render as emoji-only buttons, with search/title/accessibility labels retained
   - calendar-side task-detail actions are compact without changing the common task-detail size elsewhere
   - unused legacy `.emoji-picker-grid` CSS was removed
-  - production replacement note for `emoji-picker-react` is recorded in `DESIGN.md`, `TODO.md`, and this handoff
+  - `emoji-picker-react` is now installed and lazy-loaded through the existing shared `EmojiPopover`
+  - native emoji rendering is used instead of CDN/image emoji styles for company-network reliability
+  - `vite.config.js` splits `emoji-picker-react` and `flairup` into an `emoji-picker` chunk so the vendor chunk stays near its previous size
   - build passed on `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
 - Supabase decision/schema prep:
   - approved architecture direction is Supabase/Postgres with email/password first
@@ -491,14 +643,14 @@ Validation notes:
 
 - Git baseline exists on `main`; current Supabase work is on `codex/supabase-integration`.
 - `src/styles.css` is large and still contains layered overrides. A small cleanup pass has started, but production hardening should continue by moving feature sections into clearer layers or CSS modules.
-- Current auth/admin/permission behavior is UI-only and localStorage-backed until the Supabase project is connected. It is not secure yet.
-- Current persistence is browser-local only. It is not multi-user yet.
-- Supabase schema/RLS is applied, but CRUD wiring is not complete yet.
+- Supabase schema/RLS is applied and `014_private_rls_helpers_and_memo_policy` is live-applied, but signed-in browser CRUD smoke QA still needs a retry after the Browser URL-policy block.
+- `015_split_read_manage_rls_policies` is live-applied; remaining performance advisor items are unused-index INFOs until real traffic accumulates.
+- Supabase Auth leaked password protection remains a dashboard setting to enable before broader pilot use, subject to company policy.
 - Manual Data API grants are applied; keep `supabase/migrations/001_initial_dashboard_schema.sql` grant section in sync if new tables are added while automatic table exposure stays disabled.
 - First admin account `seulgis@posco.com` has been promoted to admin.
 - Supabase store is partially wired for auth/session only; task CRUD still uses the local prototype state.
-- Full emoji support is not installed yet. The current picker is a prototype; install and wire `emoji-picker-react` during the production implementation stage after dependency approval.
-- `prototype.html` is not feature parity and should not drive future implementation.
+- Full emoji support is installed through `emoji-picker-react`; keep it lazy-loaded and native-rendered unless a later design decision changes the picker style.
+- `legacy/prototype.html` is not feature parity and should not drive future implementation.
 - Avoid adding dependencies unless necessary; network is restricted.
 - Use `/Users/seulgi/Library/pnpm/bin/pnpm`, not plain `npm`.
 - For recurring work, production should store template rule fields and generated instance history separately.
@@ -511,7 +663,7 @@ Validation notes:
 ```text
 AGENTS.md, HANDOFF.md, TODO.md에서 계속 진행에 필요한 부분만 확인하고 현재 프로젝트를 이어서 진행해줘. HANDOFF.md의 Next Prompt 또는 TODO.md의 최상단 작업부터 바로 처리하고, 변경 후 검증 결과와 남은 리스크를 다시 HANDOFF.md/TODO.md에 업데이트해줘.
 
-프로젝트는 `/Users/seulgi/Documents/work-dashboard`의 `연구기획그룹-전략` 업무 대시보드 React/Vite 프로토타입이다. 대표 구현은 `src/App.jsx`, `src/data.js`, `src/styles.css`, `src/storage.js`이며, `prototype.html`은 레거시 참고용이다.
+프로젝트는 `/Users/seulgi/Documents/work-dashboard`의 `연구기획그룹-전략` 업무 대시보드 React/Vite 프로토타입이다. 대표 구현은 `src/App.jsx`, `src/data.js`, `src/styles.css`, `src/storage.js`이며, `legacy/prototype.html`은 레거시 참고용이다.
 
-다음 우선순위는 task/tags/calendar/memo CRUD를 Supabase 테이블에 연결하는 것이다. 현재는 실제 auth/session과 admin 승격까지 완료됐고, 대시보드 업무 데이터는 아직 localStorage/prototype 상태를 사용한다. localStorage fallback과 현재 UI 동작을 유지하면서 Supabase read path부터 연결하고, 변경 후 `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`와 가능한 브라우저 시각 검증을 수행해줘. 실제 프로덕션 전에는 별도로 수동 키보드 QA도 진행해야 한다.
+현재 Supabase auth/session, 주요 task/tag/calendar/memo CRUD, roster, recurring rule 저장, import summary/executor, 중복 JSON fingerprint guard, unknown-roster import 차단까지 구현되어 있다. `supabase/migrations/013_advisor_preflight_hardening.sql`은 live DB에 적용되어 `touch_updated_at` search_path와 FK 인덱스 preflight가 처리됐고, `supabase/migrations/014_private_rls_helpers_and_memo_policy.sql`도 live DB에 적용되어 RLS helper private schema 이동, public helper/trigger function 직접 execute revoke, `dashboard_memos` active-user select/insert/update 정책이 반영됐다. `supabase/migrations/015_split_read_manage_rls_policies.sql`도 live DB에 적용되어 `personal_notes`, `subtasks`, `task_links`, `task_tags`의 broad `FOR ALL` manage policies가 write-specific insert/update/delete policies로 분리됐다. 현재 security advisor는 leaked password protection disabled만 남고, performance advisor는 unused-index INFO만 남는다. `docs/supabase-auth-security-checklist.md`가 추가되어 leaked password protection/password policy dashboard 확인 절차가 정리됐다. in-app browser reload가 Browser URL policy로 차단되어 signed-in browser CRUD QA는 아직 재시도해야 한다. `docs/company-demo-readiness-checklist.md`, `docs/company-supabase-review-brief.md`, `docs/internal-port-demo-runbook.md`, `docs/company-clone-runbook.md`, `docs/team-onboarding-checklist.md`, `docs/team-roster-template.csv`, `docs/role-rls-validation-checklist.md`도 추가되어 회사 검토용 데모 기준, Supabase 검토 브리프, 포트/로컬 네트워크 시연 절차, Windows/Linux 회사 PC clone 실행 절차, 실제 사용자 정보 수집, 권한 검증 양식이 준비됐다. `package.json`에는 `packageManager: pnpm@11.5.1`이 명시됐고 `pnpm run check:demo-readiness`가 clone/demo 준비 상태를 secret 출력 없이 점검한다. visible team roster는 소슬기/박경수/류강묵/장형민/박관욱/조원태 기준으로 live DB와 로컬 fallback 표시가 맞춰졌다. 실제 팀원 가입/auth 계정 연결은 현재 제외한다. 슬기님은 예전 로컬 JSON 데이터 이관이 필요 없고 Supabase에 새로 쓰기 시작하면 된다고 결정했다. JSON export/import는 백업/미래 이관 도구로만 유지한다. 임시 URL은 현재 제외하고 회사에서 포트/로컬 네트워크를 활용해 먼저 확인한다. 현재 dev script는 `vite --host 0.0.0.0`이므로 회사망/방화벽이 허용하면 `pnpm run dev`로 Network URL을 노출할 수 있다. 다음 우선순위는 Supabase Auth leaked password protection 결정/활성화, signed-in browser CRUD QA 재시도, 또는 포트 기반 내부 시연 전 로컬 브라우저 QA다. 변경 후 `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`, 가능한 브라우저 QA 결과를 `HANDOFF.md`/`TODO.md`에 반영해줘.
 ```

@@ -1,14 +1,12 @@
 export const TODAY = "2026-06-04";
 
 export const people = [
-  { id: "admin", name: "관리자", role: "관리자", permissionRole: "admin", color: "#475569", emoji: "🛡️", isTeamMember: false },
-  { id: "lead", name: "박도윤", role: "팀장", permissionRole: "lead", color: "#2563eb", emoji: "🦉", isTeamMember: true },
-  { id: "seoyeon", name: "김서연", role: "책임", permissionRole: "member", color: "#0f766e", emoji: "🌿", isTeamMember: true },
-  { id: "junho", name: "이준호", role: "책임", permissionRole: "member", color: "#7c3aed", emoji: "🐳", isTeamMember: true },
-  { id: "minji", name: "최민지", role: "선임", permissionRole: "member", color: "#c2410c", emoji: "🦊", isTeamMember: true },
-  { id: "haram", name: "정하람", role: "선임", permissionRole: "member", color: "#0369a1", emoji: "🌱", isTeamMember: true },
-  { id: "taeseok", name: "윤태석", role: "매니저", permissionRole: "member", color: "#4d7c0f", emoji: "🐢", isTeamMember: true },
-  { id: "jieun", name: "오지은", role: "매니저", permissionRole: "member", color: "#be185d", emoji: "🍀", isTeamMember: true }
+  { id: "admin", name: "소슬기", role: "수석", permissionRole: "admin", color: "#475569", emoji: "🐿️", isTeamMember: false },
+  { id: "lead", name: "박경수", role: "팀장", permissionRole: "lead", color: "#2563eb", emoji: "🦉", isTeamMember: true },
+  { id: "kmryu", name: "류강묵", role: "수석", permissionRole: "member", color: "#0f766e", emoji: "🌿", isTeamMember: true },
+  { id: "junho", name: "장형민", role: "차장", permissionRole: "member", color: "#7c3aed", emoji: "📘", isTeamMember: true },
+  { id: "minji", name: "박관욱", role: "수석", permissionRole: "member", color: "#c2410c", emoji: "📊", isTeamMember: true },
+  { id: "sugu05", name: "조원태", role: "수석", permissionRole: "member", color: "#0369a1", emoji: "🧩", isTeamMember: true }
 ];
 
 export const statuses = ["계획", "진행중", "검토/대기", "완료", "보류"];
@@ -29,12 +27,12 @@ export const initialCalendarEvents = [
   },
   {
     id: "e-002",
-    title: "김서연 외부 자문 미팅",
+    title: "류강묵 외부 자문 미팅",
     date: "2026-06-16",
     startDate: "2026-06-16",
     endDate: "2026-06-16",
     scope: "personal",
-    ownerId: "seoyeon",
+    ownerId: "kmryu",
     note: "기획보고 근거 확인"
   },
   {
@@ -54,7 +52,7 @@ export const initialTasks = [
     id: "t-001",
     title: "상반기 전략과제 기획보고 초안",
     description: "연구기획그룹 전략과제의 상반기 추진 논리와 주요 실행안을 정리합니다.",
-    ownerId: "seoyeon",
+    ownerId: "kmryu",
     assignerId: "lead",
     assignerType: "팀장님",
     creatorId: "lead",
@@ -79,7 +77,7 @@ export const initialTasks = [
       { title: "시장 동향 데이터", url: "https://intra.research-strategy.local/data/market-trends", type: "자료" }
     ],
     updates: [
-      { authorId: "seoyeon", date: "2026-06-04", text: "목차와 핵심 메시지 1차 정리 완료. 오후에 수치 근거 보강 예정." },
+      { authorId: "kmryu", date: "2026-06-04", text: "목차와 핵심 메시지 1차 정리 완료. 오후에 수치 근거 보강 예정." },
       { authorId: "lead", date: "2026-06-03", text: "실행과제별 기대효과가 먼저 보이도록 구성해 주세요." }
     ]
   },
@@ -141,7 +139,7 @@ export const initialTasks = [
     id: "t-004",
     title: "탄소중립 기술 포트폴리오 업데이트",
     description: "주요 기술군의 투자 우선순위와 리스크를 최신 자료 기준으로 갱신합니다.",
-    ownerId: "haram",
+    ownerId: "sugu05",
     assignerId: "lead",
     assignerType: "팀장님",
     creatorId: "lead",
@@ -156,13 +154,13 @@ export const initialTasks = [
     isNewAssignment: false,
     recurring: null,
     links: [{ title: "기술 포트폴리오 시트", url: "https://intra.research-strategy.local/sheets/tech-portfolio", type: "시트" }],
-    updates: [{ authorId: "haram", date: "2026-06-03", text: "검토본 업로드. 투자 우선순위 의견 대기 중." }]
+    updates: [{ authorId: "sugu05", date: "2026-06-03", text: "검토본 업로드. 투자 우선순위 의견 대기 중." }]
   },
   {
     id: "t-005",
     title: "임원보고 Q&A 예상질문 정리",
     description: "주요 보고 안건별 예상질문과 답변 방향을 짧게 정리합니다.",
-    ownerId: "taeseok",
+    ownerId: "kmryu",
     assignerId: "lead",
     assignerType: "팀장님",
     creatorId: "lead",
@@ -183,10 +181,10 @@ export const initialTasks = [
     id: "t-006",
     title: "정책 변화 모니터링 메모",
     description: "신규 정부 정책과 연구지원 제도 변화를 요약해 팀 공유용 메모로 만듭니다.",
-    ownerId: "jieun",
+    ownerId: "sugu05",
     assignerId: "lead",
     assignerType: "팀장님",
-    creatorId: "jieun",
+    creatorId: "sugu05",
     status: "진행중",
     priority: "낮음",
     category: "자료조사",
@@ -205,7 +203,7 @@ export const initialTasks = [
     recurringNoEnd: true,
     recurringDurationDays: 3,
     links: [{ title: "정책 모니터링 링크", url: "https://intra.research-strategy.local/library/policy-monitoring", type: "웹" }],
-    updates: [{ authorId: "jieun", date: "2026-06-04", text: "산업부 발표자료 3건 추가 확인." }]
+    updates: [{ authorId: "sugu05", date: "2026-06-04", text: "산업부 발표자료 3건 추가 확인." }]
   },
   {
     id: "t-007",
@@ -239,10 +237,10 @@ export const initialTasks = [
     id: "t-008",
     title: "기획보고 데이터 근거 검증",
     description: "보고서에 들어갈 수치와 출처를 확인하고 자료 링크를 보강합니다.",
-    ownerId: "seoyeon",
+    ownerId: "kmryu",
     assignerId: "lead",
     assignerType: "팀장님",
-    creatorId: "seoyeon",
+    creatorId: "kmryu",
     status: "보류",
     priority: "보통",
     category: "기획보고",
@@ -254,7 +252,7 @@ export const initialTasks = [
     isNewAssignment: false,
     recurring: null,
     links: [{ title: "검증 체크리스트", url: "https://intra.research-strategy.local/docs/evidence-checklist", type: "문서" }],
-    updates: [{ authorId: "seoyeon", date: "2026-06-02", text: "외부 통계 출처 1건 확인 필요. 보류 처리." }]
+    updates: [{ authorId: "kmryu", date: "2026-06-02", text: "외부 통계 출처 1건 확인 필요. 보류 처리." }]
   },
   {
     id: "t-009",
@@ -291,10 +289,10 @@ export const initialTasks = [
     id: "t-010",
     title: "5월 정책자료 링크 정리",
     description: "지난달 정책 모니터링 링크와 요약 메모를 보관용 자료로 정리했습니다.",
-    ownerId: "jieun",
-    assignerId: "jieun",
+    ownerId: "sugu05",
+    assignerId: "sugu05",
     assignerType: "개인",
-    creatorId: "jieun",
+    creatorId: "sugu05",
     status: "완료",
     priority: "낮음",
     category: "자료조사",
@@ -302,7 +300,7 @@ export const initialTasks = [
     startDate: "2026-05-01",
     dueDate: "2026-05-30",
     completedAt: "2026-06-01",
-    completedBy: "jieun",
+    completedBy: "sugu05",
     progress: 100,
     archived: true,
     isNewAssignment: false,
@@ -315,7 +313,7 @@ export const initialTasks = [
     recurringNoEnd: true,
     recurringDurationDays: 2,
     links: [{ title: "5월 정책자료 모음", url: "https://intra.research-strategy.local/drive/policy-2026-05", type: "드라이브" }],
-    updates: [{ authorId: "jieun", date: "2026-06-01", text: "완료 자료를 보관 처리. 필요 시 보관함에서 재확인 가능." }],
-    statusHistory: [{ from: "진행중", to: "완료", actorId: "jieun", date: "2026-06-01", note: "완료 처리" }]
+    updates: [{ authorId: "sugu05", date: "2026-06-01", text: "완료 자료를 보관 처리. 필요 시 보관함에서 재확인 가능." }],
+    statusHistory: [{ from: "진행중", to: "완료", actorId: "sugu05", date: "2026-06-01", note: "완료 처리" }]
   }
 ];

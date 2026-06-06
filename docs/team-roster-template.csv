@@ -1,0 +1,7 @@
+roster_id,name,title,permission_role,expected_email,is_team_member,is_active,profile_emoji,notes
+admin,소슬기,수석,admin,seulgis@posco.com,true,true,🐿️,실제 팀원 표시. 대체 관리자 생성 전까지 운영 권한은 admin 유지
+lead,박경수,팀장,lead,kyongsupark@posco.com,true,true,🦉,팀장 계정
+kmryu,류강묵,수석,member,kmryu@posco.com,true,true,🌿,권한 테스트용 일반 팀원
+junho,장형민,차장,member,hyungmin.jang@posco.com,true,true,📘,실제 팀원
+minji,박관욱,수석,member,kwanwuk@posco.com,true,true,📊,실제 팀원
+sugu05,조원태,수석,member,sugu05@posco.com,true,true,🧩,실제 팀원

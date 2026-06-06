@@ -30,17 +30,26 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 
 ### Top Bar
 
+- The common page header should keep only the `Strategy Work Hub` title; do not show repeated explanatory subtitles below it.
+- The title can be slightly larger than the surrounding toolbar controls, but should remain compact enough for 1366px desktop layouts.
 - Search input is compact; placeholder text should not dominate the page.
 - Account button shows emoji/profile, name, and role on one line when possible.
 - Admin indication belongs in the top account area, not in every team list row.
+- Admin roster management belongs inside the account modal. Keep roster add/edit controls compact, avoid horizontal overflow, and do not make the admin section dominate ordinary profile switching.
 
 ### Today Briefing
 
 - `오늘 브리핑` is the first meaningful screen.
+- Top insight cards should stay number-first, but act as compact action filters: nonzero cards show a small `보기 →` action and clicking them filters the board to that cohort.
+- Insight cards should stay short on 1280-1366px widths: use the right-side space for status copy/action text instead of adding a taller third text row.
+- Insight card labels under the number should be medium-strong, not black-weight bold.
+- Insight hover previews list only the relevant tasks; do not repeat the summary card title inside the hover panel.
+- Clicking a top insight card should naturally bring the board result area into view, especially when the briefing content is long.
+- Zero-value insight cards should feel quieter than active cards and should not imply an available click action.
 - Personal mode emphasizes the selected user's own work.
 - Team mode summarizes the public team flow.
 - The left briefing list owns most of the width; side widgets must not squeeze task titles.
-- The current approved split is approximately 60 percent briefing list and 40 percent side panel.
+- The current approved split is approximately 56 percent briefing list and 44 percent side panel on standard desktop widths.
 - The side panel contains `오늘 일정` and `메모`, not `오늘 업무 큐`.
 - `오늘 일정` and `메모` are equal-width within the side area.
 - `메모` is page-scoped shared memo: `오늘 브리핑` and `전체 업무흐름` have independent memo values.
@@ -66,10 +75,11 @@ Greetings:
 ## Emoji Picker Contract
 
 - Emoji selection is a shared interaction for profile settings, memo, calendar notes, and update logs.
-- The prototype uses a lightweight searchable popover without installing a full emoji package.
+- The shared picker now uses `emoji-picker-react` for the full emoji set, search, categories, and recent emojis.
+- Load the picker only when the popover opens, so the main dashboard bundle stays light.
+- Use native emoji rendering rather than image/CDN emoji styles for company-network reliability.
 - Popover content must render above cards/panels and must not be clipped by parent overflow.
 - Emoji options should show the emoji only; helper names belong in `title` or accessible labels, not visible text under each emoji.
-- In production implementation, replace the prototype picker with `emoji-picker-react` so the full emoji set, search, categories, and recent emojis are available.
 - Do not put emoji pickers on structured fields such as task title, tags, dates, status, or priority unless the product scope explicitly changes.
 
 ## Workflow Views
@@ -93,13 +103,16 @@ Greetings:
 - Toolbar, legend, and date axis should stay readable while the timeline scrolls.
 - Task bars show tag, task title, progress percent, and repeat/risk markers when applicable.
 - If a task spans outside the visible period, communicate that through tooltip/edge treatment rather than clipped-looking text.
+- Timeline hover/focus previews should float above the page as an overlay, not reserve large empty space inside the timeline grid.
 - Clicking a timeline task opens the same right-side workflow task detail as board/recurring/archive.
 
 ### Recurring Work
 
 - Recurring tab previews scheduled work; it should not flood the board with far-future tasks.
-- Future instances appear in board/briefing only when the relevant start date arrives or an instance is actually created.
+- Future instances appear in board/briefing only when the relevant start date arrives or an instance is manually created.
+- Automatic generation is bounded: only unarchived recurring source tasks whose next occurrence start date is on or before the dashboard's current date can materialize, and existing `recurringTemplateId + dueDate` pairs must not duplicate.
 - Schedule preview shows one compact line; overflow becomes hidden/truncated.
+- Future occurrence chips should make the manual action explicit with compact copy such as `회차 생성`; they are not background automation.
 - Use `미수행 반복 일정 삭제` for removing future unstarted recurring schedules.
 - Repeated instances copy detailed task items but reset completion checks, logs, history, and completion metadata.
 - Repeat marker is icon-only across board, detail, timeline, calendar, and legend.
@@ -108,6 +121,14 @@ Greetings:
 
 - Completed and held tasks can be archived.
 - Archived tasks disappear from main board/briefing but remain searchable in archive and usable in reporting.
+- Archive should favor a sectioned table/list over cards because records can accumulate over time.
+- Archive table columns should stay compact for high-volume records: task, owner, category, tags, archive date, and restore action.
+- Do not repeat a status column in archive tables when section grouping and status dots already communicate completed/held state.
+- Completed archived work and held archived work should be separated into clear sections.
+- Completed/held archive sections should be collapsible and start collapsed by default, so users can jump to the section they need without scrolling through accumulated records.
+- In Team Flow archive, owner is the primary collapsed filter and period is the secondary collapsed filter. Period options are `전체기간`, `1분기`, `2분기`, `3분기`, and `4분기`.
+- Restoring a held archived task returns it to the main board's `보류` column, where it can later move back into active statuses.
+- Local prototype may expose an obvious demo-fill control so accumulated completed/held archive rows can be reviewed without live operational data.
 - Archive restore uses the common task detail actions.
 
 ## Task Detail Contract
@@ -165,6 +186,8 @@ Metadata and history:
 - `업무 일정` means planned task end date.
 - Weekend dates should feel like holidays through red text only, not heavy red backgrounds.
 - Calendar task click opens the common task detail, not a separate reduced task card.
+- Calendar task/event detail appears only after clicking a calendar item; do not reserve a blank right panel by default.
+- Multi-day event chips may show a compact date range such as `(6/4~6/8)` on the first line after the title.
 - Personal or team event detail should emphasize the event note/details more than metadata.
 - Event detail does not need to repeat type or person when color/context already communicates it.
 - Event edit mode should not keep the old event title as a separate large heading above the form.
@@ -204,9 +227,17 @@ Metadata and history:
 - Tags can be applied in multiples.
 - Tag chips should have one shared grammar across briefing, board, detail, update, tag library, and task form.
 - Tag bundle presets are filters, not real editable tags.
-- Category preset clicks filter work immediately; they must not open the admin edit UI by themselves.
+- The compact top tag filter is an opener/status control, not a single-select menu: it shows `전체` or `선택됨 N개` and opens the tag library.
+- Actual tag filtering happens in the expanded tag library by clicking multiple Category rows or individual tags.
+- Multiple selected tags use an OR filter: show work that contains at least one selected tag.
+- Category preset clicks toggle all tags in that Category; they must not open the admin edit UI by themselves.
 - Admin Category editing must use a separate explicit action such as `Category 수정`.
+- Admin tag rename/delete must also use a separate explicit action such as `태그 수정`; clicking one tag should only select/filter it.
 - The `전체` tag filter is the HOME/all-work filter and should be visually more prominent than normal individual tag chips.
+- Tag and importance filter controls should show a clear active state whenever the selected value is not `전체`.
+- The tag library below workflow filters should start collapsed as a compact header with counts, selected-filter context, and an obvious expand/collapse control.
+- When expanded, the tag library should use a Category-first tag map instead of one long chip cloud: each row shows the Category name, tag count, representative tags, and a `+N개/더보기` control only when tags exceed the preview.
+- Category rows and individual tags should visually show selected and partial-selected states.
 - Preset chips may have subtle border color differences, but avoid strong filled colors.
 - Importance filter applies to board, timeline, recurring, and archive workflow views.
 
