@@ -19,6 +19,21 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 
 ## Current Layout Contract
 
+### POSLAB Entry Landing
+
+- The entry landing appears before the dashboard body in the current browser session.
+- The page is an internal entry gate, not a marketing landing page.
+- Use a bright POSCO-inspired radial background that connects to the dashboard's blue/teal/slate palette.
+- `POSLAB` should read as the entry brand. `Work Hub` should reuse the dashboard title gradient grammar.
+- The small kicker above the main title should read `POSCO`, and the supporting line should read `함께 보는 업무, 함께 만드는 흐름, 함께 성장하는 팀`.
+- The left `연구기획그룹-전략` mark should stay visible enough to anchor the internal group identity without competing with the POSLAB heading.
+- The lanyard card should use the React Bits-style original card/clip/clamp model, but the strap must be logo-free and tuned to the POSCO-blue dashboard palette.
+- The POSLAB card face follows the selected `Executive Blue` direction: solid high-contrast POSCO-blue badge, restrained diagonal pattern, clean white `POSLAB` text placed above the subtle center rule, and no fake border strokes that fight the GLB UV mapping.
+- The card face may use subtle texture-drawn highlights and shadows to feel dimensional, but avoid heavy 3D text effects that make the badge feel game-like or dated.
+- The POSLAB card face must be readable on first load and must not collapse into a short top-only canvas, clip the card body, wash out against the pale background, or rotate so far that the text reads as a partial word.
+- The primary action is `대시보드로 들어가기`; future SSO can replace this action without changing the dashboard body.
+- Keep the entry screen visually separate from real backend security claims. Do not imply SSO is implemented until it is actually connected.
+
 ### Sidebar
 
 - Left sidebar stays persistent.

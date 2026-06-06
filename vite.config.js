@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  assetsInclude: ["**/*.glb"],
   esbuild: {
     jsx: "automatic"
   },
@@ -14,6 +15,14 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes("/node_modules/emoji-picker-react/") || id.includes("/node_modules/flairup/")) return "emoji-picker";
           if (id.includes("/node_modules/@supabase/")) return "supabase";
+          if (
+            id.includes("/node_modules/@react-three/") ||
+            id.includes("/node_modules/three/") ||
+            id.includes("/node_modules/meshline/") ||
+            id.includes("/node_modules/@dimforge/") ||
+            id.includes("/node_modules/@mediapipe/") ||
+            id.includes("/node_modules/@use-gesture/")
+          ) return "lanyard-vendor";
           if (
             id.includes("/node_modules/@xyflow/") ||
             id.includes("/node_modules/d3-") ||

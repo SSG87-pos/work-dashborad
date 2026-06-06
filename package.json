@@ -17,6 +17,9 @@
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "@react-three/rapier": "^2.2.0",
     "@supabase/supabase-js": "^2.107.0",
     "@tanstack/react-table": "^8.21.3",
     "@xyflow/react": "^12.11.0",
@@ -27,10 +30,12 @@
     "d3-zoom": "3.0.0",
     "emoji-picker-react": "^4.19.1",
     "lucide-react": "^0.468.0",
+    "meshline": "^3.3.1",
     "motion": "^12.40.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.6.0",
+    "three": "^0.184.0",
     "tldraw": "^5.1.0"
   },
   "devDependencies": {

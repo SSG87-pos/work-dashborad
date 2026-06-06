@@ -2,6 +2,16 @@
 
 ## Now
 
+- [x] Add a POSLAB entry landing before the dashboard.
+  - Files: `src/App.jsx`, `src/PoslabLanyard.jsx`, `src/styles.css`, `vite.config.js`, `package.json`, `pnpm-lock.yaml`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: created branch `codex/poslab-entry-landing` for the entry experiment.
+  - Done: added a bright POSCO-inspired radial background, POSLAB/Work Hub heading using the dashboard title-gradient grammar, and a `대시보드로 들어가기` gate before the dashboard body.
+  - Done: updated the title kicker to `POSCO`, changed the supporting copy to `함께 보는 업무, 함께 만드는 흐름, 함께 성장하는 팀`, and enlarged the left `연구기획그룹-전략` mark for better visibility.
+  - Done: added a lazy-loaded React Bits-style WebGL lanyard card using the original `card.glb` card/clip/clamp structure, with the strap rendered as a logo-free POSCO-blue line and the card face set to the selected `Executive Blue` POSLAB badge direction.
+  - Done: kept existing Supabase email/password auth path available when configured; already authenticated users still see the entry gate first and enter the dashboard by click.
+  - Done: split the lanyard runtime (`three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/rapier`, `meshline`) into a `lanyard-vendor` Vite chunk.
+  - Verified: `git diff --check` and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed. Browser QA on `http://localhost:5174/` verified the entry page appears before the dashboard, the original-model POSLAB lanyard card uses a farther camera distance, keeps a visible sway animation, removes the original strap logo marks, removes the malformed fake border stroke, applies the selected `Executive Blue` card face with restrained text effects, the mobile layout has no horizontal overflow, the auth mode tabs switch correctly, and console errors were 0.
+
 - [x] Add an admin-only management tab for people, tags, and workstreams.
   - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added a sidebar `관리자` tab visible only to admin users and guarded stale non-admin access back to the normal board.

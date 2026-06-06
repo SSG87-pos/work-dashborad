@@ -2614,6 +2614,279 @@ h1 {
   line-height: 1.5;
 }
 
+.login-screen.poslab-entry-screen {
+  position: relative;
+  place-items: stretch;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #f8fbff;
+  padding: clamp(18px, 3vw, 36px);
+}
+
+.poslab-entry-gradient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(125% 125% at 36% 8%, #ffffff 0%, #f8fbff 38%, #e5f6fd 100%),
+    linear-gradient(135deg, rgba(5, 80, 125, 0.07), transparent 44%),
+    #f8fbff;
+}
+
+.poslab-entry-gradient::before,
+.poslab-entry-gradient::after {
+  content: "";
+  position: absolute;
+  inset: auto auto 0 0;
+  width: min(58vw, 760px);
+  height: min(58vw, 760px);
+  border: 1px solid rgba(0, 165, 229, 0.12);
+  border-radius: 50%;
+  transform: translate(-24%, 34%);
+}
+
+.poslab-entry-gradient::after {
+  inset: 0 0 auto auto;
+  width: min(42vw, 540px);
+  height: min(42vw, 540px);
+  border-color: rgba(5, 80, 125, 0.1);
+  transform: translate(30%, -30%);
+}
+
+.poslab-entry-shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(360px, 1.22fr) minmax(300px, 0.78fr);
+  align-items: center;
+  width: min(1240px, 100%);
+  min-height: calc(100vh - clamp(36px, 6vw, 72px));
+  margin: 0 auto;
+  gap: clamp(20px, 4vw, 56px);
+}
+
+.poslab-entry-visual {
+  position: relative;
+  display: grid;
+  align-items: center;
+  min-height: min(760px, calc(100vh - 72px));
+}
+
+.poslab-brand-kicker {
+  position: absolute;
+  top: clamp(18px, 3vw, 34px);
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  color: #05507d;
+  font-size: 17px;
+  font-weight: 820;
+  letter-spacing: 0;
+}
+
+.poslab-mark {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 7px);
+  align-items: end;
+  gap: 5px;
+  height: 32px;
+}
+
+.poslab-mark span {
+  display: block;
+  width: 7px;
+  border-radius: 999px;
+  background: #00a5e5;
+}
+
+.poslab-mark span:nth-child(1) {
+  height: 18px;
+}
+
+.poslab-mark span:nth-child(2) {
+  height: 26px;
+  background: #05507d;
+}
+
+.poslab-mark span:nth-child(3) {
+  height: 32px;
+  background: #1d4ed8;
+}
+
+.poslab-lanyard-wrapper,
+.poslab-lanyard-fallback {
+  width: 100%;
+  height: min(760px, calc(100vh - 64px));
+  min-height: min(760px, calc(100vh - 64px));
+}
+
+.poslab-lanyard-wrapper canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  cursor: grab;
+}
+
+.poslab-lanyard-fallback {
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(5, 80, 125, 0.06), rgba(0, 165, 229, 0.08));
+}
+
+.poslab-entry-panel {
+  display: grid;
+  align-content: center;
+  gap: 24px;
+  max-width: 430px;
+  justify-self: end;
+}
+
+.poslab-entry-heading {
+  display: grid;
+  gap: 10px;
+}
+
+.poslab-entry-heading h1 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.22em;
+  margin: 0;
+  color: #05507d;
+  font-size: clamp(38px, 4.7vw, 62px);
+  font-weight: 860;
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.hub-gradient-text {
+  width: fit-content;
+  background: linear-gradient(92deg, #1d4ed8 0%, #0f766e 58%, #111827 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.poslab-entry-heading p {
+  margin: 0;
+  color: #516276;
+  font-size: 16px;
+  font-weight: 560;
+  line-height: 1.55;
+}
+
+.poslab-auth-form,
+.poslab-local-entry {
+  display: grid;
+  gap: 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.poslab-auth-form .auth-mode-tabs {
+  max-width: 240px;
+  border: 1px solid rgba(203, 213, 225, 0.72);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.poslab-auth-form .auth-field input {
+  border-color: rgba(203, 213, 225, 0.86);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.poslab-enter-button {
+  min-height: 46px;
+  border-radius: 8px;
+  background: #05507d;
+  box-shadow: 0 16px 34px rgba(5, 80, 125, 0.18);
+}
+
+.poslab-enter-button:hover {
+  background: #06476f;
+}
+
+.poslab-account-grid {
+  max-height: 250px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.poslab-account-grid .login-account-card {
+  border-color: rgba(203, 213, 225, 0.78);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.poslab-account-grid .login-account-card:hover,
+.poslab-account-grid .login-account-card.selected {
+  border-color: rgba(0, 165, 229, 0.52);
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(5, 80, 125, 0.08);
+}
+
+.poslab-entry-panel .auth-footnote {
+  grid-column: auto;
+  margin: 0;
+  color: #66758a;
+}
+
+@media (max-width: 760px) {
+  .poslab-entry-shell {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 12px;
+  }
+
+  .poslab-entry-visual {
+    min-height: 330px;
+    order: 2;
+  }
+
+  .poslab-brand-kicker {
+    position: relative;
+    top: auto;
+    margin-bottom: 8px;
+  }
+
+  .poslab-lanyard-wrapper,
+  .poslab-lanyard-fallback {
+    height: 360px;
+    min-height: 360px;
+  }
+
+  .poslab-entry-panel {
+    justify-self: start;
+    width: min(520px, 100%);
+    max-width: none;
+    order: 1;
+  }
+
+  .poslab-entry-heading h1 {
+    font-size: clamp(34px, 9vw, 48px);
+  }
+}
+
+@media (max-width: 620px) {
+  .login-screen.poslab-entry-screen {
+    padding: 16px;
+  }
+
+  .poslab-entry-shell {
+    min-height: calc(100vh - 32px);
+  }
+
+  .poslab-lanyard-wrapper,
+  .poslab-lanyard-fallback {
+    min-height: 300px;
+  }
+
+  .poslab-auth-form .auth-mode-tabs {
+    max-width: none;
+  }
+}
+
 .modal-header {
   justify-content: space-between;
   gap: 12px;

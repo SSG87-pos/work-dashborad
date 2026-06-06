@@ -53,6 +53,7 @@ import { collectWorkstreams, groupTasksByWorkstream, recommendWorkstream } from 
 
 const MindmapView = lazy(() => import("./MindmapView.jsx").then((module) => ({ default: module.MindmapView })));
 const SharedCanvasView = lazy(() => import("./SharedCanvasView.jsx").then((module) => ({ default: module.SharedCanvasView })));
+const PoslabLanyard = lazy(() => import("./PoslabLanyard.jsx"));
 
 const dayMs = 24 * 60 * 60 * 1000;
 const boardStatuses = ["검토/대기", "계획", "진행중", "완료", "보류"];
@@ -1795,7 +1796,8 @@ function App() {
   );
   const [tasks, setTasks] = useState(initialPersistedTasks);
   const [selectedPersonId, setSelectedPersonId] = useState(() => persistedPerson(persisted.selectedPersonId));
-  const [isAuthenticated, setIsAuthenticated] = useState(() => isSupabaseReady ? false : persisted.isAuthenticated !== false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => isSupabaseReady ? false : persisted.isAuthenticated === true);
+  const [hasEnteredDashboard, setHasEnteredDashboard] = useState(false);
   const [authStatus, setAuthStatus] = useState(isSupabaseReady ? "checking" : "local");
   const [authMessage, setAuthMessage] = useState("");
   const [category, setCategory] = useState(() => persistedTag(persisted.category, initialPersistedTags, initialTagGroups));
@@ -2863,6 +2865,11 @@ function App() {
     setSelectedTaskId(tasks.find((task) => !isDeletedTask(task) && !task.archived && task.ownerId === personId)?.id ?? tasks.find((task) => !isDeletedTask(task) && !task.archived)?.id ?? tasks.find((task) => !isDeletedTask(task))?.id ?? "");
   }
 
+  function enterDashboardAs(personId) {
+    loginAs(personId);
+    setHasEnteredDashboard(true);
+  }
+
   async function logout() {
     if (isSupabaseReady) {
       try {
@@ -2872,6 +2879,7 @@ function App() {
       }
     }
     setIsAuthenticated(false);
+    setHasEnteredDashboard(false);
     setIsAccountOpen(false);
     setAuthStatus(isSupabaseReady ? "signed-out" : "local");
   }
@@ -3212,13 +3220,15 @@ function App() {
     setIsDataMenuOpen(false);
   }
 
-  if (!isAuthenticated) {
+  if (!hasEnteredDashboard || !isAuthenticated) {
     return (
       <LoginScreen
         authMessage={authMessage}
         authStatus={authStatus}
+        isAlreadyAuthenticated={isAuthenticated}
         isSupabaseReady={isSupabaseReady}
-        onLogin={loginAs}
+        onEnterDashboard={() => setHasEnteredDashboard(true)}
+        onLogin={enterDashboardAs}
         onSupabaseAuth={authenticateWithSupabase}
         people={directory}
       />
@@ -3908,13 +3918,23 @@ function insertEmojiAtCursor(textareaRef, currentValue, emoji, onChange) {
   });
 }
 
-function LoginScreen({ authMessage, authStatus, isSupabaseReady, onLogin, onSupabaseAuth, people }) {
+function LoginScreen({ authMessage, authStatus, isAlreadyAuthenticated, isSupabaseReady, onEnterDashboard, onLogin, onSupabaseAuth, people }) {
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [profileEmoji, setProfileEmoji] = useState("🌿");
+  const localAccounts = useMemo(() => orderedAccounts(people), [people]);
+  const [selectedLocalPersonId, setSelectedLocalPersonId] = useState(() => localAccounts[0]?.id ?? "");
+  const selectedLocalPerson = localAccounts.find((person) => person.id === selectedLocalPersonId) ?? localAccounts[0];
   const isSubmitting = authStatus === "submitting" || authStatus === "checking";
+
+  useEffect(() => {
+    if (!localAccounts.length) return;
+    if (!localAccounts.some((person) => person.id === selectedLocalPersonId)) {
+      setSelectedLocalPersonId(localAccounts[0].id);
+    }
+  }, [localAccounts, selectedLocalPersonId]);
 
   function submit(event) {
     event.preventDefault();
@@ -3928,92 +3948,124 @@ function LoginScreen({ authMessage, authStatus, isSupabaseReady, onLogin, onSupa
     });
   }
 
-  if (isSupabaseReady) {
-    return (
-      <main className="login-screen">
-        <section className="login-panel auth-login-panel">
-          <div className="login-copy">
-            <span className="panel-label">연구기획그룹-전략</span>
-            <h1>업무 대시보드 로그인</h1>
-            <p>회사 이메일로 가입하면 기본 팀원으로 들어오고, 관리자 권한은 별도로 지정됩니다.</p>
+  return (
+    <main className="login-screen poslab-entry-screen">
+      <div className="poslab-entry-gradient" aria-hidden="true" />
+      <section className="poslab-entry-shell" aria-label="POSLAB Work Hub 시작">
+        <div className="poslab-entry-visual">
+          <div className="poslab-brand-kicker">
+            <span className="poslab-mark" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+            <span>연구기획그룹-전략</span>
+          </div>
+          <Suspense fallback={<div className="poslab-lanyard-fallback" />}>
+            <PoslabLanyard />
+          </Suspense>
+        </div>
+
+        <div className="poslab-entry-panel">
+          <div className="poslab-entry-heading">
+            <span className="panel-label">POSCO</span>
+            <h1>
+              <span>POSLAB</span>
+              <span className="hub-gradient-text">Work Hub</span>
+            </h1>
+            <p>함께 보는 업무, 함께 만드는 흐름, 함께 성장하는 팀</p>
           </div>
 
-          <form className="auth-form" onSubmit={submit}>
-            <div className="auth-mode-tabs" role="tablist" aria-label="로그인 방식">
-              <button className={mode === "signin" ? "active" : ""} onClick={() => setMode("signin")} type="button">
-                로그인
-              </button>
-              <button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")} type="button">
-                회원가입
-              </button>
-            </div>
-
-            {mode === "signup" && (
-              <label className="auth-field">
-                <span>이름</span>
-                <input autoComplete="name" onChange={(event) => setName(event.target.value)} placeholder="예: 장형민" value={name} />
-              </label>
-            )}
-
-            <label className="auth-field">
-              <span>이메일</span>
-              <input autoComplete="email" onChange={(event) => setEmail(event.target.value)} placeholder="seulgis@posco.com" type="email" value={email} />
-            </label>
-
-            <label className="auth-field">
-              <span>비밀번호</span>
-              <input autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={6} onChange={(event) => setPassword(event.target.value)} placeholder="6자 이상" type="password" value={password} />
-            </label>
-
-            {mode === "signup" && (
-              <div className="auth-emoji-row">
-                <span>프로필 이모지</span>
-                <EmojiPopover
-                  selectedEmoji={profileEmoji}
-                  onSelect={setProfileEmoji}
-                  triggerLabel="가입 프로필 이모지 선택"
-                  triggerClassName="profile-emoji-trigger"
-                />
+          {isSupabaseReady && !isAlreadyAuthenticated ? (
+            <form className="auth-form poslab-auth-form" onSubmit={submit}>
+              <div className="auth-mode-tabs" role="tablist" aria-label="로그인 방식">
+                <button className={mode === "signin" ? "active" : ""} onClick={() => setMode("signin")} type="button">
+                  로그인
+                </button>
+                <button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")} type="button">
+                  권한 요청
+                </button>
               </div>
-            )}
 
-            {authMessage && <p className="auth-message">{authMessage}</p>}
+              {mode === "signup" && (
+                <label className="auth-field">
+                  <span>이름</span>
+                  <input autoComplete="name" onChange={(event) => setName(event.target.value)} placeholder="예: 장형민" value={name} />
+                </label>
+              )}
 
-            <button className="primary-button auth-submit" disabled={isSubmitting || !email.trim() || !password} type="submit">
-              <LogIn size={17} />
-              {isSubmitting ? "확인 중" : mode === "signup" ? "가입하기" : "로그인"}
-            </button>
-          </form>
+              <label className="auth-field">
+                <span>회사 이메일</span>
+                <input autoComplete="email" onChange={(event) => setEmail(event.target.value)} placeholder="seulgis@posco.com" type="email" value={email} />
+              </label>
 
-          <p className="auth-footnote">
-            첫 관리자 이메일은 `seulgis@posco.com`으로 지정 예정입니다. 가입 후 관리자 승격 SQL을 적용합니다.
-          </p>
-        </section>
-      </main>
-    );
-  }
+              <label className="auth-field">
+                <span>비밀번호</span>
+                <input autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={6} onChange={(event) => setPassword(event.target.value)} placeholder="6자 이상" type="password" value={password} />
+              </label>
 
-  return (
-    <main className="login-screen">
-      <section className="login-panel">
-        <div className="login-copy">
-          <span className="panel-label">연구기획그룹-전략</span>
-          <h1>업무 대시보드 로그인</h1>
-          <p>프로토타입에서는 계정을 선택해 로그인 흐름과 권한별 화면을 확인합니다.</p>
-        </div>
-        <div className="login-account-grid" aria-label="로그인 계정 선택">
-          {orderedAccounts(people).map((person) => (
-            <button className={`login-account-card role-${person.permissionRole}`} key={person.id} onClick={() => onLogin(person.id)} type="button">
-              <span className="profile-emoji" style={avatarStyle(person)}>
-                {person.emoji}
-              </span>
-              <span>
-                <strong>{person.name}</strong>
-                <small>{roleLine(person)}</small>
-              </span>
-              <LogIn size={17} />
-            </button>
-          ))}
+              {mode === "signup" && (
+                <div className="auth-emoji-row">
+                  <span>프로필 이모지</span>
+                  <EmojiPopover
+                    selectedEmoji={profileEmoji}
+                    onSelect={setProfileEmoji}
+                    triggerLabel="가입 프로필 이모지 선택"
+                    triggerClassName="profile-emoji-trigger"
+                  />
+                </div>
+              )}
+
+              {authMessage && <p className="auth-message">{authMessage}</p>}
+
+              <button className="primary-button auth-submit poslab-enter-button" disabled={isSubmitting || !email.trim() || !password} type="submit">
+                <LogIn size={17} />
+                {isSubmitting ? "확인 중" : mode === "signup" ? "권한 요청 보내기" : "로그인"}
+              </button>
+            </form>
+          ) : (
+            <div className="poslab-local-entry">
+              <button
+                className="primary-button poslab-enter-button"
+                disabled={!isAlreadyAuthenticated && !selectedLocalPerson}
+                onClick={() => {
+                  if (isAlreadyAuthenticated) {
+                    onEnterDashboard();
+                    return;
+                  }
+                  if (selectedLocalPerson) onLogin(selectedLocalPerson.id);
+                }}
+                type="button"
+              >
+                <LogIn size={17} />
+                대시보드로 들어가기
+              </button>
+              {!isAlreadyAuthenticated && (
+                <div className="login-account-grid poslab-account-grid" aria-label="로그인 계정 선택">
+                  {localAccounts.map((person) => (
+                    <button
+                      aria-pressed={person.id === selectedLocalPersonId}
+                      className={`login-account-card role-${person.permissionRole} ${person.id === selectedLocalPersonId ? "selected" : ""}`}
+                      key={person.id}
+                      onClick={() => setSelectedLocalPersonId(person.id)}
+                      type="button"
+                    >
+                      <span className="profile-emoji" style={avatarStyle(person)}>
+                        {person.emoji}
+                      </span>
+                      <span>
+                        <strong>{person.name}</strong>
+                        <small>{roleLine(person)}</small>
+                      </span>
+                      {person.id === selectedLocalPersonId ? <Check size={16} /> : <LogIn size={16} />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <p className="auth-footnote">회사 로그인 연동이 확정되면 이 진입 화면은 SSO 시작 화면으로 전환할 수 있습니다.</p>
         </div>
       </section>
     </main>

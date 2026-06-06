@@ -32,6 +32,13 @@ Last updated: 2026-06-06
 
 Key product decisions now in the prototype:
 
+- POSLAB entry landing is implemented on branch `codex/poslab-entry-landing`:
+  - The entry screen appears before the dashboard body in the current browser session.
+  - It uses a bright POSCO-inspired radial background, POSLAB/Work Hub title treatment, and a lazy-loaded WebGL lanyard card.
+  - The title kicker reads `POSCO`, the supporting copy is `함께 보는 업무, 함께 만드는 흐름, 함께 성장하는 팀`, and the left `연구기획그룹-전략` mark is intentionally larger for internal group visibility.
+  - The lanyard card follows the React Bits-style original `card.glb` card/clip/clamp structure, while the strap is rendered as a logo-free POSCO-blue line and the card face uses the selected `Executive Blue` POSLAB badge direction.
+  - `대시보드로 들어가기` sets the session entry gate and renders the existing dashboard body.
+  - Supabase login/signup remains available when configured; future company SSO can replace the entry action without changing the dashboard body.
 - `오늘 브리핑` is personal-first: briefing task flow, today agenda, and a page-scoped shared memo.
 - The common top header keeps only the `Strategy Work Hub` title; repeated explanatory subtitles are intentionally removed across tabs.
 - Top insight cards are number-first action filters: nonzero cards show a small `보기 →` action and clicking filters the board to that cohort, while zero-value cards stay visually quieter and non-actionable.
@@ -131,6 +138,12 @@ Key product decisions now in the prototype:
   - Data API table grants are applied manually because automatic table exposure was disabled.
 
 Recent UI/UX refinements from the latest session:
+
+- Added POSLAB entry landing:
+  - created `src/PoslabLanyard.jsx` with the React Bits-style lanyard implementation: original card/clip/clamp GLB geometry, logo-free meshline strap, Rapier rope/spherical joints, and the selected `Executive Blue` POSLAB-only generated card face
+  - added POSLAB entry screen styles to `src/styles.css` and a `hasEnteredDashboard` session gate in `src/App.jsx`
+  - added `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/rapier`, and `meshline`; Vite now places them in a `lanyard-vendor` chunk
+  - Browser QA on `http://localhost:5174/` verified first-page landing, farther camera distance, visible card sway, logo-free blue strap, blue-toned ring/clip, removal of the malformed fake border stroke, selected `Executive Blue` POSLAB-only card face with restrained text effects, responsive mobile stacking without horizontal overflow, auth-mode tab switching, and no console errors.
 
 - Added an admin-only management page:
   - sidebar `관리자` tab is shown only when the selected profile has `permissionRole: admin`; non-admin stale routes are redirected back to the board
