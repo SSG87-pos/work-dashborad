@@ -187,7 +187,7 @@ After the first admin login and initial Supabase connection:
 - Initial Supabase schema, RLS policies, manual Data API grants, and first admin promotion have been applied.
 - Login/session restore hydrates profile/preferences/memos/tags/events/tasks from Supabase.
 - Empty Supabase task/calendar tables preserve prototype data during migration so the UI remains usable.
-- First write paths exist for shared tags, page-scoped memos, profile name/title/emoji, UUID-backed tasks, task status, due-date change history, update logs, links, archive/delete, subtask progress, and calendar event create/edit/delete.
+- First write paths exist for shared tags, page-scoped memos, profile name/title/emoji, UUID-backed tasks, task status, due-date change history, task change-history note correction/delete, update logs, update-log body correction/delete, links, archive/delete, subtask progress, and calendar event create/edit/delete.
 - Admin user-management UI exists for permission role, team-list visibility, and active-state changes.
 - Live migration `admin_user_management_grants` has been applied. The matching local file is `supabase/migrations/002_admin_user_management.sql`, which grants the additional `users` update columns required by admin user-management.
 - Live migration `task_recurring_columns` has been applied. The matching local file is `supabase/migrations/003_task_recurring_columns.sql`, which stores the visible recurring task rule directly on `tasks` so the existing board/timeline/recurring UI can round-trip rules without a separate worker.

@@ -3157,6 +3157,23 @@ body {
   transform: translateX(1px);
 }
 
+.person-pill.is-pulsing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 42%;
+  background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.16), transparent);
+  transform: translateX(-120%);
+  animation: team-member-sweep 1.05s ease-out 1;
+  pointer-events: none;
+}
+
+@keyframes team-member-sweep {
+  to {
+    transform: translateX(260%);
+  }
+}
+
 .team-stack {
   border-top: 1px solid var(--line);
   padding-top: 14px;
@@ -5501,6 +5518,41 @@ body[data-page="team"] .briefing-panel {
   font-size: 13px;
 }
 
+.detail-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.detail-section-title h3 {
+  margin: 0;
+}
+
+.section-manage-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  border: 1px solid #d8e2ef;
+  border-radius: 7px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
+  padding: 0 8px;
+}
+
+.section-manage-button:hover,
+.section-manage-button.active {
+  border-color: #9dbcf8;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .log-item {
   position: relative;
   grid-template-columns: 72px minmax(0, 1fr);
@@ -5530,6 +5582,29 @@ body[data-page="team"] .briefing-panel {
   font-size: 12px;
 }
 
+.log-item.is-managing {
+  padding-right: 70px;
+}
+
+.log-item-actions {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.log-item-actions .ghost-icon {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  border-radius: 6px;
+}
+
+.log-item-actions .ghost-icon.danger {
+  color: #dc2626;
+}
+
 .status-history-section {
   margin-top: 12px;
 }
@@ -5547,6 +5622,11 @@ body[data-page="team"] .briefing-panel {
   grid-template-columns: 78px 58px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
+}
+
+.status-history-head.can-manage,
+.status-history-row.can-manage {
+  grid-template-columns: 78px 58px minmax(0, 1fr) 58px;
 }
 
 .status-history-head {
@@ -5637,6 +5717,23 @@ body[data-page="team"] .briefing-panel {
   border-radius: 4px;
   outline: 2px solid rgba(37, 99, 235, 0.24);
   outline-offset: 2px;
+}
+
+.status-history-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.status-history-actions .ghost-icon {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  border-radius: 6px;
+}
+
+.status-history-actions .ghost-icon.danger {
+  color: #dc2626;
 }
 
 /* Concept-style timeline */
@@ -7145,6 +7242,28 @@ body[data-page="team"] .briefing-panel {
   box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.16), var(--shadow-card-hover);
 }
 
+.task-card.is-select-pulsing {
+  animation: task-card-select-pulse 0.68s ease-out 1;
+}
+
+@keyframes task-card-select-pulse {
+  0% {
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0), var(--shadow-card);
+  }
+
+  26% {
+    border-color: rgba(37, 99, 235, 0.78);
+    box-shadow:
+      inset 0 0 0 1px rgba(37, 99, 235, 0.24),
+      0 0 0 5px rgba(37, 99, 235, 0.12),
+      var(--shadow-card-hover);
+  }
+
+  100% {
+    box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.16), var(--shadow-card-hover);
+  }
+}
+
 .card-main {
   padding: 12px 12px 11px;
 }
@@ -8413,6 +8532,28 @@ body[data-page="team"] .briefing-panel {
   font-weight: 900;
   line-height: 1;
   white-space: nowrap;
+}
+
+.task-status-chip.is-status-popping {
+  animation: status-chip-pop 0.82s ease-out 1;
+  transform-origin: center;
+}
+
+@keyframes status-chip-pop {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: none;
+  }
+
+  24% {
+    transform: scale(1.08);
+    box-shadow: 0 7px 15px rgba(37, 99, 235, 0.15);
+  }
+
+  52% {
+    transform: scale(0.98);
+  }
 }
 
 .task-status-chip.status-계획 {
@@ -10507,6 +10648,50 @@ body[data-page="team"] .briefing-panel {
   letter-spacing: 0 !important;
 }
 
+.nav-list {
+  position: relative;
+}
+
+.nav-list::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: var(--active-nav-top, 0);
+  left: 0;
+  width: 100%;
+  height: var(--active-nav-height, 38px);
+  border-radius: var(--radius);
+  background: #2563eb;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+  transition: top 0.22s cubic-bezier(0.2, 0.8, 0.24, 1);
+  pointer-events: none;
+}
+
+.nav-list .nav-item {
+  position: relative;
+  z-index: 1;
+}
+
+.nav-list .nav-item.active {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.nav-list .nav-item:hover:not(.active) {
+  background: #f1f5fb;
+}
+
+@media (max-width: 860px) {
+  .nav-list::before {
+    display: none;
+  }
+
+  .nav-list .nav-item.active {
+    background: #2563eb !important;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18) !important;
+  }
+}
+
 .nav-item svg {
   color: #1f2937 !important;
   stroke-width: 2.2;
@@ -10563,6 +10748,11 @@ body[data-page="team"] .briefing-panel {
   grid-template-columns: 58px 38px minmax(0, 1fr) !important;
   align-items: center !important;
   column-gap: 5px !important;
+}
+
+.calendar-task-detail-panel .status-history-head.can-manage,
+.calendar-task-detail-panel .status-history-row.can-manage {
+  grid-template-columns: 58px 38px minmax(0, 1fr) 50px !important;
 }
 
 .calendar-task-detail-panel .status-history-head span:nth-child(3),
@@ -12034,6 +12224,8 @@ body[data-page="team"] .briefing-panel {
 }
 
 .canvas-sync-status {
+  position: relative;
+  overflow: hidden;
   border: 1px solid #dbeafe;
   border-radius: 999px;
   background: #f8fbff;
@@ -12056,6 +12248,23 @@ body[data-page="team"] .briefing-panel {
   border-color: #fde68a;
   background: #fffbeb;
   color: #a16207;
+}
+
+.canvas-sync-status.status-saving::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 44%;
+  background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.18), transparent);
+  transform: translateX(-120%);
+  animation: canvas-save-sweep 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes canvas-save-sweep {
+  to {
+    transform: translateX(260%);
+  }
 }
 
 .canvas-sync-status.status-error {
@@ -12202,6 +12411,58 @@ body[data-page="team"] .briefing-panel {
 .canvas-link-layer path.is-manual-link {
   stroke: #7f9fc4;
   stroke-dasharray: 6 6;
+}
+
+.canvas-link-layer path.is-manual-link-beam {
+  stroke: #38bdf8;
+  stroke-width: 4;
+  stroke-dasharray: 14 100;
+  stroke-dashoffset: 114;
+  opacity: 0;
+  filter:
+    drop-shadow(0 0 5px rgba(56, 189, 248, 0.7))
+    drop-shadow(0 0 10px rgba(37, 99, 235, 0.35));
+  animation: canvas-link-beam 2.1s ease-out 1;
+}
+
+@keyframes canvas-link-beam {
+  from {
+    stroke-dashoffset: 114;
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 1;
+  }
+
+  65% {
+    opacity: 1;
+  }
+
+  to {
+    stroke-dashoffset: -14;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-list::before {
+    transition: none;
+  }
+
+  .task-card.is-select-pulsing,
+  .task-status-chip.is-status-popping,
+  .person-pill.is-pulsing::after,
+  .canvas-sync-status.status-saving::after,
+  .canvas-link-layer path.is-manual-link-beam {
+    animation: none;
+  }
+
+  .person-pill.is-pulsing::after,
+  .canvas-sync-status.status-saving::after,
+  .canvas-link-layer path.is-manual-link-beam {
+    opacity: 0;
+  }
 }
 
 .canvas-seed-node {

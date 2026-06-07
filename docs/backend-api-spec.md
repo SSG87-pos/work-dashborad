@@ -156,10 +156,10 @@ Progress rule:
 | from_value | text | no | Previous status or due date. |
 | to_value | text | yes | New status or due date. |
 | actor_id | text fk users.id | yes | User who changed the status. |
-| note | text | no | Example: `완료 처리`, `완료 처리 취소`, `마감일 변경: 2026-06-04 → 2026-06-07`. |
+| note | text | no | Display memo. Example: `완료 처리`, `완료 처리 취소`, `마감일 변경: 2026-06-04 → 2026-06-07`. Task managers may update this column to correct an accidental display memo. |
 | created_at | timestamp | yes | Change timestamp. |
 
-Task changes should be append-only. Accidental completion or deadline changes should be represented by later change-history rows instead of editing the previous row.
+Task changes are append-first audit records. Accidental completion or deadline changes should normally be represented by later change-history rows instead of editing the previous row. If a history row itself was created by mistake, task managers may update only `note` or delete the history row; this does not change the current task status, completion metadata, or due date.
 
 ### task_updates
 
@@ -172,7 +172,7 @@ Task changes should be append-only. Accidental completion or deadline changes sh
 | update_type | enum | no | `note`, `issue`, `decision`, `request`, `completion`. |
 | created_at | timestamp | yes | Sort newest first. |
 
-Updates are append-first. Edit/delete should be admin-only or disabled at launch.
+Updates are append-first. The author or a task manager may update only `body` or delete an accidental update row. Author and timestamp stay immutable.
 
 ### task_links
 
@@ -336,6 +336,10 @@ Use `/api/v1` as the initial namespace.
 | POST | `/tasks/:id/subtasks` | owner/lead/admin | Add subtask. |
 | PATCH | `/subtasks/:id` | owner/lead/admin | Toggle or rename subtask. |
 | POST | `/tasks/:id/updates` | visible user | Add update log. |
+| PATCH | `/tasks/:id/updates/:updateId` | update author or task manager | Update only the update log `body`. |
+| DELETE | `/tasks/:id/updates/:updateId` | update author or task manager | Delete an accidental update log row. |
+| PATCH | `/tasks/:id/history/:historyId` | task manager | Update only the history row `note`. |
+| DELETE | `/tasks/:id/history/:historyId` | task manager | Delete an accidental history row without changing current task state. |
 | POST | `/tasks/:id/links` | owner/lead/admin | Add related link. |
 
 ### Tags

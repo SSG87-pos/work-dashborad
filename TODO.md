@@ -2,6 +2,37 @@
 
 ## Now
 
+- [x] Move history/log correction actions behind management toggles.
+  - Files: `src/App.jsx`, `src/supabaseStore.js`, `src/styles.css`, `supabase/migrations/019_task_updates_manage.sql`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/backend-implementation-plan.md`, `docs/data-model.md`, `docs/permission-rules.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: `변경 이력` now defaults to the wider 3-column read layout; row edit/delete icons appear only after clicking the compact `관리` button beside the section title.
+  - Done: `업데이트 로그` now also has a compact management toggle; update-log edit/delete icons appear only while management mode is active.
+  - Done: Supabase store now supports update-log `body` update and row delete through `tasks.updateLog/deleteLog`.
+  - Done after approval: live Supabase migration `019_task_updates_manage` was applied to project `nbefvcrcfwacvnohtsmy`.
+  - Verified live DB: rollback rehearsal passed; migration history shows `20260607102154 019_task_updates_manage`; `authenticated` has column-level `UPDATE(body)` and table-level `DELETE`; update/delete RLS policies exist for update authors or task managers; authenticated-role rollback smoke updated 1 update-log row and deleted 1 update-log row, then rolled back.
+  - Verified local app: `git diff --check`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:canvas-storage`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed. Browser QA on `http://127.0.0.1:5176/` verified default change-history grid has no `관리` column/actions, clicking management reveals history edit/delete actions, clicking update-log management reveals update-log edit/delete actions, no Vite overlay, and no horizontal overflow.
+
+- [x] Add task change-history correction controls.
+  - Files: `src/App.jsx`, `src/supabaseStore.js`, `src/styles.css`, `supabase/migrations/018_task_change_history_manage.sql`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/backend-implementation-plan.md`, `docs/data-model.md`, `docs/permission-rules.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: task detail `변경 이력` rows now show compact edit/delete icon actions only for users who can manage the task.
+  - Done: editing changes only the history display memo/note, and deleting a history row does not change the task's current status, completion metadata, or due date.
+  - Done: Supabase reads history row ids, exposes `tasks.updateHistory/deleteHistory` through the store boundary, and applies update/delete to `task_change_history` rows when the app is signed in.
+  - Done after approval: live Supabase migration `018_task_change_history_manage` was applied to project `nbefvcrcfwacvnohtsmy`.
+  - Verified live DB: rollback rehearsal passed; migration history shows `20260607100934 018_task_change_history_manage`; `authenticated` has column-level `UPDATE(note)` and table-level `DELETE`; update/delete RLS policies exist and use `private.can_manage_task`; authenticated-role rollback smoke updated 1 history note row and deleted 1 history row, then rolled back.
+  - Advisor note: security advisor still reports only leaked password protection disabled; performance advisor reports existing INFO items around Canvas FK indexes and unused indexes, not a new task-history blocker.
+  - Verified local app: `git diff --check`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:canvas-storage`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed. Browser QA on `http://127.0.0.1:5176/` verified board and calendar task details show `변경 이력` edit/delete actions after a local status change creates a history row, no Vite overlay, no horizontal overflow, and only existing lanyard/Three deprecation warnings.
+
+- [x] Add selected small animation points 1+3+5.
+  - Files: `src/App.jsx`, `src/styles.css`, `docs/mockups/small-animation-point-examples.html`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added one-shot task-card soft pulse on workflow card selection, one-shot status-chip pop on task status changes, and a desktop sidebar active-indicator glide for navigation changes.
+  - Guardrail: graph-style additions were intentionally skipped; motion remains tied to user actions and reduced-motion settings disable animation/transition behavior.
+  - Verified: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, and `git diff --check` passed. Browser QA on `http://127.0.0.1:5176/` verified nav offset changes, task-card pulse attaches then clears, status-chip pop attaches then clears, no Vite overlay, and board task/status counts render.
+
+- [x] Prototype restrained Animata-style point motion.
+  - Files: `src/SharedCanvasView.jsx`, `src/App.jsx`, `src/styles.css`, `docs/mockups/animata-point-motion.html`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added short functional point motion only: Canvas direct-link beam runs once on newly created links, Canvas shared save pill animates only while saving, and Team Members selection gets a one-shot sweep on click.
+  - Done: updated the standalone mockup so the Canvas beam visibly travels on the SVG line instead of relying on less reliable CSS offset-path behavior.
+  - Guardrail: point motion respects `prefers-reduced-motion` and should stay limited to feedback moments, not looping decorative UI.
+
 - [x] Align local fallback roster with live team-member visibility.
   - Files: `src/data.js`, `HANDOFF.md`, `TODO.md`.
   - Done: changed the local fallback/default `소슬기` profile to `isTeamMember: true` so local prototype/demo mode matches the live Supabase roster where 슬기님 is visible in Team members.

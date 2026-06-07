@@ -38,10 +38,12 @@ export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = fal
   const [draftTabTitle, setDraftTabTitle] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState(canvasTemplates[0].id);
   const [linkSourceId, setLinkSourceId] = useState("");
+  const [recentCanvasLinkId, setRecentCanvasLinkId] = useState("");
   const [markdownStatus, setMarkdownStatus] = useState("");
   const [canvasSyncStatus, setCanvasSyncStatus] = useState(isSharedCanvasReady ? "loading" : "local");
   const dragRef = useRef(null);
   const stageRef = useRef(null);
+  const recentLinkTimerRef = useRef(null);
   const hasLoadedSharedCanvasRef = useRef(false);
   const skipNextSaveRef = useRef(false);
   const saveTimerRef = useRef(null);
@@ -115,6 +117,10 @@ export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = fal
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
   }, [activeTab, canvasStore, canvasTabs, isSharedCanvasReady, linksByTab, nodesByTab]);
+
+  useEffect(() => () => {
+    if (recentLinkTimerRef.current) window.clearTimeout(recentLinkTimerRef.current);
+  }, []);
 
   function updateNode(nodeId, updates) {
     setNodesByTab((current) => ({
@@ -239,6 +245,13 @@ export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = fal
       [selectedTab.id]: (current[selectedTab.id] ?? []).filter((link) => link.sourceId !== nodeId && link.targetId !== nodeId)
     }));
     if (linkSourceId === nodeId) setLinkSourceId("");
+    if (recentCanvasLinkId && (nodesById.get(nodeId) || linkSourceId === nodeId)) setRecentCanvasLinkId("");
+  }
+
+  function pulseCanvasLink(linkId) {
+    if (recentLinkTimerRef.current) window.clearTimeout(recentLinkTimerRef.current);
+    setRecentCanvasLinkId(linkId);
+    recentLinkTimerRef.current = window.setTimeout(() => setRecentCanvasLinkId(""), 2200);
   }
 
   function connectNode(nodeId) {
@@ -256,33 +269,32 @@ export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = fal
 
     const sourceId = linkSourceId;
     const targetId = nodeId;
-    setLinksByTab((current) => {
-      const currentLinks = current[selectedTab.id] ?? [];
-      const exists = currentLinks.some(
-        (link) =>
-          (link.sourceId === sourceId && link.targetId === targetId) ||
-          (link.sourceId === targetId && link.targetId === sourceId)
-      );
-      if (exists) return current;
-      return {
-        ...current,
-        [selectedTab.id]: [
-          ...currentLinks,
-          {
-            id: `link-${Date.now()}`,
-            sourceId,
-            targetId
-          }
-        ]
+    const currentLinks = linksByTab[selectedTab.id] ?? [];
+    const exists = currentLinks.some(
+      (link) =>
+        (link.sourceId === sourceId && link.targetId === targetId) ||
+        (link.sourceId === targetId && link.targetId === sourceId)
+    );
+    if (!exists) {
+      const nextLink = {
+        id: `link-${Date.now()}`,
+        sourceId,
+        targetId
       };
-    });
+      setLinksByTab((current) => ({
+        ...current,
+        [selectedTab.id]: [...(current[selectedTab.id] ?? []), nextLink]
+      }));
+      pulseCanvasLink(nextLink.id);
+    }
     setLinkSourceId("");
-    setMarkdownStatus("노드를 연결했습니다.");
+    setMarkdownStatus(exists ? "이미 연결된 노드입니다." : "노드를 연결했습니다.");
   }
 
   function clearManualLinks() {
     setLinksByTab((current) => ({ ...current, [selectedTab.id]: [] }));
     setLinkSourceId("");
+    setRecentCanvasLinkId("");
     setMarkdownStatus("직접 연결선을 지웠습니다.");
   }
 
@@ -434,6 +446,7 @@ export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = fal
             onClick={() => {
               setActiveTab(tab.id);
               setLinkSourceId("");
+              setRecentCanvasLinkId("");
               setMarkdownStatus("");
             }}
             type="button"
@@ -528,12 +541,21 @@ export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = fal
                 const endX = target.x;
                 const endY = target.y + nodeBox.centerY;
                 const midX = startX + Math.max(36, (endX - startX) / 2);
+                const pathData = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
                 return (
-                  <path
-                    className={link.kind === "parent" ? "is-parent-link" : "is-manual-link"}
-                    d={`M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`}
-                    key={link.id}
-                  />
+                  <g key={link.id}>
+                    <path
+                      className={link.kind === "parent" ? "is-parent-link" : "is-manual-link"}
+                      d={pathData}
+                    />
+                    {link.kind !== "parent" && recentCanvasLinkId === link.id ? (
+                      <path
+                        className="is-manual-link-beam"
+                        d={pathData}
+                        pathLength="100"
+                      />
+                    ) : null}
+                  </g>
                 );
               })}
             </svg>

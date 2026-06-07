@@ -13,6 +13,8 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Prefer dense but readable operational layouts over marketing-style hero sections.
 - Use quiet surfaces, thin borders, compact chips, and clear hierarchy.
 - Avoid visual noise from too many colors, oversized stickers, or overly bold text.
+- Use motion only as short functional feedback. Subtle point motion can confirm selection, saving, or Canvas linking, but should not become a looping decorative layer across operational screens.
+- Preferred dashboard micro-motion examples are task-card selection pulse, status-chip pop after a status change, and sidebar active-indicator glide. Avoid adding graph-like decoration to top insight cards unless it becomes a real reporting requirement.
 - Preserve enough whitespace for scanning, but do not reserve empty detail areas before the user clicks something.
 - Korean text should break by word, not inside words, whenever possible.
 - Desktop and tablet are the main targets; phone layout is lower priority.
@@ -153,6 +155,7 @@ Greetings:
 - Current implementation supports shared draft editing: add nodes, edit node text, delete nodes, and drag nodes inside the current tab.
 - Canvas nodes can create child nodes directly, show connector lines, and run automatic tree-style arrangement for quick cleanup.
 - Existing Canvas nodes can be directly connected by selecting a source node and then a target node. Parent-child links remain tree/arrangement links in data and render as solid lines; direct related-node links are layout hints, remain separate from hierarchy data, and render as dashed lines so the difference is visible.
+- When a direct Canvas link is newly created, a short beam highlight may run along that link once as functional confirmation. Do not keep the link animated continuously.
 - Canvas uses a scrollable large plane. Nodes should stay compact enough for many ideas, with template variants such as memo, question, decision, action, todo, evidence, and risk.
 - Todo nodes show an editable checklist in card mode. Keep checklist rows compact and structured because they are stored as `todoItems` for later task-detail/checklist linking.
 - Canvas node action icons should remain visible in card mode for ease of use. In compact mode, hide actions until hover/focus so the node reads as a title-only chip.
@@ -239,12 +242,14 @@ Update logs:
 - Update log input should be larger than the submit button.
 - `남기기` button should be compact.
 - Logs show author, date, and text in a readable but not overly bold style.
+- Logs should stay read-first by default. If correction is needed, show update-log edit/delete actions only after the user clicks the compact management button beside the `업데이트 로그` heading.
 
 Metadata and history:
 
 - Metadata is supporting information. Keep it compact.
 - Change history should use table-like rows with date, actor, and change text on one line.
 - Long change text may truncate but should be readable through hover/focus tooltip.
+- Change-history edit/delete actions should be hidden by default so the `처리내용` column keeps enough width. Users who can manage the task may click the compact management button beside `변경 이력` to reveal row actions. Editing changes only the displayed memo/note, and deleting a row must not change the task's current status or completion metadata.
 - Calendar task detail history should remain readable and inside the table columns.
 
 ## Calendar Contract

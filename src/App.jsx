@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import {
@@ -863,6 +863,35 @@ function teamCompositionOrder(members) {
 
 function teamAssignablePeople(directory = peopleDirectory) {
   return directory.filter((person) => person.isTeamMember !== false && person.isActive !== false);
+}
+
+function isUuidLike(value) {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function personIdentityKey(person) {
+  return `${person.name?.trim() ?? ""}|${person.role?.trim() ?? ""}`;
+}
+
+function isAuthBackedPerson(person) {
+  return isUuidLike(person.id) || isUuidLike(person.authUserId);
+}
+
+function displayTeamMembers(directory = peopleDirectory, selectedPersonId = "") {
+  const uniqueByIdentity = new Map();
+  teamAssignablePeople(directory).forEach((person) => {
+    const key = personIdentityKey(person);
+    const existing = uniqueByIdentity.get(key);
+    if (!existing) {
+      uniqueByIdentity.set(key, person);
+      return;
+    }
+    const shouldReplace =
+      person.id === selectedPersonId ||
+      (existing.id !== selectedPersonId && isAuthBackedPerson(person) && !isAuthBackedPerson(existing));
+    if (shouldReplace) uniqueByIdentity.set(key, person);
+  });
+  return teamCompositionOrder(Array.from(uniqueByIdentity.values()));
 }
 
 function taskOwnerOptions(directory = peopleDirectory) {
@@ -1817,6 +1846,10 @@ function App() {
   const [detailContext, setDetailContext] = useState("briefing");
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [briefingFeedbackKey, setBriefingFeedbackKey] = useState("");
+  const [teamMemberPulseId, setTeamMemberPulseId] = useState("");
+  const [selectedTaskPulseId, setSelectedTaskPulseId] = useState("");
+  const [statusPulseTaskId, setStatusPulseTaskId] = useState("");
+  const [navIndicatorStyle, setNavIndicatorStyle] = useState({ height: "38px", top: "0px" });
   const [editingTask, setEditingTask] = useState(null);
   const [editingTaskMode, setEditingTaskMode] = useState("task");
   const [pendingRecurringSave, setPendingRecurringSave] = useState(null);
@@ -1826,6 +1859,10 @@ function App() {
   const [memoByPage, setMemoByPage] = useState(initialMemoByPage);
   const [profileOverrides, setProfileOverrides] = useState(initialProfileOverrides);
   const briefingFeedbackTimerRef = useRef(null);
+  const teamMemberPulseTimerRef = useRef(null);
+  const selectedTaskPulseTimerRef = useRef(null);
+  const statusPulseTimerRef = useRef(null);
+  const navListRef = useRef(null);
   const navigationScrollRef = useRef({ page: activePage, view: activeView });
   const workflowSurfaceRef = useRef(null);
   const workflowDetailColumnRef = useRef(null);
@@ -1863,7 +1900,7 @@ function App() {
   const isSelectedAdmin = selectedPerson?.permissionRole === "admin";
   const defaultTaskOwnerId = selectedPerson?.isTeamMember === false ? "lead" : selectedPersonId;
   const canManageTags = canManageTagsFor(selectedPersonId);
-  const teamMembers = useMemo(() => teamCompositionOrder(teamAssignablePeople(directory)), [directory]);
+  const teamMembers = useMemo(() => displayTeamMembers(directory, selectedPersonId), [directory, selectedPersonId]);
   const selectedTagFilters = useMemo(() => readTagFilterValues(category, tagGroups), [category, tagGroups]);
   const workstreamOptions = useMemo(
     () => groupTasksByWorkstream(tasks, collectWorkstreams(tasks)).map((group) => ({ label: group.label })),
@@ -2159,6 +2196,21 @@ function App() {
     }
   }, []);
 
+  useEffect(() => () => {
+    if (teamMemberPulseTimerRef.current) {
+      window.clearTimeout(teamMemberPulseTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => () => {
+    if (selectedTaskPulseTimerRef.current) {
+      window.clearTimeout(selectedTaskPulseTimerRef.current);
+    }
+    if (statusPulseTimerRef.current) {
+      window.clearTimeout(statusPulseTimerRef.current);
+    }
+  }, []);
+
   useEffect(() => {
     if (selectedTaskId && tasks.some((task) => task.id === selectedTaskId && !isDeletedTask(task))) return;
     setSelectedTaskId(tasks.find((task) => !isDeletedTask(task) && !task.archived)?.id ?? tasks.find((task) => !isDeletedTask(task))?.id ?? "");
@@ -2278,6 +2330,15 @@ function App() {
   }
 
   function updateStatus(taskId, nextStatus) {
+    const previousTask = tasks.find((task) => task.id === taskId);
+    if (previousTask?.status !== nextStatus) {
+      if (statusPulseTimerRef.current) window.clearTimeout(statusPulseTimerRef.current);
+      setStatusPulseTaskId(taskId);
+      statusPulseTimerRef.current = window.setTimeout(() => {
+        setStatusPulseTaskId("");
+        statusPulseTimerRef.current = null;
+      }, 920);
+    }
     setTasks((current) =>
       current.map((task) =>
         task.id === taskId
@@ -2314,6 +2375,97 @@ function App() {
       }).catch((error) => {
         console.warn("Supabase 업데이트 로그 저장에 실패했습니다.", error);
         showSyncNotice("업데이트 로그를 Supabase에 반영하지 못했습니다.");
+      });
+    }
+  }
+
+  function updateTaskHistoryEntry(taskId, entry, historyIndex, note) {
+    const nextNote = note.trim();
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              statusHistory: (task.statusHistory ?? []).map((item, index) =>
+                index === historyIndex ? { ...item, note: nextNote } : item
+              )
+            }
+          : task
+      )
+    );
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.updateHistory(entry.id, nextNote).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 업무 변경 이력은 로컬에만 저장됐습니다.");
+      }).catch((error) => {
+        console.warn("Supabase 변경 이력 수정에 실패했습니다.", error);
+        showSyncNotice("변경 이력 수정을 Supabase에 반영하지 못했습니다.");
+      });
+    }
+  }
+
+  function deleteTaskHistoryEntry(taskId, entry, historyIndex) {
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              statusHistory: (task.statusHistory ?? []).filter((_, index) => index !== historyIndex)
+            }
+          : task
+      )
+    );
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.deleteHistory(entry.id).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 업무 변경 이력은 로컬에만 저장됐습니다.");
+      }).catch((error) => {
+        console.warn("Supabase 변경 이력 삭제에 실패했습니다.", error);
+        showSyncNotice("변경 이력 삭제를 Supabase에 반영하지 못했습니다.");
+      });
+    }
+  }
+
+  function updateTaskUpdateEntry(taskId, update, updateIndex, text) {
+    const nextText = text.trim();
+    if (!nextText) return;
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              updates: (task.updates ?? []).map((item, index) =>
+                index === updateIndex ? { ...item, text: nextText } : item
+              )
+            }
+          : task
+      )
+    );
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.updateLog(update.id, nextText).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 업무 업데이트 로그는 로컬에만 저장됐습니다.");
+      }).catch((error) => {
+        console.warn("Supabase 업데이트 로그 수정에 실패했습니다.", error);
+        showSyncNotice("업데이트 로그 수정을 Supabase에 반영하지 못했습니다.");
+      });
+    }
+  }
+
+  function deleteTaskUpdateEntry(taskId, update, updateIndex) {
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              updates: (task.updates ?? []).filter((_, index) => index !== updateIndex)
+            }
+          : task
+      )
+    );
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.deleteLog(update.id).then((result) => {
+        handleSupabaseWriteResult(result, "샘플 업무 업데이트 로그는 로컬에만 저장됐습니다.");
+      }).catch((error) => {
+        console.warn("Supabase 업데이트 로그 삭제에 실패했습니다.", error);
+        showSyncNotice("업데이트 로그 삭제를 Supabase에 반영하지 못했습니다.");
       });
     }
   }
@@ -2760,6 +2912,9 @@ function App() {
 
   function changePerson(personId) {
     setSelectedPersonId(personId);
+    if (teamMemberPulseTimerRef.current) window.clearTimeout(teamMemberPulseTimerRef.current);
+    setTeamMemberPulseId(personId);
+    teamMemberPulseTimerRef.current = window.setTimeout(() => setTeamMemberPulseId(""), 1200);
     setSelectedBriefingKey("");
     setDetailContext("briefing");
     setIsDetailOpen(false);
@@ -3019,6 +3174,14 @@ function App() {
 
   function selectTask(taskOrId, context = "workflow") {
     const taskId = typeof taskOrId === "object" ? materializeRecurringInstance(taskOrId) : taskOrId;
+    if (taskId) {
+      if (selectedTaskPulseTimerRef.current) window.clearTimeout(selectedTaskPulseTimerRef.current);
+      setSelectedTaskPulseId(taskId);
+      selectedTaskPulseTimerRef.current = window.setTimeout(() => {
+        setSelectedTaskPulseId("");
+        selectedTaskPulseTimerRef.current = null;
+      }, 720);
+    }
     if (context === "briefing" && activeView !== "board") {
       setActiveView("board");
     }
@@ -3220,6 +3383,35 @@ function App() {
     setIsDataMenuOpen(false);
   }
 
+  const activeNavIndex = (() => {
+    if (activePage === "my" && !fullPageViews.includes(activeView)) return 0;
+    if (activePage === "team" && !fullPageViews.includes(activeView)) return 1;
+    if (activeView === "calendar") return 2;
+    if (activeView === "updates") return 3;
+    if (activeView === "performance") return 4;
+    if (activeView === "canvas") return 5;
+    if (activeView === "admin") return 6;
+    return 0;
+  })();
+
+  useLayoutEffect(() => {
+    const updateIndicator = () => {
+      const navList = navListRef.current;
+      const activeItem = navList?.querySelector(".nav-item.active");
+      if (!navList || !activeItem) return;
+      setNavIndicatorStyle({
+        height: `${activeItem.offsetHeight}px`,
+        top: `${activeItem.offsetTop}px`
+      });
+    };
+    const frame = window.requestAnimationFrame(updateIndicator);
+    window.addEventListener("resize", updateIndicator);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", updateIndicator);
+    };
+  }, [activeNavIndex, hasEnteredDashboard, isAuthenticated, isSelectedAdmin]);
+
   if (!hasEnteredDashboard || !isAuthenticated) {
     return (
       <LoginScreen
@@ -3242,6 +3434,10 @@ function App() {
       onClose={closeTaskDetail}
       onDelete={() => deleteTask(selectedTask.id)}
       onEdit={() => openTaskEditor(selectedTask)}
+      onDeleteHistory={(entry, index) => deleteTaskHistoryEntry(selectedTask.id, entry, index)}
+      onDeleteUpdate={(update, index) => deleteTaskUpdateEntry(selectedTask.id, update, index)}
+      onUpdateHistory={(entry, index, note) => updateTaskHistoryEntry(selectedTask.id, entry, index, note)}
+      onUpdateLog={(update, index, text) => updateTaskUpdateEntry(selectedTask.id, update, index, text)}
       onRestore={() => toggleArchive(selectedTask.id, false)}
       onAddLink={(link) => addTaskLink(selectedTask.id, link)}
       onAddUpdate={(text) => addTaskUpdate(selectedTask.id, text)}
@@ -3263,7 +3459,14 @@ function App() {
             <span>전략 TEAM</span>
           </div>
         </div>
-        <nav className="nav-list">
+        <nav
+          className="nav-list"
+          ref={navListRef}
+          style={{
+            "--active-nav-height": navIndicatorStyle.height,
+            "--active-nav-top": navIndicatorStyle.top
+          }}
+        >
           <button
             className={`nav-item ${activePage === "my" && !fullPageViews.includes(activeView) ? "active" : ""}`}
             onClick={() => {
@@ -3359,7 +3562,7 @@ function App() {
           <span className="panel-label">Team Members</span>
           {teamMembers.map((person) => (
             <button
-              className={`person-pill ${selectedPersonId === person.id ? "selected" : ""}`}
+              className={`person-pill ${selectedPersonId === person.id ? "selected" : ""} ${teamMemberPulseId === person.id ? "is-pulsing" : ""}`}
               key={person.id}
               onClick={() => changePerson(person.id)}
               type="button"
@@ -3564,8 +3767,10 @@ function App() {
                   onArchive={(task) => toggleArchive(task.id, true)}
                   onSelect={(taskId) => selectTask(taskId, "workflow")}
                   onStatusChange={updateStatus}
+                  selectedTaskPulseId={selectedTaskPulseId}
                   selectedTaskId={isWorkflowDetailContext ? selectedTaskId : ""}
                   showOwner={activePage === "team"}
+                  statusPulseTaskId={statusPulseTaskId}
                   tasks={filteredTasks}
                 />
                 {isWorkflowDetailContext && (
@@ -3606,11 +3811,15 @@ function App() {
                 onArchive={(task) => toggleArchive(task.id, true)}
                 onDeleteEvent={deleteCalendarEvent}
                 onDelete={(task) => deleteTask(task.id)}
+                onDeleteHistory={(task, entry, index) => deleteTaskHistoryEntry(task.id, entry, index)}
+                onDeleteUpdate={(task, update, index) => deleteTaskUpdateEntry(task.id, update, index)}
                 onEdit={(task) => openTaskEditor(tasks.find((item) => item.id === task.id) || task)}
                 onMonthChange={setTimelineMonth}
                 onRestore={(task) => toggleArchive(task.id, false)}
                 onSelectTask={selectTask}
                 onToggleSubtask={toggleSubtask}
+                onUpdateHistory={(task, entry, index, note) => updateTaskHistoryEntry(task.id, entry, index, note)}
+                onUpdateLog={(task, update, index, text) => updateTaskUpdateEntry(task.id, update, index, text)}
                 onUpdateEvent={updateCalendarEvent}
                 selectedPersonId={selectedPersonId}
                 tasks={filteredTasks}
@@ -5432,7 +5641,7 @@ function TagLibrary({ activeTags, canManageTags, isOpen, libraryRef, onAdd, onCl
   );
 }
 
-function BoardView({ canManageTask, counts, onArchive, onEdit, onSelect, onStatusChange, selectedTaskId, showOwner, tasks }) {
+function BoardView({ canManageTask, counts, onArchive, onEdit, onSelect, onStatusChange, selectedTaskPulseId, selectedTaskId, showOwner, statusPulseTaskId, tasks }) {
   const [draggingTaskId, setDraggingTaskId] = useState("");
   const [dropStatus, setDropStatus] = useState("");
 
@@ -5491,8 +5700,10 @@ function BoardView({ canManageTask, counts, onArchive, onEdit, onSelect, onStatu
                   onEdit={() => onEdit(task)}
                   onSelect={() => onSelect(task.id)}
                   onStatusChange={(nextStatus) => onStatusChange(task.id, nextStatus)}
+                  pulsing={selectedTaskPulseId === task.id}
                   selected={selectedTaskId === task.id}
                   showOwner={showOwner}
+                  statusPulsing={statusPulseTaskId === task.id}
                   task={task}
                 />
               ))}
@@ -5503,13 +5714,13 @@ function BoardView({ canManageTask, counts, onArchive, onEdit, onSelect, onStatu
   );
 }
 
-function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEdit, onSelect, onStatusChange, selected, showOwner, task }) {
+function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEdit, onSelect, onStatusChange, pulsing, selected, showOwner, statusPulsing, task }) {
   const tags = taskTags(task);
   const badges = taskBadges(task);
   const title = displayTaskTitle(task);
   return (
     <article
-      className={`task-card ${selected ? "selected" : ""} ${dragging ? "dragging" : ""}`}
+      className={`task-card ${selected ? "selected" : ""} ${pulsing ? "is-select-pulsing" : ""} ${dragging ? "dragging" : ""}`}
       draggable={canManage}
       onDragEnd={onDragEnd}
       onDragStart={(event) => {
@@ -5526,7 +5737,7 @@ function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEd
         </div>
         <div className="card-chip-row">
           <span className={`priority-square priority-square-${task.priority}`}>{task.priority}</span>
-          <span className={`task-status-chip status-${task.status.replace("/", "")}`}>{statusStickerLabels[task.status] ?? task.status}</span>
+          <span className={`task-status-chip status-${task.status.replace("/", "")} ${statusPulsing ? "is-status-popping" : ""}`}>{statusStickerLabels[task.status] ?? task.status}</span>
           {badges.map((badge) => (
             <span className={`status-chip badge-${badge.tone}`} key={`${task.id}-${badge.label}`}>{badge.label}</span>
           ))}
@@ -5815,11 +6026,15 @@ function CalendarView({
   onArchive,
   onDelete,
   onDeleteEvent,
+  onDeleteHistory,
+  onDeleteUpdate,
   onEdit,
   onMonthChange,
   onRestore,
   onSelectTask,
   onToggleSubtask,
+  onUpdateHistory,
+  onUpdateLog,
   onUpdateEvent,
   selectedPersonId,
   tasks
@@ -6162,9 +6377,13 @@ function CalendarDetailPanel({
           onArchive={() => onArchive(task)}
           onClose={onClose}
           onDelete={() => onDelete(task)}
+          onDeleteHistory={(entry, index) => onDeleteHistory(task, entry, index)}
+          onDeleteUpdate={(update, index) => onDeleteUpdate(task, update, index)}
           onEdit={() => onEdit(task)}
           onRestore={() => onRestore(task)}
           onToggleSubtask={(taskId, subtaskId) => onToggleSubtask(actionTaskId || taskId, subtaskId)}
+          onUpdateHistory={(entry, index, note) => onUpdateHistory(task, entry, index, note)}
+          onUpdateLog={(update, index, text) => onUpdateLog(task, update, index, text)}
           selectedPersonId={selectedPersonId}
           task={task}
         />
@@ -7213,11 +7432,27 @@ function PerformanceView({ tasks }) {
   );
 }
 
-function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onDelete, onEdit, onRestore, onToggleSubtask, selectedPersonId, task }) {
+function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onDelete, onDeleteHistory, onDeleteUpdate, onEdit, onRestore, onToggleSubtask, onUpdateHistory, onUpdateLog, selectedPersonId, task }) {
   const [quickUpdate, setQuickUpdate] = useState("");
   const [quickLink, setQuickLink] = useState({ title: "", url: "", type: "자료" });
+  const [isHistoryManaging, setIsHistoryManaging] = useState(false);
+  const [isUpdateManaging, setIsUpdateManaging] = useState(false);
   const quickUpdateRef = useRef(null);
+  const canManageHistory = canManage && typeof onDeleteHistory === "function" && typeof onUpdateHistory === "function";
+  useEffect(() => {
+    setIsHistoryManaging(false);
+    setIsUpdateManaging(false);
+  }, [task?.id]);
   if (!task) return null;
+  const canManageAnyUpdate = (task.updates ?? []).some((update) =>
+    canManage || update.authorId === selectedPersonId
+  );
+  const showHistoryActions = canManageHistory && isHistoryManaging;
+  const showUpdateActions =
+    isUpdateManaging &&
+    typeof onDeleteUpdate === "function" &&
+    typeof onUpdateLog === "function" &&
+    canManageAnyUpdate;
   const due = diffDays(task.dueDate, TODAY);
   const daysToStart = diffDays(task.startDate, TODAY);
   const progress = taskProgress(task);
@@ -7375,10 +7610,22 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onD
             )}
           </div>
           <div className="detail-section">
-            <h3>
-              <MessageSquareText size={16} />
-              업데이트 로그
-            </h3>
+            <div className="detail-section-title">
+              <h3>
+                <MessageSquareText size={16} />
+                업데이트 로그
+              </h3>
+              {canManageAnyUpdate && (
+                <button
+                  aria-pressed={isUpdateManaging}
+                  className={`section-manage-button ${isUpdateManaging ? "active" : ""}`}
+                  onClick={() => setIsUpdateManaging((current) => !current)}
+                  type="button"
+                >
+                  {isUpdateManaging ? "완료" : "관리"}
+                </button>
+              )}
+            </div>
             <form
               className="quick-update-form"
               onSubmit={(event) => {
@@ -7410,13 +7657,36 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onD
               </button>
             </form>
             {task.updates.length ? (
-              task.updates.map((update) => (
-                <div className="log-item" key={`${update.date}-${update.text}`}>
-                  <strong>{personName(update.authorId)}</strong>
-                  <small>{update.date}</small>
-                  <p>{update.text}</p>
-                </div>
-              ))
+              task.updates.map((update, index) => {
+                const canManageThisUpdate = canManage || update.authorId === selectedPersonId;
+                const editUpdate = () => {
+                  const nextText = window.prompt("업데이트 로그 내용을 수정하세요.", update.text ?? "");
+                  if (nextText === null) return;
+                  onUpdateLog(update, index, nextText);
+                };
+                const deleteUpdate = () => {
+                  const confirmed = window.confirm("이 업데이트 로그를 삭제할까요?");
+                  if (!confirmed) return;
+                  onDeleteUpdate(update, index);
+                };
+                return (
+                  <div className={`log-item ${showUpdateActions && canManageThisUpdate ? "is-managing" : ""}`} key={`${update.id ?? update.date}-${update.text}-${index}`}>
+                    <strong>{personName(update.authorId)}</strong>
+                    <small>{update.date}</small>
+                    <p>{update.text}</p>
+                    {showUpdateActions && canManageThisUpdate && (
+                      <span className="log-item-actions">
+                        <button className="ghost-icon" onClick={editUpdate} type="button" title="업데이트 로그 수정">
+                          <Edit3 size={13} />
+                        </button>
+                        <button className="ghost-icon danger" onClick={deleteUpdate} type="button" title="업데이트 로그 삭제">
+                          <Trash2 size={13} />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                );
+              })
             ) : (
               <p className="empty-note">아직 업데이트 로그가 없습니다.</p>
             )}
@@ -7439,26 +7709,59 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onD
           </div>
           {task.statusHistory?.length > 0 && (
             <div className="detail-section status-history-section">
-              <h3>
-                <Activity size={16} />
-                변경 이력
-              </h3>
+              <div className="detail-section-title">
+                <h3>
+                  <Activity size={16} />
+                  변경 이력
+                </h3>
+                {canManageHistory && (
+                  <button
+                    aria-pressed={isHistoryManaging}
+                    className={`section-manage-button ${isHistoryManaging ? "active" : ""}`}
+                    onClick={() => setIsHistoryManaging((current) => !current)}
+                    type="button"
+                  >
+                    {isHistoryManaging ? "완료" : "관리"}
+                  </button>
+                )}
+              </div>
               <div className="status-history-table" role="table" aria-label="업무 변경 이력">
-                <div className="status-history-head" role="row">
+                <div className={`status-history-head ${showHistoryActions ? "can-manage" : ""}`} role="row">
                   <span role="columnheader">처리일자</span>
                   <span role="columnheader">처리자</span>
                   <span role="columnheader">처리내용</span>
+                  {showHistoryActions && <span role="columnheader">관리</span>}
                 </div>
                 {task.statusHistory.slice(0, 6).map((entry, index) => {
                   const changeText = taskChangeText(entry);
+                  const editHistory = () => {
+                    const nextNote = window.prompt("변경 이력 메모를 수정하세요. 비우면 기본 문구로 표시됩니다.", entry.note ?? "");
+                    if (nextNote === null) return;
+                    onUpdateHistory(entry, index, nextNote);
+                  };
+                  const deleteHistory = () => {
+                    const confirmed = window.confirm("이 변경 이력을 삭제할까요? 현재 업무 상태는 바뀌지 않습니다.");
+                    if (!confirmed) return;
+                    onDeleteHistory(entry, index);
+                  };
                   return (
-                    <div className="status-history-row" key={`${entry.date}-${entry.to}-${index}`} role="row">
+                    <div className={`status-history-row ${showHistoryActions ? "can-manage" : ""}`} key={`${entry.id ?? entry.date}-${entry.to}-${index}`} role="row">
                       <span role="cell">{entry.date}</span>
                       <strong role="cell">{personName(entry.actorId)}</strong>
                       <p aria-label={changeText} className="status-history-note" role="cell" tabIndex={0}>
                         <span className="status-history-clip">{changeText}</span>
                         <span className="status-history-tooltip" role="tooltip">{changeText}</span>
                       </p>
+                      {showHistoryActions && (
+                        <span className="status-history-actions" role="cell">
+                          <button className="ghost-icon" onClick={editHistory} type="button" title="변경 이력 메모 수정">
+                            <Edit3 size={13} />
+                          </button>
+                          <button className="ghost-icon danger" onClick={deleteHistory} type="button" title="변경 이력 삭제">
+                            <Trash2 size={13} />
+                          </button>
+                        </span>
+                      )}
                     </div>
                   );
                 })}

@@ -101,18 +101,20 @@ Completion rule: `due_date` is the plan. `completed_at` is the actual result dat
 
 ### task_change_history
 
-Append-only audit log for important task changes.
+Append-first audit log for important task changes.
 
 | Field | Type | Notes |
 | --- | --- | --- |
 | id | string | Stable change id. |
 | task_id | task id | Parent task. |
-| change_type | enum | status, due_date. |
+| change_type | enum | status, due_date, archive, delete, recurring. |
 | from_value | text nullable | Previous status or due date. |
 | to_value | text | New status or due date. |
 | actor_id | user id | User who changed the status. |
-| note | text | Example: 완료 처리, 완료 처리 취소, 마감일 변경. |
+| note | text | Display memo. Example: 완료 처리, 완료 처리 취소, 마감일 변경. Task managers may update this field to correct accidental wording. |
 | created_at | datetime | Audit field. |
+
+Correction rule: changing the current task status, completion metadata, or due date should append a new history row. If the history row itself was created by mistake, a task manager may update only `note` or delete that history row; deleting a row does not roll back current task state.
 
 ### task_updates
 
@@ -123,9 +125,11 @@ Short update log entries.
 | id | string | Stable update id. |
 | task_id | task id | Parent task. |
 | author_id | user id | Writer. |
-| body | text | Update content. |
+| body | text | Update content. The author or a task manager may update this field to correct accidental wording. |
 | update_type | enum | note, issue, decision, request, completion. Optional at first. |
 | created_at | datetime | Sort newest first in update view. |
+
+Update correction rule: author and timestamp are immutable. If an update row itself was created by mistake, the author or a task manager may update only `body` or delete the row.
 
 ### task_links
 

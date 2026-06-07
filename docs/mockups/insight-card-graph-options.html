@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Insight Card Graph Options</title>
+    <style>
+      :root {
+        --blue: #2563eb;
+        --amber: #f59e0b;
+        --red: #ef4444;
+        --green: #22c55e;
+        --ink: #172033;
+        --muted: #66758a;
+        --line: #dfe8f3;
+        --panel: #ffffff;
+        --bg: #f6f9fc;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 14% 0%, rgba(37, 99, 235, 0.11), transparent 28%),
+          linear-gradient(180deg, #f9fbfe 0%, var(--bg) 100%);
+        color: var(--ink);
+        font-family: Inter, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+        letter-spacing: 0;
+        word-break: keep-all;
+      }
+
+      .page {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 30px 22px 42px;
+      }
+
+      .head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 25px;
+        line-height: 1.2;
+      }
+
+      .head p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 640;
+      }
+
+      .pill {
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.75);
+        color: #31527d;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 780;
+        white-space: nowrap;
+      }
+
+      .section {
+        margin-top: 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.07);
+        overflow: hidden;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid #edf2f7;
+        background: #fbfdff;
+        padding: 13px 16px;
+      }
+
+      .section-title strong {
+        font-size: 14px;
+      }
+
+      .section-title span {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 720;
+      }
+
+      .strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        padding: 16px;
+      }
+
+      .card {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr) minmax(96px, auto);
+        grid-template-areas:
+          "icon value meta"
+          "icon value action";
+        grid-template-rows: auto auto;
+        align-items: center;
+        gap: 3px 12px;
+        min-height: 92px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 12px 14px;
+        box-shadow: 0 8px 16px rgba(15, 23, 42, 0.03);
+      }
+
+      .card.empty {
+        opacity: 0.74;
+      }
+
+      .icon {
+        grid-area: icon;
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: #eff6ff;
+        color: var(--blue);
+      }
+
+      .amber .icon {
+        background: #fffbeb;
+        color: var(--amber);
+      }
+
+      .red .icon {
+        background: #fff1f2;
+        color: var(--red);
+      }
+
+      .green .icon {
+        background: #f0fdf4;
+        color: var(--green);
+      }
+
+      .value {
+        grid-area: value;
+        min-width: 0;
+      }
+
+      .value strong {
+        display: block;
+        font-size: 27px;
+        line-height: 1;
+      }
+
+      .value small {
+        display: block;
+        margin-top: 4px;
+        font-size: 12px;
+        font-weight: 740;
+        line-height: 1.15;
+      }
+
+      .meta {
+        grid-area: meta;
+        justify-self: end;
+        align-self: end;
+        max-width: 148px;
+        color: var(--muted);
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 680;
+        line-height: 1.25;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .action {
+        grid-area: action;
+        justify-self: end;
+        align-self: start;
+        color: var(--blue);
+        font-size: 11.5px;
+        font-style: normal;
+        font-weight: 720;
+        white-space: nowrap;
+      }
+
+      .spark {
+        display: block;
+        width: 126px;
+        height: 34px;
+      }
+
+      .spark text {
+        fill: var(--muted);
+        font-size: 9px;
+        font-weight: 760;
+      }
+
+      .barline {
+        margin-top: 8px;
+        width: 100%;
+      }
+
+      .barline span {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        color: var(--muted);
+        font-size: 9.5px;
+        font-weight: 760;
+      }
+
+      .bar {
+        height: 5px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e8eef6;
+      }
+
+      .bar i {
+        display: block;
+        width: var(--value);
+        height: 100%;
+        border-radius: inherit;
+        background: currentColor;
+      }
+
+      .card.blue .barline {
+        color: var(--blue);
+      }
+
+      .card.amber .barline {
+        color: var(--amber);
+      }
+
+      .card.red .barline {
+        color: var(--red);
+      }
+
+      .card.green .barline {
+        color: var(--green);
+      }
+
+      .micro-dots {
+        grid-area: meta;
+        display: flex;
+        justify-self: end;
+        align-self: center;
+        gap: 5px;
+      }
+
+      .micro-dots i {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: currentColor;
+        opacity: 0.34;
+      }
+
+      .micro-dots i.active {
+        opacity: 1;
+        box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 16%, transparent);
+      }
+
+      .blue .micro-dots,
+      .blue .spark path {
+        color: var(--blue);
+        stroke: var(--blue);
+      }
+
+      .amber .micro-dots,
+      .amber .spark path {
+        color: var(--amber);
+        stroke: var(--amber);
+      }
+
+      .red .micro-dots,
+      .red .spark path {
+        color: var(--red);
+        stroke: var(--red);
+      }
+
+      .green .micro-dots,
+      .green .spark path {
+        color: var(--green);
+        stroke: var(--green);
+      }
+
+      .note {
+        border-top: 1px solid #edf2f7;
+        padding: 12px 16px;
+        color: #52637a;
+        font-size: 12px;
+        font-weight: 650;
+        line-height: 1.55;
+      }
+
+      @media (max-width: 1120px) {
+        .strip {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 680px) {
+        .head {
+          align-items: start;
+          flex-direction: column;
+        }
+
+        .strip {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="head">
+        <div>
+          <h1>상단 요약 카드 그래프 적용 예시</h1>
+          <p>사진 속 4개 카드에 실제로 들어갈 수 있는 후보만 다시 비교했습니다. 별도 페이지가 아니라 기존 카드 안에 얹는 방식입니다.</p>
+        </div>
+        <span class="pill">추천: A안, 데이터 없는 카드는 현재 문구 유지</span>
+      </header>
+
+      <section class="section" aria-label="A안 오른쪽 미니 선 그래프">
+        <div class="section-title">
+          <strong>A안. 오른쪽 문구 자리에 mini sparkline</strong>
+          <span>가장 21st.dev 느낌, 현재 카드 여백 활용</span>
+        </div>
+        <div class="strip">
+          <article class="card blue">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 13h3l2-7 4 14 3-9h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="value"><strong>7</strong><small>내 진행 업무</small></span>
+            <svg class="spark" viewBox="0 0 126 34" aria-hidden="true">
+              <path d="M4 24 C18 20, 25 25, 36 18 S55 12, 68 16 S86 24, 100 12 S113 10, 122 7" fill="none" stroke-width="3" stroke-linecap="round" />
+              <text x="70" y="31">평균 62%</text>
+            </svg>
+            <i class="action">진행 업무 보기 →</i>
+          </article>
+
+          <article class="card amber">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 8v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <path d="M5 3v5h5M5.5 8A7 7 0 1 1 5 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="value"><strong>3</strong><small>3일 내 마감</small></span>
+            <svg class="spark" viewBox="0 0 126 34" aria-hidden="true">
+              <path d="M4 20 C16 15, 26 11, 38 13 S62 17, 76 10 S99 7, 122 14" fill="none" stroke-width="3" stroke-linecap="round" />
+              <text x="65" y="31">오늘 확인</text>
+            </svg>
+            <i class="action">마감 업무 보기 →</i>
+          </article>
+
+          <article class="card red empty">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 8v5M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <path d="M10.3 4.2 2.8 17.2A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.8L13.7 4.2a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="value"><strong>0</strong><small>지연 업무</small></span>
+            <em class="meta">지연 없음</em>
+          </article>
+
+          <article class="card green empty">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+              </svg>
+            </span>
+            <span class="value"><strong>0</strong><small>완료 업무</small></span>
+            <em class="meta">보관 전 검토 가능</em>
+          </article>
+        </div>
+        <p class="note">이 방식은 카드 오른쪽에 이미 있는 설명 영역을 활용합니다. 업무가 0건인 카드는 지금처럼 문구만 유지하면 빈 그래프 느낌이 나지 않습니다.</p>
+      </section>
+
+      <section class="section" aria-label="B안 숫자 아래 진행률 바">
+        <div class="section-title">
+          <strong>B안. 숫자 아래 얇은 progress bar</strong>
+          <span>가장 차분하고 업무툴 느낌</span>
+        </div>
+        <div class="strip">
+          <article class="card blue">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 13h3l2-7 4 14 3-9h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="value">
+              <strong>7</strong><small>내 진행 업무</small>
+              <span class="barline"><span><b>평균 진행률</b><b>62%</b></span><span class="bar"><i style="--value: 62%"></i></span></span>
+            </span>
+            <em class="meta">정상 흐름</em>
+            <i class="action">진행 업무 보기 →</i>
+          </article>
+
+          <article class="card amber">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 8v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <path d="M5 3v5h5M5.5 8A7 7 0 1 1 5 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="value">
+              <strong>3</strong><small>3일 내 마감</small>
+              <span class="barline"><span><b>처리 준비</b><b>40%</b></span><span class="bar"><i style="--value: 40%"></i></span></span>
+            </span>
+            <em class="meta">오늘 확인</em>
+            <i class="action">마감 업무 보기 →</i>
+          </article>
+
+          <article class="card red empty">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 8v5M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <path d="M10.3 4.2 2.8 17.2A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.8L13.7 4.2a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="value"><strong>0</strong><small>지연 업무</small></span>
+            <em class="meta">지연 없음</em>
+          </article>
+
+          <article class="card green">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+              </svg>
+            </span>
+            <span class="value">
+              <strong>4</strong><small>완료 업무</small>
+              <span class="barline"><span><b>보관 검토</b><b>75%</b></span><span class="bar"><i style="--value: 75%"></i></span></span>
+            </span>
+            <em class="meta">보관 전 검토</em>
+            <i class="action">완료 업무 보기 →</i>
+          </article>
+        </div>
+        <p class="note">이 방식은 정보가 더 명확하지만 카드 높이가 조금 커집니다. 시연 화면에서 안정감은 좋고, 화려함은 A안보다 낮습니다.</p>
+      </section>
+
+      <section class="section" aria-label="C안 아이콘 점 상태">
+        <div class="section-title">
+          <strong>C안. 아이콘 옆 작은 상태 dot</strong>
+          <span>가장 소극적, 포인트만 추가</span>
+        </div>
+        <div class="strip">
+          <article class="card blue">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 13h3l2-7 4 14 3-9h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="value"><strong>7</strong><small>내 진행 업무</small></span>
+            <span class="micro-dots"><i></i><i class="active"></i><i class="active"></i><i></i></span>
+            <i class="action">진행 업무 보기 →</i>
+          </article>
+          <article class="card amber">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 8v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <path d="M5 3v5h5M5.5 8A7 7 0 1 1 5 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="value"><strong>3</strong><small>3일 내 마감</small></span>
+            <span class="micro-dots"><i></i><i></i><i class="active"></i><i class="active"></i></span>
+            <i class="action">마감 업무 보기 →</i>
+          </article>
+          <article class="card red empty">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 8v5M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <path d="M10.3 4.2 2.8 17.2A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.8L13.7 4.2a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="value"><strong>0</strong><small>지연 업무</small></span>
+            <em class="meta">지연 없음</em>
+          </article>
+          <article class="card green empty">
+            <span class="icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+              </svg>
+            </span>
+            <span class="value"><strong>0</strong><small>완료 업무</small></span>
+            <em class="meta">보관 전 검토 가능</em>
+          </article>
+        </div>
+        <p class="note">이 방식은 거의 장식에 가깝습니다. 현재 사진 영역에는 쓸 수 있지만, 시연에서 데이터 감이 덜 살아서 우선순위는 낮습니다.</p>
+      </section>
+    </main>
+  </body>
+</html>

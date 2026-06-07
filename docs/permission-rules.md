@@ -130,9 +130,25 @@ Update logs are append-first records.
 Allowed:
 
 - visible team task updates can be added by admin, lead, and members
+- update authors or task managers can correct the update body
+- update authors or task managers can delete an accidental update row
 - update author and timestamp should be immutable after creation
 
-Editing or deleting update logs should be admin-only at first, or avoided entirely until audit needs are clear.
+Editing update logs must be limited to the body text. Editing or deleting an update row must not change task status, task history, author, or timestamp.
+
+## Task Change History Rules
+
+Task change history is append-first and should usually represent status, due-date, archive, delete, and recurring-instance events.
+
+Allowed:
+
+- task managers can update only a history row's display note
+- task managers can delete an accidental history row
+
+Restricted:
+
+- editing or deleting a history row must not change the current task status, due date, completion metadata, or archive state
+- members who cannot manage the task cannot edit or delete its history rows
 
 ## Tag Rules
 

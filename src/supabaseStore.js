@@ -276,6 +276,7 @@ async function readDashboardState() {
   });
   updatesResult.data.forEach((update) => {
     ensureRelations(update.task_id).updates.push({
+      id: update.id,
       authorId: update.author_id,
       date: update.created_at.slice(0, 10),
       text: update.body
@@ -290,6 +291,7 @@ async function readDashboardState() {
   });
   historyResult.data.forEach((entry) => {
     ensureRelations(entry.task_id).statusHistory.push({
+      id: entry.id,
       type: entry.change_type === "due_date" ? "dueDate" : entry.change_type,
       from: entry.from_value ?? "",
       to: entry.to_value,
@@ -801,6 +803,55 @@ async function addTaskUpdate(taskId, text) {
   return true;
 }
 
+async function updateTaskUpdate(updateId, text) {
+  if (!isUuid(updateId)) return { skipped: true };
+  const cleanText = text.trim();
+  if (!cleanText) return false;
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true };
+  const { error } = await client
+    .from("task_updates")
+    .update({ body: cleanText })
+    .eq("id", updateId);
+  if (error) throw error;
+  return true;
+}
+
+async function deleteTaskUpdate(updateId) {
+  if (!isUuid(updateId)) return { skipped: true };
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true };
+  const { error } = await client.from("task_updates").delete().eq("id", updateId);
+  if (error) throw error;
+  return true;
+}
+
+async function updateTaskHistory(historyId, note) {
+  if (!isUuid(historyId)) return { skipped: true };
+  const cleanNote = note.trim();
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true };
+  const { error } = await client
+    .from("task_change_history")
+    .update({ note: cleanNote || null })
+    .eq("id", historyId);
+  if (error) throw error;
+  return true;
+}
+
+async function deleteTaskHistory(historyId) {
+  if (!isUuid(historyId)) return { skipped: true };
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true };
+  const { error } = await client.from("task_change_history").delete().eq("id", historyId);
+  if (error) throw error;
+  return true;
+}
+
 async function addTaskLink(taskId, link) {
   if (!isUuid(taskId)) return { skipped: true };
   const url = link.url?.trim();
@@ -1148,6 +1199,10 @@ export const supabaseDashboardStore = {
     save: saveTask,
     updateStatus: updateTaskStatus,
     addUpdate: addTaskUpdate,
+    updateLog: updateTaskUpdate,
+    deleteLog: deleteTaskUpdate,
+    updateHistory: updateTaskHistory,
+    deleteHistory: deleteTaskHistory,
     addLink: addTaskLink,
     setArchived: setTaskArchived,
     setSubtaskDone,
