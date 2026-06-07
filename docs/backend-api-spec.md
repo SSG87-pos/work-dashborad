@@ -214,6 +214,46 @@ Tasks should have one or more tags. All users can create and apply tags, but onl
 
 Task due items are derived from `tasks.due_date`, not duplicated as events.
 
+### canvas_tabs, canvas_nodes, canvas_links
+
+Canvas is a team-shared freeform thinking area. It is separate from the generated workflow mindmap.
+
+| Table | Column | Type | Notes |
+| --- | --- | --- | --- |
+| canvas_tabs | id | text pk | Stable tab id such as `ideas` or `custom-...`. |
+| canvas_tabs | label | text | Short tab label. |
+| canvas_tabs | title | text | Canvas toolbar title. |
+| canvas_tabs | description | text | Export/purpose description. |
+| canvas_tabs | sort_order | integer | Tab order. |
+| canvas_tabs | created_by | text fk users.id | First creator. |
+| canvas_tabs | updated_by | text fk users.id | Last editor. |
+| canvas_tabs | version | integer | Reserved for later conflict/history handling. |
+| canvas_nodes | tab_id | text fk canvas_tabs.id | Parent tab. |
+| canvas_nodes | id | text | Node id within tab. |
+| canvas_nodes | title | text | Node title. |
+| canvas_nodes | body | text | Card-mode body. |
+| canvas_nodes | template | text | `memo`, `question`, `decision`, `action`, `evidence`, `risk`. |
+| canvas_nodes | parent_id | text | Optional parent node id for solid hierarchy links. |
+| canvas_nodes | x | integer | Canvas plane x position. |
+| canvas_nodes | y | integer | Canvas plane y position. |
+| canvas_nodes | sort_order | integer | Stable order fallback. |
+| canvas_nodes | created_by | text fk users.id | First creator. |
+| canvas_nodes | updated_by | text fk users.id | Last editor. |
+| canvas_nodes | version | integer | Reserved for later conflict/history handling. |
+| canvas_links | tab_id | text fk canvas_tabs.id | Parent tab. |
+| canvas_links | id | text | Link id within tab. |
+| canvas_links | source_id | text | Source node id. |
+| canvas_links | target_id | text | Target node id. |
+| canvas_links | created_by | text fk users.id | First creator. |
+| canvas_links | updated_by | text fk users.id | Last editor. |
+| canvas_links | version | integer | Reserved for later conflict/history handling. |
+
+Canvas MVP rule:
+
+- Active signed-in users can read, insert, update, and delete shared Canvas tabs/nodes/links.
+- The current implementation saves a whole-tab snapshot after edits and refreshes from Supabase when Canvas loads.
+- Live cursors, simultaneous-edit conflict resolution, per-node locking, and visible change history are intentionally later collaboration features.
+
 ### personal_notes
 
 | Column | Type | Required | Notes |

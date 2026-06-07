@@ -12033,6 +12033,37 @@ body[data-page="team"] .briefing-panel {
   font-weight: 720;
 }
 
+.canvas-sync-status {
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background: #f8fbff;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
+.canvas-sync-status.status-local {
+  border-color: #e5e7eb;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.canvas-sync-status.status-loading,
+.canvas-sync-status.status-saving {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #a16207;
+}
+
+.canvas-sync-status.status-error {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #be123c;
+}
+
 .canvas-add-control button,
 .canvas-arrange-button,
 .canvas-export-button {

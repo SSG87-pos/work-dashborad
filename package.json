@@ -9,6 +9,7 @@
     "demo:urls": "node scripts/print-demo-urls.mjs",
     "check:demo-readiness": "node scripts/check-demo-readiness.mjs",
     "check:import-plan": "node scripts/check-supabase-import-plan.mjs",
+    "check:canvas-storage": "node scripts/check-canvas-storage.mjs",
     "check:mindmap-structure": "node scripts/check-mindmap-structure.mjs",
     "check:workstreams": "node scripts/check-workstreams.mjs",
     "check:summary-filter": "node scripts/check-summary-filter.mjs",

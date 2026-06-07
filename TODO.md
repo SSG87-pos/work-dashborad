@@ -2,6 +2,24 @@
 
 ## Now
 
+- [x] Apply live Supabase Canvas shared-storage migration after explicit approval.
+  - Files: `src/SharedCanvasView.jsx`, `src/canvasModel.js`, `src/supabaseStore.js`, `src/App.jsx`, `src/styles.css`, `supabase/migrations/016_canvas_shared_storage.sql`, `scripts/check-canvas-storage.mjs`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: prepared the shared Canvas storage MVP in code. Signed-in Supabase mode now calls `supabaseDashboardStore.canvas.read/save`; local/offline mode remains `로컬 초안`.
+  - Done: added `canvas_tabs`, `canvas_nodes`, and `canvas_links` migration with active-user RLS, manual authenticated Data API grants, audit fields, and reserved `version` fields for later conflict/history work.
+  - Done: moved Canvas seed/normalization/Markdown export logic into `src/canvasModel.js` and added `pnpm run check:canvas-storage`.
+  - Verified: `pnpm run check:canvas-storage`, `pnpm run check:demo-readiness`, `pnpm run check:import-plan`, `pnpm run check:summary-filter`, `git diff --check`, and `CI=true pnpm run build` passed. The latest build completed in 4.87s with the existing large lanyard vendor chunk warning.
+  - Verified: live Supabase `BEGIN ... ROLLBACK` rehearsal for `016_canvas_shared_storage.sql` passed.
+  - Done after explicit approval: live Supabase now has `canvas_tabs`, `canvas_nodes`, and `canvas_links`, all with RLS enabled.
+  - Done: after the first grant check showed CRUD plus extra table privileges, privileges were narrowed with `revoke all` and re-granted to authenticated as `select, insert, update, delete` only. The local migration file was updated to match this stricter live state.
+  - Verified live policies: each Canvas table has active-user SELECT/INSERT/UPDATE/DELETE policies.
+  - Verified live grants: authenticated now has only DELETE, INSERT, SELECT, and UPDATE on each Canvas table.
+  - Verified live RLS smoke: with `role authenticated` and 슬기님 auth UID, rollback test inserted a tab, two nodes, and a link; updated a node; deleted the link; selected visible rows; and rolled back cleanly.
+  - Verified cleanup: post-rollback row counts are `canvas_tabs 0`, `canvas_nodes 0`, `canvas_links 0`.
+  - Browser QA note: Supabase-mode browser opened the POSLAB/login screen and had no stored login session, so signed-in shared Canvas click-through could not be tested without entering credentials. Existing console warnings were third-party lanyard/Three deprecation warnings.
+  - Browser QA fallback: local fallback mode opened on `http://127.0.0.1:5175/`; POSLAB entry worked, Canvas rendered with `로컬 초안`, 3 starter nodes, no Vite/React error overlay, no horizontal overflow, and adding `QA 공유 저장 확인` increased editable nodes to 4.
+  - Company clone prep check: `pnpm run demo:urls` printed current candidates `http://127.0.0.1:5173/`, `http://192.168.45.109:5173/`, and `http://192.168.55.223:5173/`; remote remains `https://github.com/SSG87-pos/work-dashborad.git`.
+  - Remaining later scope: live cursors, simultaneous-edit conflict handling, per-node locking, task-linking, and visible change history.
+
 - [x] Document temporary internet URL demo procedure.
   - Files: `docs/internal-port-demo-runbook.md`, `docs/company-demo-readiness-checklist.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added a `Temporary Internet URL Demo Option` to the runbook covering Cloudflare Quick Tunnel, ngrok, and Vercel Hobby preview choices.

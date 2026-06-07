@@ -10,116 +10,38 @@ import {
   Rows3,
   Trash2
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-const canvasTemplates = [
-  { id: "memo", label: "메모", title: "새 메모", body: "메모를 입력하세요." },
-  { id: "question", label: "질문", title: "확인 질문", body: "확인할 질문을 적어두세요." },
-  { id: "decision", label: "결정", title: "결정 사항", body: "결정 내용과 이유를 기록하세요." },
-  { id: "action", label: "액션", title: "다음 행동", body: "담당자와 다음 행동을 적어두세요." },
-  { id: "evidence", label: "근거", title: "근거 자료", body: "자료 출처와 핵심 근거를 적어두세요." },
-  { id: "risk", label: "리스크", title: "리스크", body: "리스크와 대응 방향을 적어두세요." }
-];
-
-const templateMap = new Map(canvasTemplates.map((template) => [template.id, template]));
-
-const defaultCanvasTabs = [
-  {
-    id: "ideas",
-    label: "생각 정리",
-    title: "생각 정리 캔버스",
-    description: "개인이 떠올린 아이디어와 판단 근거를 자유롭게 모아두는 공간입니다.",
-    notes: ["상위 업무흐름 후보", "보고서 관점", "추가 조사 질문"]
-  }
-];
-
-const initialNodesByTab = Object.fromEntries(
-  defaultCanvasTabs.map((tab) => [
-    tab.id,
-    tab.notes.map((note, index) => ({
-      id: `${tab.id}-${index}`,
-      title: note,
-      body: canvasTemplates[index % canvasTemplates.length].body,
-      template: canvasTemplates[index % canvasTemplates.length].id,
-      parentId: "",
-      x: 330 + index * 40,
-      y: 74 + index * 96
-    }))
-  ])
-);
-
-const initialLinksByTab = Object.fromEntries(defaultCanvasTabs.map((tab) => [tab.id, []]));
+import {
+  buildCanvasMarkdown,
+  canvasTemplates,
+  createDefaultCanvasState,
+  getTemplate,
+  normalizeCanvasState
+} from "./canvasModel.js";
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function getTemplate(templateId) {
-  return templateMap.get(templateId) ?? canvasTemplates[0];
-}
-
-function escapeMarkdown(value) {
-  return String(value ?? "").replaceAll("\r\n", "\n").trim();
-}
-
-function buildCanvasMarkdown(tab, nodes, links) {
-  const nodesById = new Map(nodes.map((node) => [node.id, node]));
-  const childrenByParent = new Map();
-  const rootNodes = [];
-  const linksBySource = new Map();
-
-  nodes.forEach((node) => {
-    if (node.parentId && nodesById.has(node.parentId)) {
-      if (!childrenByParent.has(node.parentId)) childrenByParent.set(node.parentId, []);
-      childrenByParent.get(node.parentId).push(node);
-      return;
-    }
-    rootNodes.push(node);
-  });
-
-  links.forEach((link) => {
-    if (!nodesById.has(link.sourceId) || !nodesById.has(link.targetId)) return;
-    if (!linksBySource.has(link.sourceId)) linksBySource.set(link.sourceId, []);
-    linksBySource.get(link.sourceId).push(nodesById.get(link.targetId));
-  });
-
-  const lines = [`# ${tab.title}`, "", tab.description, ""];
-
-  const visit = (node, depth) => {
-    const headingLevel = Math.min(depth + 2, 6);
-    const template = getTemplate(node.template);
-    lines.push(`${"#".repeat(headingLevel)} ${escapeMarkdown(node.title) || template.title}`);
-    lines.push(`- 유형: ${template.label}`);
-    const bodyLines = escapeMarkdown(node.body).split("\n").filter(Boolean);
-    if (bodyLines.length) {
-      lines.push("- 내용:");
-      bodyLines.forEach((line) => lines.push(`  - ${line}`));
-    }
-    const linkedNodes = linksBySource.get(node.id) ?? [];
-    if (linkedNodes.length) {
-      lines.push(`- 연결: ${linkedNodes.map((linkedNode) => escapeMarkdown(linkedNode.title) || getTemplate(linkedNode.template).title).join(", ")}`);
-    }
-    lines.push("");
-    (childrenByParent.get(node.id) ?? []).forEach((child) => visit(child, depth + 1));
-  };
-
-  rootNodes.forEach((node) => visit(node, 0));
-  return lines.join("\n").trim() + "\n";
-}
-
-export function SharedCanvasView() {
-  const [canvasTabs, setCanvasTabs] = useState(defaultCanvasTabs);
-  const [activeTab, setActiveTab] = useState(defaultCanvasTabs[0].id);
-  const [nodesByTab, setNodesByTab] = useState(initialNodesByTab);
-  const [linksByTab, setLinksByTab] = useState(initialLinksByTab);
+export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = false }) {
+  const defaultCanvasState = useMemo(createDefaultCanvasState, []);
+  const [canvasTabs, setCanvasTabs] = useState(defaultCanvasState.tabs);
+  const [activeTab, setActiveTab] = useState(defaultCanvasState.activeTabId);
+  const [nodesByTab, setNodesByTab] = useState(defaultCanvasState.nodesByTab);
+  const [linksByTab, setLinksByTab] = useState(defaultCanvasState.linksByTab);
   const [canvasDensity, setCanvasDensity] = useState("card");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftTabTitle, setDraftTabTitle] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState(canvasTemplates[0].id);
   const [linkSourceId, setLinkSourceId] = useState("");
   const [markdownStatus, setMarkdownStatus] = useState("");
+  const [canvasSyncStatus, setCanvasSyncStatus] = useState(isSharedCanvasReady ? "loading" : "local");
   const dragRef = useRef(null);
   const stageRef = useRef(null);
+  const hasLoadedSharedCanvasRef = useRef(false);
+  const skipNextSaveRef = useRef(false);
+  const saveTimerRef = useRef(null);
   const selectedTab = canvasTabs.find((tab) => tab.id === activeTab) ?? canvasTabs[0];
   const nodes = nodesByTab[selectedTab.id] ?? [];
   const nodesById = new Map(nodes.map((node) => [node.id, node]));
@@ -129,6 +51,67 @@ export function SharedCanvasView() {
   const manualLinks = (linksByTab[selectedTab.id] ?? []).filter((link) => nodesById.has(link.sourceId) && nodesById.has(link.targetId));
   const renderedLinks = [...parentLinks, ...manualLinks];
   const nodeBox = canvasDensity === "compact" ? { width: 160, centerY: 24 } : { width: 182, centerY: 50 };
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!isSharedCanvasReady || !canvasStore?.read) {
+      hasLoadedSharedCanvasRef.current = false;
+      setCanvasSyncStatus("local");
+      return undefined;
+    }
+
+    setCanvasSyncStatus("loading");
+    canvasStore.read()
+      .then((remoteState) => {
+        if (!isMounted) return;
+        const nextState = remoteState?.skipped ? defaultCanvasState : normalizeCanvasState(remoteState ?? defaultCanvasState);
+        skipNextSaveRef.current = true;
+        setCanvasTabs(nextState.tabs);
+        setActiveTab(nextState.activeTabId);
+        setNodesByTab(nextState.nodesByTab);
+        setLinksByTab(nextState.linksByTab);
+        hasLoadedSharedCanvasRef.current = !remoteState?.skipped;
+        setCanvasSyncStatus(remoteState?.skipped ? "local" : "shared");
+      })
+      .catch((error) => {
+        console.warn("공유 Canvas를 불러오지 못했습니다.", error);
+        if (!isMounted) return;
+        hasLoadedSharedCanvasRef.current = false;
+        setCanvasSyncStatus("error");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [canvasStore, defaultCanvasState, isSharedCanvasReady]);
+
+  useEffect(() => {
+    if (!isSharedCanvasReady || !canvasStore?.save || !hasLoadedSharedCanvasRef.current) return undefined;
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return undefined;
+    }
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    setCanvasSyncStatus("saving");
+    saveTimerRef.current = window.setTimeout(() => {
+      canvasStore.save({
+        activeTabId: activeTab,
+        tabs: canvasTabs,
+        nodesByTab,
+        linksByTab
+      })
+        .then((result) => {
+          setCanvasSyncStatus(result?.skipped ? "local" : "saved");
+        })
+        .catch((error) => {
+          console.warn("공유 Canvas를 저장하지 못했습니다.", error);
+          setCanvasSyncStatus("error");
+        });
+    }, 700);
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+  }, [activeTab, canvasStore, canvasTabs, isSharedCanvasReady, linksByTab, nodesByTab]);
 
   function updateNode(nodeId, updates) {
     setNodesByTab((current) => ({
@@ -391,6 +374,15 @@ export function SharedCanvasView() {
     }
   }
 
+  const syncLabel = {
+    loading: "공유 Canvas 불러오는 중",
+    shared: "공유 저장",
+    saving: "저장 중",
+    saved: "저장됨",
+    local: "로컬 초안",
+    error: "저장 확인 필요"
+  }[canvasSyncStatus] ?? "로컬 초안";
+
   return (
     <section className="shared-canvas-view" aria-label="Canvas">
       <header className="shared-canvas-heading">
@@ -432,6 +424,7 @@ export function SharedCanvasView() {
       <div className="shared-canvas-board">
         <div className="shared-canvas-toolbar">
           <strong>{selectedTab.title}</strong>
+          <span className={`canvas-sync-status status-${canvasSyncStatus}`}>{syncLabel}</span>
           <div className="canvas-density-tabs" role="tablist" aria-label="Canvas 노드 크기">
             <button className={canvasDensity === "card" ? "active" : ""} onClick={() => setCanvasDensity("card")} type="button">
               카드

@@ -147,17 +147,17 @@ Greetings:
 
 - `Canvas` is its own main navigation area below `Highlights`, not a mode inside the workflow mindmap.
 - The `Canvas` area starts with only the default `생각 정리` tab. Other canvases should be created freely by users, not shipped as fixed tabs.
-- Users can add local Canvas tabs for additional personal or shared thinking spaces. Until backend storage is approved, these tabs are session-local prototype state.
+- Users can add Canvas tabs for additional shared thinking spaces. In signed-in Supabase mode, Canvas tabs, nodes, and direct links use shared team storage; in local/offline mode, they remain local prototype state.
 - Keep the `Canvas` page heading compact; do not duplicate the visible `Canvas` label in a large header card because the working area needs the vertical space.
 - Use this area for user-created/freeform thought sharing, while the workflow mindmap remains an automatically generated structured view.
-- Current implementation supports local draft editing: add nodes, edit node text, delete nodes, and drag nodes inside the current tab.
+- Current implementation supports shared draft editing: add nodes, edit node text, delete nodes, and drag nodes inside the current tab.
 - Canvas nodes can create child nodes directly, show connector lines, and run automatic tree-style arrangement for quick cleanup.
 - Existing Canvas nodes can be directly connected by selecting a source node and then a target node. Parent-child links remain tree/arrangement links in data and render as solid lines; direct related-node links are layout hints, remain separate from hierarchy data, and render as dashed lines so the difference is visible.
 - Canvas uses a scrollable large plane. Nodes should stay compact enough for many ideas, with template variants such as memo, question, decision, action, evidence, and risk.
 - Canvas node action icons should remain visible in card mode for ease of use. In compact mode, hide actions until hover/focus so the node reads as a title-only chip.
 - Canvas `카드/작게` mode is a true density switch: card mode shows editable title/body/template, while compact mode shows title-only nodes and auto-arrange recalculates for the smaller size.
-- The current tab can be exported to Markdown by copy or file download. This is an export affordance, not backend persistence.
-- Persistence, task-linking, and live multi-user collaboration are not implemented yet; do not imply those behaviors until approved.
+- The current tab can be exported to Markdown by copy or file download. This remains an export affordance even though signed-in Canvas state is now persisted separately.
+- Live cursors, simultaneous-edit conflict handling, task-linking, and change-history views are not implemented yet; do not imply those behaviors until approved.
 
 ### Timeline
 

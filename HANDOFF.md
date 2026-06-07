@@ -6,7 +6,7 @@ Mainline handoff for `/Users/seulgi/Documents/work-dashboard`.
 
 Project goal: build a clickable React/Vite prototype and evolve it into a usable shared work dashboard for `연구기획그룹-전략`. The dashboard is centered on personal daily briefing, public team workflow, task assignment, task detail/update logs, tag filtering, timeline/calendar, recurring work, archive, personal notes, performance reporting, and later real login/admin/backend support.
 
-Last updated: 2026-06-06
+Last updated: 2026-06-07
 
 ## Current State
 
@@ -39,6 +39,15 @@ Key product decisions now in the prototype:
   - The lanyard card follows the React Bits-style original `card.glb` card/clip/clamp structure, while the strap is rendered as a logo-free POSCO-blue line and the card face uses the selected `Executive Blue` POSLAB badge direction.
   - `대시보드로 들어가기` sets the session entry gate and renders the existing dashboard body.
   - Supabase login/signup remains available when configured; future company SSO can replace the entry action without changing the dashboard body.
+- Shared Canvas storage MVP is now live-applied:
+  - `src/canvasModel.js` now owns Canvas seed, normalization, template, and Markdown export helpers.
+  - `SharedCanvasView` receives `supabaseDashboardStore.canvas` and switches between signed-in shared storage status and local fallback status.
+  - `supabase/migrations/016_canvas_shared_storage.sql` defines `canvas_tabs`, `canvas_nodes`, and `canvas_links` with active-user RLS, authenticated Data API grants, audit columns, and reserved `version` fields.
+  - Live Supabase now has `canvas_tabs`, `canvas_nodes`, and `canvas_links`, all with RLS enabled.
+  - Authenticated table privileges were narrowed to `select`, `insert`, `update`, and `delete` only after an initial grant check surfaced extra privileges.
+  - RLS smoke testing under the authenticated role with 슬기님 auth UID passed inside a rolled-back transaction: tab/node/link insert, node update, link delete, and select visibility worked, then row counts returned to zero after rollback.
+  - Signed-in Canvas can now persist across PCs after the first edit/save cycle. Browser-rendered Canvas QA should still be run when a browser automation tool is available.
+  - Later collaboration scope remains separate: live cursors, simultaneous-edit conflict handling, per-node locking, task-linking, and visible change history.
 - `오늘 브리핑` is personal-first: briefing task flow, today agenda, and a page-scoped shared memo.
 - The common top header keeps only the `Strategy Work Hub` title; repeated explanatory subtitles are intentionally removed across tabs.
 - Top insight cards are number-first action filters: nonzero cards show a small `보기 →` action and clicking filters the board to that cohort, while zero-value cards stay visually quieter and non-actionable.
@@ -54,7 +63,7 @@ Key product decisions now in the prototype:
   - tasks that match 2+ Category branches can appear in multiple branches while total counts dedupe by task id and show a compact `공유 N곳` indicator.
   - clicking a group/tag node applies the existing multi-tag filter and returns to the board; clicking a task node opens the common workflow-side task detail.
 - `Canvas` is now its own main sidebar tab below `Highlights`, with internal tabs for several canvas/thinking spaces. It is conceptually separate from the auto-generated workflow mindmap.
-- Current `Canvas` implementation starts with only the default `생각 정리` tab and supports local draft editing: add local tabs, add nodes, switch `카드/작게` node size, choose compact node templates, edit node text, delete nodes, drag nodes on a scrollable plane, create child nodes, show connector lines, directly connect existing nodes, auto-arrange the node tree, and export the current tab to Markdown by copy or download. Canvas card-mode node actions are visible for easier use, compact mode is title-only with actions hidden until hover/focus, decorative node icons were removed, parent-child connectors render as solid lines, and direct related-node connectors render as dashed lines. Persistence, task-linking, live multi-user collaboration, and backend storage remain approval-bound next steps.
+- Current `Canvas` implementation starts with only the default `생각 정리` tab and supports draft editing: add tabs, add nodes, switch `카드/작게` node size, choose compact node templates, edit node text, delete nodes, drag nodes on a scrollable plane, create child nodes, show connector lines, directly connect existing nodes, auto-arrange the node tree, and export the current tab to Markdown by copy or download. Canvas card-mode node actions are visible for easier use, compact mode is title-only with actions hidden until hover/focus, decorative node icons were removed, parent-child connectors render as solid lines, and direct related-node connectors render as dashed lines. Shared Supabase persistence is now live-applied for active signed-in users. Task-linking, live multi-user collaboration, conflict handling, and change-history views remain later next steps.
 - Task detail placement is contextual:
   - briefing selections keep the detail panel beside the `오늘 브리핑`
   - board selections move the detail panel beside the board in a sticky workflow column
@@ -206,7 +215,7 @@ Recent UI/UX refinements from the latest session:
   - mindmap container height now follows the generated layout height, so longer maps extend the page rather than creating an internal mindmap scrollbar.
   - mindmap header has a `중앙` action that scrolls back to the mindmap panel and refits the generated React Flow view.
   - added `SharedCanvasView` as a separate lazy-loaded sidebar view below `Highlights`
-  - Canvas starts with `생각 정리` only; users create additional tabs themselves. It includes local node add/edit/delete/drag, `카드/작게` node-size mode, compact templates, child-node creation, direct existing-node connection, connector lines, auto-arrange behavior, a scrollable large plane, and Markdown copy/download export; it is not yet a persistent collaborative editor.
+  - Canvas starts with `생각 정리` only; users create additional tabs themselves. It includes node add/edit/delete/drag, `카드/작게` node-size mode, compact templates, child-node creation, direct existing-node connection, connector lines, auto-arrange behavior, a scrollable large plane, and Markdown copy/download export. Shared Supabase persistence is live-applied for active signed-in users.
   - Canvas `작게` mode is title-only; node action buttons are hidden until hover/focus, while card mode keeps actions visible for direct editing. Decorative node icons are removed.
   - visible navigation/header naming is `Canvas`, not `공유 캔버스`.
   - Vite now uses esbuild automatic JSX instead of `@vitejs/plugin-react`, avoiding the local corrupted Babel package cache during dev server startup.
@@ -467,11 +476,12 @@ CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build
 Latest known result:
 
 ```text
-✓ built in 1.49s
+✓ built in 4.87s
 ```
 
 Validation notes:
 
+- Latest shared Canvas storage prep and live apply: added `src/canvasModel.js`, `scripts/check-canvas-storage.mjs`, `supabase/migrations/016_canvas_shared_storage.sql`, and `supabaseDashboardStore.canvas.read/save`; wired `SharedCanvasView` to use shared Supabase storage when signed in and local fallback otherwise. `/Users/seulgi/Library/pnpm/bin/pnpm run check:canvas-storage`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `git diff --check`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 4.87s`). Live Supabase `BEGIN ... ROLLBACK` rehearsal for `016_canvas_shared_storage.sql` passed; after explicit approval, live DB now has `canvas_tabs`, `canvas_nodes`, and `canvas_links` with RLS enabled. A grant tightening follow-up changed authenticated privileges to CRUD only. Authenticated-role rollback smoke testing passed for Canvas tab/node/link insert, node update, link delete, and select visibility; post-rollback row counts returned to zero. Supabase-mode browser opened the POSLAB/login screen but had no stored login session, so signed-in shared Canvas click-through was not tested without credentials. Local fallback browser QA on `http://127.0.0.1:5175/` verified POSLAB entry, Canvas `로컬 초안`, 3 starter nodes, no Vite/React error overlay, no horizontal overflow, and adding `QA 공유 저장 확인` increased editable nodes to 4. Company clone prep check confirmed `pnpm run demo:urls` and remote `https://github.com/SSG87-pos/work-dashborad.git`.
 - Latest mindmap tab build and browser QA: added `@xyflow/react` for the auto-generated `업무 구조` view and kept `tldraw` installed for the future shared/freeform canvas path. `/Users/seulgi/Library/pnpm/bin/pnpm run check:mindmap-structure` passed, confirming one task can appear under two Category branches while global counts dedupe by task id and progress derives from subtasks. `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed. `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed after chunking React Flow into `mindmap-vendor`. Browser QA on `http://localhost:5176/` with Supabase env vars blanked for local fallback data verified `마인드맵` rendered, task-node click opened workflow-side `업무 상세`, group-node click returned to the board with `태그: 선택됨 2개`, no minimap overlay remained, and horizontal overflow was false.
 - Latest mindmap scope and Canvas QA: `/Users/seulgi/Library/pnpm/bin/pnpm run check:mindmap-structure` passed with active/all scope assertions, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter` passed, `git diff --check` passed, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.85s`). Browser QA on `http://127.0.0.1:5176/` verified Team Flow -> `마인드맵`, `현재 진행업무` rich nodes (`nodeCount 26`, `taskMetaCount 12`), `전체 진행업무` compact title-first nodes (`nodeCount 28`, compact task nodes 14, task meta 0), sidebar `Canvas` below `Highlights`, Canvas internal tabs, `회의 메모` tab switching, no framework overlay, no console errors/warnings, and no horizontal overflow at desktop and 820px viewport.
 - Latest Canvas rename/editing and dev-server QA: visible app label is now `Canvas` and rendered body no longer contains the Korean `공유 캔버스` label. Canvas local draft editing was verified in browser on `http://127.0.0.1:5176/`: add node, edit title/body, drag node from about `557,438` to `617,474`, delete the node, active sidebar nav stays `Canvas`, no framework overlay, no console errors/warnings, and no horizontal overflow. `/Users/seulgi/Library/pnpm/bin/pnpm run check:mindmap-structure`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `git diff --check`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed (`✓ built in 1.78s`). The dev server also starts on `http://127.0.0.1:5176/` after switching Vite JSX handling to esbuild automatic mode and removing the unused React/Babel plugin dependency.

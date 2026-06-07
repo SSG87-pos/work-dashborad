@@ -3685,7 +3685,10 @@ function App() {
             )}
             {activeView === "canvas" && (
               <Suspense fallback={<div className="shared-canvas-loading">Canvas를 불러오는 중입니다.</div>}>
-                <SharedCanvasView />
+                <SharedCanvasView
+                  canvasStore={supabaseDashboardStore.canvas}
+                  isSharedCanvasReady={isSupabaseReady && isAuthenticated && authStatus === "signed-in"}
+                />
               </Suspense>
             )}
             {activeView === "admin" && isSelectedAdmin && (

@@ -198,6 +198,64 @@ Stores the shared memo surface shown in the dashboard side panels.
 
 Dashboard memo rule: these memos are shared by page context, not private personal notes. Any signed-in team user can update them.
 
+## Canvas
+
+### canvas_tabs
+
+Stores team-shared Canvas spaces. The default app tab is `ideas`, but users can create additional tabs.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| id | string | Stable Canvas tab id such as `ideas` or `custom-...`. |
+| label | string | Short tab label. |
+| title | string | Canvas title shown in the toolbar. |
+| description | text | Short purpose text used in Markdown export. |
+| sort_order | number | Tab order. |
+| created_by | user id nullable | First creator when inserted through Supabase. |
+| updated_by | user id nullable | Last editor. |
+| version | number | Reserved for future conflict/history handling. |
+| created_at | datetime | Audit field. |
+| updated_at | datetime | Audit field. |
+
+### canvas_nodes
+
+Stores editable freeform nodes per Canvas tab.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| tab_id | string | Parent `canvas_tabs.id`. |
+| id | string | Stable node id within the tab. |
+| title | string | Node title. |
+| body | text | Node body in card mode. |
+| template | string | memo, question, decision, action, evidence, or risk. |
+| parent_id | string nullable | Parent node id for solid parent-child connectors. |
+| x | number | Position on the Canvas plane. |
+| y | number | Position on the Canvas plane. |
+| sort_order | number | Stable display order fallback. |
+| created_by | user id nullable | First creator. |
+| updated_by | user id nullable | Last editor. |
+| version | number | Reserved for future conflict/history handling. |
+| created_at | datetime | Audit field. |
+| updated_at | datetime | Audit field. |
+
+### canvas_links
+
+Stores direct related-node links. Parent-child hierarchy stays in `canvas_nodes.parent_id`.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| tab_id | string | Parent `canvas_tabs.id`. |
+| id | string | Stable link id within the tab. |
+| source_id | string | Source node id. |
+| target_id | string | Target node id. |
+| created_by | user id nullable | First creator. |
+| updated_by | user id nullable | Last editor. |
+| version | number | Reserved for future conflict/history handling. |
+| created_at | datetime | Audit field. |
+| updated_at | datetime | Audit field. |
+
+Canvas sharing rule: active signed-in team users can read and write the shared Canvas MVP. This is refresh-based shared storage. Live cursors, concurrent edit conflict resolution, and visible change history are later collaboration layers.
+
 ### personal_notes
 
 | Field | Type | Notes |

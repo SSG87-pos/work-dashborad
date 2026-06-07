@@ -1,5 +1,6 @@
 import { initialCalendarEvents, initialTasks, people, TODAY } from "./data.js";
 import { createDashboardSnapshot } from "./storage.js";
+import { normalizeCanvasState } from "./canvasModel.js";
 import { requireSupabaseClient, supabaseConfig } from "./supabaseClient.js";
 
 function isUuid(value) {
@@ -943,6 +944,152 @@ async function deleteCalendarEvent(eventId) {
   return true;
 }
 
+function isMissingTableError(error) {
+  return error?.code === "42P01";
+}
+
+function fromCanvasRows(tabs = [], nodes = [], links = []) {
+  const nodesByTab = {};
+  const linksByTab = {};
+  tabs.forEach((tab) => {
+    nodesByTab[tab.id] = [];
+    linksByTab[tab.id] = [];
+  });
+  nodes.forEach((node) => {
+    if (!nodesByTab[node.tab_id]) nodesByTab[node.tab_id] = [];
+    nodesByTab[node.tab_id].push({
+      id: node.id,
+      title: node.title,
+      body: node.body ?? "",
+      template: node.template ?? "memo",
+      parentId: node.parent_id ?? "",
+      x: node.x ?? 0,
+      y: node.y ?? 0
+    });
+  });
+  links.forEach((link) => {
+    if (!linksByTab[link.tab_id]) linksByTab[link.tab_id] = [];
+    linksByTab[link.tab_id].push({
+      id: link.id,
+      sourceId: link.source_id,
+      targetId: link.target_id
+    });
+  });
+  return normalizeCanvasState({
+    activeTabId: tabs[0]?.id,
+    tabs: tabs.map((tab) => ({
+      id: tab.id,
+      label: tab.label,
+      title: tab.title,
+      description: tab.description ?? ""
+    })),
+    nodesByTab,
+    linksByTab
+  });
+}
+
+async function readSharedCanvasState() {
+  if (!supabaseConfig.isConfigured) return null;
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true, reason: "requires-auth" };
+  const [tabsResult, nodesResult, linksResult] = await Promise.all([
+    client.from("canvas_tabs").select("*").order("sort_order", { ascending: true }),
+    client.from("canvas_nodes").select("*").order("sort_order", { ascending: true }),
+    client.from("canvas_links").select("*").order("created_at", { ascending: true })
+  ]);
+  const missingTable = [tabsResult, nodesResult, linksResult].find((result) => isMissingTableError(result.error));
+  if (missingTable) return { skipped: true, reason: "missing-canvas-tables" };
+  [tabsResult, nodesResult, linksResult].forEach((result) => {
+    if (result.error) throw result.error;
+  });
+  if (!tabsResult.data?.length) return null;
+  return fromCanvasRows(tabsResult.data, nodesResult.data ?? [], linksResult.data ?? []);
+}
+
+async function saveSharedCanvasState(state) {
+  if (!supabaseConfig.isConfigured) return { skipped: true, reason: "not-configured" };
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true, reason: "requires-auth" };
+  const normalized = normalizeCanvasState(state);
+  const now = new Date().toISOString();
+  const tabRows = normalized.tabs.map((tab, index) => ({
+    id: tab.id,
+    label: tab.label,
+    title: tab.title,
+    description: tab.description,
+    sort_order: index,
+    created_by: currentUser.id,
+    updated_by: currentUser.id,
+    updated_at: now
+  }));
+  const nodeRows = normalized.tabs.flatMap((tab) =>
+    (normalized.nodesByTab[tab.id] ?? []).map((node, index) => ({
+      tab_id: tab.id,
+      id: node.id,
+      title: node.title,
+      body: node.body ?? "",
+      template: node.template || "memo",
+      parent_id: node.parentId || null,
+      x: node.x,
+      y: node.y,
+      sort_order: index,
+      created_by: currentUser.id,
+      updated_by: currentUser.id,
+      updated_at: now
+    }))
+  );
+  const linkRows = normalized.tabs.flatMap((tab) =>
+    (normalized.linksByTab[tab.id] ?? []).map((link) => ({
+      tab_id: tab.id,
+      id: link.id,
+      source_id: link.sourceId,
+      target_id: link.targetId,
+      created_by: currentUser.id,
+      updated_by: currentUser.id,
+      updated_at: now
+    }))
+  );
+
+  const tabUpsert = await client.from("canvas_tabs").upsert(tabRows, { onConflict: "id" });
+  if (isMissingTableError(tabUpsert.error)) return { skipped: true, reason: "missing-canvas-tables" };
+  if (tabUpsert.error) throw tabUpsert.error;
+  if (nodeRows.length) {
+    const { error } = await client.from("canvas_nodes").upsert(nodeRows, { onConflict: "tab_id,id" });
+    if (error) throw error;
+  }
+  if (linkRows.length) {
+    const { error } = await client.from("canvas_links").upsert(linkRows, { onConflict: "tab_id,id" });
+    if (error) throw error;
+  }
+
+  await cleanupCanvasRows(client, normalized, "canvas_links", "linksByTab");
+  await cleanupCanvasRows(client, normalized, "canvas_nodes", "nodesByTab");
+  const existingTabs = await client.from("canvas_tabs").select("id");
+  if (existingTabs.error) throw existingTabs.error;
+  const nextTabIds = new Set(normalized.tabs.map((tab) => tab.id));
+  const staleTabIds = (existingTabs.data ?? []).map((tab) => tab.id).filter((id) => !nextTabIds.has(id));
+  if (staleTabIds.length) {
+    const { error } = await client.from("canvas_tabs").delete().in("id", staleTabIds);
+    if (error) throw error;
+  }
+  return true;
+}
+
+async function cleanupCanvasRows(client, state, table, key) {
+  for (const tab of state.tabs) {
+    const existing = await client.from(table).select("id").eq("tab_id", tab.id);
+    if (existing.error) throw existing.error;
+    const nextIds = new Set((state[key][tab.id] ?? []).map((item) => item.id));
+    const staleIds = (existing.data ?? []).map((row) => row.id).filter((id) => !nextIds.has(id));
+    if (staleIds.length) {
+      const { error } = await client.from(table).delete().eq("tab_id", tab.id).in("id", staleIds);
+      if (error) throw error;
+    }
+  }
+}
+
 function seedUserMap() {
   return new Map(people.map((person) => [person.id, person.id]));
 }
@@ -997,6 +1144,10 @@ export const supabaseDashboardStore = {
     add: addCalendarEvent,
     update: updateCalendarEvent,
     delete: deleteCalendarEvent
+  },
+  canvas: {
+    read: readSharedCanvasState,
+    save: saveSharedCanvasState
   },
   importData: importDashboardData,
   mappers: {
