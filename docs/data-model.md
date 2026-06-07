@@ -227,8 +227,9 @@ Stores editable freeform nodes per Canvas tab.
 | id | string | Stable node id within the tab. |
 | title | string | Node title. |
 | body | text | Node body in card mode. |
-| template | string | memo, question, decision, action, evidence, or risk. |
+| template | string | memo, question, decision, action, todo, evidence, or risk. |
 | parent_id | string nullable | Parent node id for solid parent-child connectors. |
+| data | object | Structured node payload. Todo nodes store `todoItems: [{ id, text, done }]`. |
 | x | number | Position on the Canvas plane. |
 | y | number | Position on the Canvas plane. |
 | sort_order | number | Stable display order fallback. |
@@ -254,7 +255,7 @@ Stores direct related-node links. Parent-child hierarchy stays in `canvas_nodes.
 | created_at | datetime | Audit field. |
 | updated_at | datetime | Audit field. |
 
-Canvas sharing rule: active signed-in team users can read and write the shared Canvas MVP. This is refresh-based shared storage. Live cursors, concurrent edit conflict resolution, and visible change history are later collaboration layers.
+Canvas sharing rule: active signed-in team users can read and write the shared Canvas MVP. Todo checklist items are stored as structured node data so a later phase can connect them to task detail checklists. This is refresh-based shared storage. Live cursors, concurrent edit conflict resolution, and visible change history are later collaboration layers.
 
 ### personal_notes
 

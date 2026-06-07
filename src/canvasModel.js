@@ -3,6 +3,7 @@ export const canvasTemplates = [
   { id: "question", label: "질문", title: "확인 질문", body: "확인할 질문을 적어두세요." },
   { id: "decision", label: "결정", title: "결정 사항", body: "결정 내용과 이유를 기록하세요." },
   { id: "action", label: "액션", title: "다음 행동", body: "담당자와 다음 행동을 적어두세요." },
+  { id: "todo", label: "투두", title: "할 일 목록", body: "체크할 일을 정리하세요." },
   { id: "evidence", label: "근거", title: "근거 자료", body: "자료 출처와 핵심 근거를 적어두세요." },
   { id: "risk", label: "리스크", title: "리스크", body: "리스크와 대응 방향을 적어두세요." }
 ];
@@ -103,6 +104,11 @@ export function buildCanvasMarkdown(tab, nodes, links) {
       lines.push("- 내용:");
       bodyLines.forEach((line) => lines.push(`  - ${line}`));
     }
+    const todoItems = normalizeTodoItems(node.todoItems);
+    if (todoItems.length) {
+      lines.push("- 할 일:");
+      todoItems.forEach((item) => lines.push(`  - [${item.done ? "x" : " "}] ${escapeMarkdown(item.text)}`));
+    }
     const linkedNodes = linksBySource.get(node.id) ?? [];
     if (linkedNodes.length) {
       lines.push(`- 연결: ${linkedNodes.map((linkedNode) => escapeMarkdown(linkedNode.title) || getTemplate(linkedNode.template).title).join(", ")}`);
@@ -138,10 +144,30 @@ function normalizeNodes(nodes) {
         body: cleanText(node?.body) || "",
         template: templateMap.has(node?.template) ? node.template : "memo",
         parentId: cleanId(node?.parentId),
+        todoItems: normalizeTodoItems(node?.todoItems),
         x: normalizeCoordinate(node?.x),
         y: normalizeCoordinate(node?.y)
       }))
       .filter((node) => node.id)
+  );
+}
+
+export function createDefaultTodoItems() {
+  return [
+    { id: `todo-${Date.now()}-1`, text: "첫 번째 할 일", done: false },
+    { id: `todo-${Date.now()}-2`, text: "확인 후 완료 체크", done: false }
+  ];
+}
+
+export function normalizeTodoItems(items) {
+  return uniqueById(
+    (Array.isArray(items) ? items : [])
+      .map((item, index) => ({
+        id: cleanId(item?.id) || `todo-${index}`,
+        text: cleanText(item?.text),
+        done: Boolean(item?.done)
+      }))
+      .filter((item) => item.text)
   );
 }
 

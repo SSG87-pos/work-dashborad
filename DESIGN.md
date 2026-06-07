@@ -153,7 +153,8 @@ Greetings:
 - Current implementation supports shared draft editing: add nodes, edit node text, delete nodes, and drag nodes inside the current tab.
 - Canvas nodes can create child nodes directly, show connector lines, and run automatic tree-style arrangement for quick cleanup.
 - Existing Canvas nodes can be directly connected by selecting a source node and then a target node. Parent-child links remain tree/arrangement links in data and render as solid lines; direct related-node links are layout hints, remain separate from hierarchy data, and render as dashed lines so the difference is visible.
-- Canvas uses a scrollable large plane. Nodes should stay compact enough for many ideas, with template variants such as memo, question, decision, action, evidence, and risk.
+- Canvas uses a scrollable large plane. Nodes should stay compact enough for many ideas, with template variants such as memo, question, decision, action, todo, evidence, and risk.
+- Todo nodes show an editable checklist in card mode. Keep checklist rows compact and structured because they are stored as `todoItems` for later task-detail/checklist linking.
 - Canvas node action icons should remain visible in card mode for ease of use. In compact mode, hide actions until hover/focus so the node reads as a title-only chip.
 - Canvas `카드/작게` mode is a true density switch: card mode shows editable title/body/template, while compact mode shows title-only nodes and auto-arrange recalculates for the smaller size.
 - The current tab can be exported to Markdown by copy or file download. This remains an export affordance even though signed-in Canvas state is now persisted separately.

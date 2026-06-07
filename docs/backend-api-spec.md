@@ -232,8 +232,9 @@ Canvas is a team-shared freeform thinking area. It is separate from the generate
 | canvas_nodes | id | text | Node id within tab. |
 | canvas_nodes | title | text | Node title. |
 | canvas_nodes | body | text | Card-mode body. |
-| canvas_nodes | template | text | `memo`, `question`, `decision`, `action`, `evidence`, `risk`. |
+| canvas_nodes | template | text | `memo`, `question`, `decision`, `action`, `todo`, `evidence`, `risk`. |
 | canvas_nodes | parent_id | text | Optional parent node id for solid hierarchy links. |
+| canvas_nodes | data | jsonb | Structured node payload. Todo nodes use `data.todoItems[]` with `{ id, text, done }`. |
 | canvas_nodes | x | integer | Canvas plane x position. |
 | canvas_nodes | y | integer | Canvas plane y position. |
 | canvas_nodes | sort_order | integer | Stable order fallback. |
@@ -252,6 +253,7 @@ Canvas MVP rule:
 
 - Active signed-in users can read, insert, update, and delete shared Canvas tabs/nodes/links.
 - The current implementation saves a whole-tab snapshot after edits and refreshes from Supabase when Canvas loads.
+- Todo nodes are still Canvas-local objects, but their structured `todoItems` shape is intentionally compatible with later task detail checklist/task-linking work.
 - Live cursors, simultaneous-edit conflict resolution, per-node locking, and visible change history are intentionally later collaboration features.
 
 ### personal_notes

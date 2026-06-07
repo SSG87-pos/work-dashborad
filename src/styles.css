@@ -12266,6 +12266,10 @@ body[data-page="team"] .briefing-panel {
   border-top: 3px solid #f59e0b;
 }
 
+.canvas-seed-node.template-todo {
+  border-top: 3px solid #0f766e;
+}
+
 .canvas-seed-node.template-evidence {
   border-top: 3px solid #22c55e;
 }
@@ -12432,6 +12436,75 @@ body[data-page="team"] .briefing-panel {
   font-size: 11px;
   line-height: 1.5;
   font-weight: 560;
+}
+
+.canvas-todo-list {
+  display: grid;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.canvas-todo-item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 4px;
+  min-height: 25px;
+}
+
+.canvas-todo-check,
+.canvas-todo-delete,
+.canvas-todo-add {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #dce5ef;
+  background: #ffffff;
+  color: #64748b;
+}
+
+.canvas-todo-check,
+.canvas-todo-delete {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+}
+
+.canvas-todo-check.is-done {
+  border-color: #99f6e4;
+  background: #f0fdfa;
+  color: #0f766e;
+}
+
+.canvas-todo-item input {
+  height: 24px;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 580;
+}
+
+.canvas-todo-item input.is-done {
+  color: #64748b;
+  text-decoration: line-through;
+}
+
+.canvas-todo-delete:hover {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.canvas-todo-add {
+  width: fit-content;
+  grid-auto-flow: column;
+  gap: 4px;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 0 8px;
+  color: #0f766e;
+  font-size: 10.5px;
+  font-weight: 700;
 }
 
 .shared-canvas-stage.is-compact .canvas-seed-node textarea:not(.canvas-title-input),

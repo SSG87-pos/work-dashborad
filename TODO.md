@@ -2,6 +2,15 @@
 
 ## Now
 
+- [x] Add Canvas todo-list node MVP.
+  - Files: `src/SharedCanvasView.jsx`, `src/canvasModel.js`, `src/supabaseStore.js`, `src/styles.css`, `supabase/migrations/017_canvas_node_todos.sql`, `scripts/check-canvas-storage.mjs`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a `투두` Canvas template with card-mode checklist rows, item add/delete, editable item text, and completion toggles.
+  - Done: checklist items are stored as structured `todoItems` on Canvas nodes and exported to Markdown as checkbox lines.
+  - Done: added `canvas_nodes.data jsonb` migration for shared Supabase persistence and future task-detail checklist linking.
+  - Done after implementation: live Supabase migration `017_canvas_node_todos` applied successfully.
+  - Verified live DB: `canvas_nodes.data` is `jsonb not null default '{}'::jsonb` with `canvas_nodes_data_is_object`; authenticated rollback smoke inserted, updated, and selected `data.todoItems`, then returned QA row counts to zero.
+  - Remaining later scope: convert/link Canvas todo items into real task `상세 업무 내용` checklist items.
+
 - [x] Apply live Supabase Canvas shared-storage migration after explicit approval.
   - Files: `src/SharedCanvasView.jsx`, `src/canvasModel.js`, `src/supabaseStore.js`, `src/App.jsx`, `src/styles.css`, `supabase/migrations/016_canvas_shared_storage.sql`, `scripts/check-canvas-storage.mjs`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `HANDOFF.md`, `TODO.md`.
   - Done: prepared the shared Canvas storage MVP in code. Signed-in Supabase mode now calls `supabaseDashboardStore.canvas.read/save`; local/offline mode remains `로컬 초안`.

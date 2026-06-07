@@ -948,6 +948,10 @@ function isMissingTableError(error) {
   return error?.code === "42P01";
 }
 
+function isMissingCanvasNodeDataError(error) {
+  return error?.code === "PGRST204" && String(error?.message ?? "").includes("'data'");
+}
+
 function fromCanvasRows(tabs = [], nodes = [], links = []) {
   const nodesByTab = {};
   const linksByTab = {};
@@ -963,6 +967,7 @@ function fromCanvasRows(tabs = [], nodes = [], links = []) {
       body: node.body ?? "",
       template: node.template ?? "memo",
       parentId: node.parent_id ?? "",
+      todoItems: Array.isArray(node.data?.todoItems) ? node.data.todoItems : [],
       x: node.x ?? 0,
       y: node.y ?? 0
     });
@@ -1032,6 +1037,9 @@ async function saveSharedCanvasState(state) {
       body: node.body ?? "",
       template: node.template || "memo",
       parent_id: node.parentId || null,
+      data: {
+        todoItems: Array.isArray(node.todoItems) ? node.todoItems : []
+      },
       x: node.x,
       y: node.y,
       sort_order: index,
@@ -1057,7 +1065,13 @@ async function saveSharedCanvasState(state) {
   if (tabUpsert.error) throw tabUpsert.error;
   if (nodeRows.length) {
     const { error } = await client.from("canvas_nodes").upsert(nodeRows, { onConflict: "tab_id,id" });
-    if (error) throw error;
+    if (isMissingCanvasNodeDataError(error)) {
+      const fallbackRows = nodeRows.map(({ data, ...row }) => row);
+      const fallback = await client.from("canvas_nodes").upsert(fallbackRows, { onConflict: "tab_id,id" });
+      if (fallback.error) throw fallback.error;
+    } else if (error) {
+      throw error;
+    }
   }
   if (linkRows.length) {
     const { error } = await client.from("canvas_links").upsert(linkRows, { onConflict: "tab_id,id" });

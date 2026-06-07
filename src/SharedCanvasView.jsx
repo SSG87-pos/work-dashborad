@@ -1,4 +1,5 @@
 import {
+  CheckSquare2,
   Clipboard,
   Link2,
   MousePointer2,
@@ -8,6 +9,7 @@ import {
   Lightbulb,
   Plus,
   Rows3,
+  Square,
   Trash2
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -15,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildCanvasMarkdown,
   canvasTemplates,
+  createDefaultTodoItems,
   createDefaultCanvasState,
   getTemplate,
   normalizeCanvasState
@@ -120,6 +123,17 @@ export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = fal
     }));
   }
 
+  function createNodeFromTemplate(template, overrides = {}) {
+    return {
+      title: template.title,
+      body: template.body,
+      template: template.id,
+      parentId: "",
+      todoItems: template.id === "todo" ? createDefaultTodoItems() : [],
+      ...overrides
+    };
+  }
+
   function addNode() {
     const template = getTemplate(selectedTemplate);
     const title = draftTitle.trim() || template.title;
@@ -130,15 +144,12 @@ export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = fal
         ...current,
         [selectedTab.id]: [
           ...currentNodes,
-          {
+          createNodeFromTemplate(template, {
             id: `${selectedTab.id}-${Date.now()}`,
             title,
-            body: template.body,
-            template: template.id,
-            parentId: "",
             x: 330 + (nextIndex % 4) * 46,
             y: 74 + nextIndex * 66
-          }
+          })
         ]
       };
     });
@@ -176,17 +187,42 @@ export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = fal
         ...current,
         [selectedTab.id]: [
           ...currentNodes,
-          {
+          createNodeFromTemplate(template, {
             id: `${selectedTab.id}-${Date.now()}`,
-            title: template.title,
-            body: template.body,
-            template: template.id,
             parentId: parentNode.id,
             x: parentNode.x + stepX,
             y: parentNode.y + siblingCount * stepY
-          }
+          })
         ]
       };
+    });
+    setMarkdownStatus("");
+  }
+
+  function updateTodoItem(node, itemId, updates) {
+    updateNode(node.id, {
+      todoItems: (node.todoItems ?? []).map((item) => (item.id === itemId ? { ...item, ...updates } : item))
+    });
+    setMarkdownStatus("");
+  }
+
+  function addTodoItem(node) {
+    updateNode(node.id, {
+      todoItems: [
+        ...(node.todoItems ?? []),
+        {
+          id: `todo-${Date.now()}`,
+          text: "새 할 일",
+          done: false
+        }
+      ]
+    });
+    setMarkdownStatus("");
+  }
+
+  function deleteTodoItem(node, itemId) {
+    updateNode(node.id, {
+      todoItems: (node.todoItems ?? []).filter((item) => item.id !== itemId)
     });
     setMarkdownStatus("");
   }
@@ -508,6 +544,7 @@ export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = fal
             </article>
             {nodes.map((node) => {
               const template = getTemplate(node.template);
+              const isTodoNode = template.id === "todo";
               return (
                 <article
                   className={`canvas-seed-node is-editable template-${template.id} ${linkSourceId === node.id ? "is-link-source" : ""}`}
@@ -538,6 +575,40 @@ export function SharedCanvasView({ canvasStore = null, isSharedCanvasReady = fal
                       rows={2}
                       value={node.body}
                     />
+                  )}
+                  {canvasDensity !== "compact" && isTodoNode && (
+                    <div className="canvas-todo-list" aria-label={`${node.title} 할 일 목록`}>
+                      {(node.todoItems ?? []).map((item) => (
+                        <div className="canvas-todo-item" key={item.id}>
+                          <button
+                            aria-label={item.done ? "할 일 미완료로 변경" : "할 일 완료로 변경"}
+                            className={`canvas-todo-check ${item.done ? "is-done" : ""}`}
+                            onClick={() => updateTodoItem(node, item.id, { done: !item.done })}
+                            type="button"
+                          >
+                            {item.done ? <CheckSquare2 size={13} /> : <Square size={13} />}
+                          </button>
+                          <input
+                            aria-label="할 일 내용"
+                            className={item.done ? "is-done" : ""}
+                            onChange={(event) => updateTodoItem(node, item.id, { text: event.target.value })}
+                            value={item.text}
+                          />
+                          <button
+                            aria-label="할 일 삭제"
+                            className="canvas-todo-delete"
+                            onClick={() => deleteTodoItem(node, item.id)}
+                            type="button"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                      <button className="canvas-todo-add" onClick={() => addTodoItem(node)} type="button">
+                        <Plus size={12} />
+                        항목 추가
+                      </button>
+                    </div>
                   )}
                   <button className="canvas-delete-node" onClick={() => deleteNode(node.id)} type="button" title="노드 삭제">
                     <Trash2 size={12} />
