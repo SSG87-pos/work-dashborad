@@ -2,6 +2,11 @@
 
 ## Now
 
+- [x] Align local fallback roster with live team-member visibility.
+  - Files: `src/data.js`, `HANDOFF.md`, `TODO.md`.
+  - Done: changed the local fallback/default `소슬기` profile to `isTeamMember: true` so local prototype/demo mode matches the live Supabase roster where 슬기님 is visible in Team members.
+  - Note: local fallback means the built-in prototype/demo state used when Supabase is not configured or not connected.
+
 - [x] Add Canvas todo-list node MVP.
   - Files: `src/SharedCanvasView.jsx`, `src/canvasModel.js`, `src/supabaseStore.js`, `src/styles.css`, `supabase/migrations/017_canvas_node_todos.sql`, `scripts/check-canvas-storage.mjs`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added a `투두` Canvas template with card-mode checklist rows, item add/delete, editable item text, and completion toggles.

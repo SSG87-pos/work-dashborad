@@ -1,7 +1,7 @@
 export const TODAY = "2026-06-04";
 
 export const people = [
-  { id: "admin", name: "소슬기", role: "수석", permissionRole: "admin", color: "#475569", emoji: "🐿️", isTeamMember: false },
+  { id: "admin", name: "소슬기", role: "수석", permissionRole: "admin", color: "#475569", emoji: "🐿️", isTeamMember: true },
   { id: "lead", name: "박경수", role: "팀장", permissionRole: "lead", color: "#2563eb", emoji: "🦉", isTeamMember: true },
   { id: "kmryu", name: "류강묵", role: "수석", permissionRole: "member", color: "#0f766e", emoji: "🌿", isTeamMember: true },
   { id: "junho", name: "장형민", role: "차장", permissionRole: "member", color: "#7c3aed", emoji: "📘", isTeamMember: true },

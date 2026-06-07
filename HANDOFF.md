@@ -39,6 +39,7 @@ Key product decisions now in the prototype:
   - The lanyard card follows the React Bits-style original `card.glb` card/clip/clamp structure, while the strap is rendered as a logo-free POSCO-blue line and the card face uses the selected `Executive Blue` POSLAB badge direction.
   - `대시보드로 들어가기` sets the session entry gate and renders the existing dashboard body.
   - Supabase login/signup remains available when configured; future company SSO can replace the entry action without changing the dashboard body.
+- Local fallback/default demo data now marks `소슬기` as `isTeamMember: true`, matching the live Supabase roster visibility. Local fallback is the built-in prototype/demo state used when Supabase env values are missing or the app is intentionally run without Supabase.
 - Shared Canvas storage MVP is now live-applied:
   - `src/canvasModel.js` now owns Canvas seed, normalization, template, and Markdown export helpers.
   - `SharedCanvasView` receives `supabaseDashboardStore.canvas` and switches between signed-in shared storage status and local fallback status.
