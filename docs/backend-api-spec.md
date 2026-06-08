@@ -174,6 +174,40 @@ Task changes are append-first audit records. Accidental completion or deadline c
 
 Updates are append-first. The author or a task manager may update only `body` or delete an accidental update row. Author and timestamp stay immutable.
 
+### task_post_categories
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable category id such as `decision`, `memory`, `risk`. |
+| label | text unique | yes | Visible label used in note chips and post rows. |
+| tone | text | yes | `blue`, `green`, `amber`, `red`, `violet`, `slate`. |
+| active | boolean | yes | Hidden categories are not offered for new posts but old posts remain readable. |
+| sort_order | integer | yes | Admin display order. |
+| created_by | text fk users.id | no | First admin creator. |
+| updated_by | text fk users.id | no | Last admin editor. |
+| created_at | timestamp | yes | Audit. |
+| updated_at | timestamp | yes | Audit. |
+
+Only admin users can insert, rename, recolor, hide, or delete post categories.
+
+### task_posts
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable post id. |
+| task_id | text fk tasks.id | yes | Parent task. |
+| scope | text | yes | Visible category label such as `결정사항`, `기억할 점`, `중요문서`. |
+| title | text | yes | Title-first list label. |
+| body | text | yes | Main remembered-context body. |
+| url | text | no | Optional Teams, document, or reference URL. |
+| attachment | jsonb | no | Metadata placeholder for future Storage-backed files. |
+| author_id | text fk users.id | yes | Writer. |
+| posted_at | date | yes | Reader-facing post date. |
+| created_at | timestamp | yes | Audit. |
+| updated_at | timestamp | yes | Audit. |
+
+`업무 노트` reads only posts attached to the selected task. Highlights `업무흐름별 게시글 모음` derives its grouped view from `task_posts` joined to the parent task and grouped by `상위 업무흐름`. Authors or task managers may edit/delete task posts.
+
 ### task_links
 
 | Column | Type | Required | Notes |

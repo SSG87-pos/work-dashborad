@@ -26,6 +26,10 @@ function changeTypeToDb(value) {
   return "status";
 }
 
+function isMissingColumnError(error, columnName) {
+  return error?.code === "PGRST204" && String(error?.message ?? "").includes(`'${columnName}'`);
+}
+
 function toTaskRow(task, currentUserId) {
   const recurringFrequency = recurringFrequencyToDb(task.recurring);
   const ownerIsUser = isUuid(task.ownerId);
@@ -110,7 +114,8 @@ function fromTaskRow(row, relations = {}) {
     recurringTemplateId: row.recurring_template_id ?? undefined,
     links: relations.links ?? [],
     updates: relations.updates ?? [],
-    statusHistory: relations.statusHistory ?? []
+    statusHistory: relations.statusHistory ?? [],
+    postItems: relations.posts ?? []
   };
 }
 
@@ -158,6 +163,30 @@ function toProfileOverrides(users) {
       }
     ])
   );
+}
+
+function fromTaskPostCategoryRow(row) {
+  return {
+    id: row.id,
+    label: row.label,
+    tone: row.tone ?? "slate",
+    active: row.active !== false
+  };
+}
+
+function fromTaskPostRow(row) {
+  return {
+    id: row.id,
+    scope: row.scope,
+    title: row.title,
+    body: row.body,
+    url: row.url ?? "",
+    attachment: row.attachment ?? null,
+    authorId: row.author_id,
+    date: row.posted_at ?? row.created_at?.slice(0, 10) ?? TODAY,
+    createdAt: row.created_at?.slice(0, 10) ?? row.posted_at ?? TODAY,
+    updatedAt: row.updated_at?.slice(0, 10) ?? ""
+  };
 }
 
 function rosterIdFor(personId) {
@@ -232,7 +261,9 @@ async function readDashboardState() {
     tagGroupsResult,
     eventsResult,
     memosResult,
-    preferencesResult
+    preferencesResult,
+    postCategoriesResult,
+    postsResult
   ] = await Promise.all([
     (currentUser.permissionRole === "admin"
       ? client.from("users").select("*").order("name", { ascending: true })
@@ -250,7 +281,9 @@ async function readDashboardState() {
     client.from("tag_groups").select("*").order("sort_order", { ascending: true }),
     client.from("calendar_events").select("*").order("event_date", { ascending: true }),
     client.from("dashboard_memos").select("*"),
-    client.from("user_preferences").select("*").eq("user_id", currentUser.id).maybeSingle()
+    client.from("user_preferences").select("*").eq("user_id", currentUser.id).maybeSingle(),
+    client.from("task_post_categories").select("*").order("sort_order", { ascending: true }),
+    client.from("task_posts").select("*").order("created_at", { ascending: false })
   ]);
 
   [usersResult, rosterResult, tagsResult, tasksResult, subtasksResult, updatesResult, linksResult, historyResult, taskTagsResult, eventsResult, memosResult].forEach((result) => {
@@ -258,6 +291,8 @@ async function readDashboardState() {
   });
   if (tagGroupsResult.error && tagGroupsResult.error.code !== "42P01") throw tagGroupsResult.error;
   if (preferencesResult.error) throw preferencesResult.error;
+  if (postCategoriesResult.error && !isMissingTableError(postCategoriesResult.error)) throw postCategoriesResult.error;
+  if (postsResult.error && !isMissingTableError(postsResult.error)) throw postsResult.error;
 
   const relationMap = new Map();
   const ensureRelations = (taskId) => {
@@ -300,6 +335,9 @@ async function readDashboardState() {
       note: entry.note ?? ""
     });
   });
+  (postsResult.data ?? []).forEach((post) => {
+    ensureRelations(post.task_id).posts.push(fromTaskPostRow(post));
+  });
   taskTagsResult.data.forEach((tagRow) => {
     const tagName = tagRow.tags?.name;
     if (tagName) ensureRelations(tagRow.task_id).tags.push(tagName);
@@ -322,6 +360,7 @@ async function readDashboardState() {
       tags: group.tags ?? [],
       tone: group.tone ?? "custom"
     })),
+    taskPostCategories: (postCategoriesResult.data ?? []).map(fromTaskPostCategoryRow),
     calendarEvents: eventsResult.data.map((event) => ({
       id: event.id,
       title: event.title,
@@ -346,6 +385,103 @@ async function readDashboardState() {
     memoByPage: Object.fromEntries(memosResult.data.map((memo) => [memo.page_key, memo.body])),
     profileOverrides: toProfileOverrides(mergedProfiles)
   });
+}
+
+async function saveTaskPost(taskId, post) {
+  if (!isUuid(taskId)) return { skipped: true, reason: "requires-saved-task" };
+  const title = post?.title?.trim();
+  const body = post?.body?.trim();
+  if (!title || !body) return false;
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true, reason: "requires-auth" };
+  const row = {
+    scope: post.scope?.trim() || "기억할 점",
+    title,
+    body,
+    url: post.url?.trim() || null,
+    attachment: post.attachment ?? null,
+    updated_at: new Date().toISOString()
+  };
+  if (isUuid(post.id)) {
+    const { data, error } = await client
+      .from("task_posts")
+      .update(row)
+      .eq("id", post.id)
+      .select("id")
+      .single();
+    if (isMissingTableError(error) || isMissingColumnError(error, "attachment")) return { skipped: true, reason: "missing-task-posts-table" };
+    if (error) throw error;
+    return { id: data.id };
+  }
+  const { data, error } = await client
+    .from("task_posts")
+    .insert({
+      ...row,
+      task_id: taskId,
+      author_id: currentUser.id,
+      posted_at: post.date || TODAY
+    })
+    .select("id")
+    .single();
+  if (isMissingTableError(error) || isMissingColumnError(error, "attachment")) return { skipped: true, reason: "missing-task-posts-table" };
+  if (error) throw error;
+  return { id: data.id };
+}
+
+async function deleteTaskPost(postId) {
+  if (!isUuid(postId)) return { skipped: true, reason: "requires-saved-post" };
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser) return { skipped: true, reason: "requires-auth" };
+  const { error } = await client.from("task_posts").delete().eq("id", postId);
+  if (isMissingTableError(error)) return { skipped: true, reason: "missing-task-posts-table" };
+  if (error) throw error;
+  return true;
+}
+
+async function saveTaskPostCategory(category) {
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser || currentUser.permissionRole !== "admin") return { skipped: true, reason: "requires-admin" };
+  const cleanLabel = category?.label?.trim();
+  if (!category?.id || !cleanLabel) return false;
+  const row = {
+    id: category.id,
+    label: cleanLabel,
+    tone: category.tone || "slate",
+    active: category.active !== false,
+    updated_by: currentUser.id,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await client
+    .from("task_post_categories")
+    .upsert({ ...row, created_by: currentUser.id }, { onConflict: "id" });
+  if (isMissingTableError(error)) return { skipped: true, reason: "missing-task-posts-table" };
+  if (error) throw error;
+  if (category.previousLabel && category.previousLabel !== cleanLabel) {
+    const renameResult = await client
+      .from("task_posts")
+      .update({ scope: cleanLabel, updated_at: new Date().toISOString() })
+      .eq("scope", category.previousLabel);
+    if (isMissingTableError(renameResult.error)) return { skipped: true, reason: "missing-task-posts-table" };
+    if (renameResult.error) throw renameResult.error;
+  }
+  return true;
+}
+
+async function deactivateTaskPostCategory(categoryId) {
+  if (!categoryId) return false;
+  const client = requireSupabaseClient();
+  const currentUser = await readCurrentUser(client);
+  if (!currentUser || currentUser.permissionRole !== "admin") return { skipped: true, reason: "requires-admin" };
+  const { error } = await client
+    .from("task_post_categories")
+    .update({ active: false, updated_by: currentUser.id, updated_at: new Date().toISOString() })
+    .eq("id", categoryId);
+  if (isMissingTableError(error)) return { skipped: true, reason: "missing-task-posts-table" };
+  if (error) throw error;
+  return true;
 }
 
 async function writeUserPreferences(state) {
@@ -1201,6 +1337,10 @@ export const supabaseDashboardStore = {
     addUpdate: addTaskUpdate,
     updateLog: updateTaskUpdate,
     deleteLog: deleteTaskUpdate,
+    savePost: saveTaskPost,
+    deletePost: deleteTaskPost,
+    savePostCategory: saveTaskPostCategory,
+    deactivatePostCategory: deactivateTaskPostCategory,
     updateHistory: updateTaskHistory,
     deleteHistory: deleteTaskHistory,
     addLink: addTaskLink,

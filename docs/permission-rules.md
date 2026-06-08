@@ -136,6 +136,24 @@ Allowed:
 
 Editing update logs must be limited to the body text. Editing or deleting an update row must not change task status, task history, author, or timestamp.
 
+## Task Post Rules
+
+업무 노트 posts are task-level remembered-context records, not chat messages.
+
+Allowed:
+
+- authenticated users can read posts for visible team tasks
+- members can add posts to visible team tasks
+- post authors can edit or delete their own posts
+- task managers can edit or delete posts attached to tasks they manage
+- admin users can manage post category labels, tones, and active/hidden state
+
+Restricted:
+
+- editing or deleting a post must not change task status, task history, update logs, or due dates
+- non-admin users cannot rename or hide shared post categories
+- attachment file access requires separate Storage policies before real files are stored
+
 ## Task Change History Rules
 
 Task change history is append-first and should usually represent status, due-date, archive, delete, and recurring-instance events.

@@ -131,6 +131,42 @@ Short update log entries.
 
 Update correction rule: author and timestamp are immutable. If an update row itself was created by mistake, the author or a task manager may update only `body` or delete the row.
 
+### task_post_categories
+
+Admin-managed 업무 노트 classification labels.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| id | string | Stable category id such as `decision` or `memory`. |
+| label | string | Display label, for example 결정사항, 기억할 점, 리스크, 회의록. |
+| tone | string | Visual tone: blue, green, amber, red, violet, slate. |
+| active | boolean | Hidden categories stay available for old posts but are not offered for new writing. |
+| sort_order | number | Display order. |
+| created_by | user id nullable | First admin creator. |
+| updated_by | user id nullable | Last admin editor. |
+
+Category rule: admins can add, rename, recolor, hide, and delete category rows. Renaming a category should update existing `task_posts.scope` values so old posts keep the expected visible label.
+
+### task_posts
+
+Task-level remembered-context posts used by `업무 노트` and the Highlights `업무흐름별 게시글 모음`.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| id | string | Stable post id. |
+| task_id | task id | Parent task. |
+| scope | string | Category label at display time, such as 결정사항 or 중요문서. |
+| title | string | Title-first list label. |
+| body | text | Main post body. |
+| url | string nullable | Optional Teams, document, or reference URL. |
+| attachment | json object nullable | Placeholder metadata for future Storage-backed files. |
+| author_id | user id | Writer. |
+| posted_at | date | Reader-facing post date. |
+| created_at | datetime | Creation timestamp. |
+| updated_at | datetime | Last body/title/category correction timestamp. |
+
+Post rule: visible task posts are readable by authenticated users who can see the parent task. Authors or task managers can edit/delete a post. Attachments are metadata-only until Supabase Storage policies are added.
+
 ### task_links
 
 | Field | Type | Notes |

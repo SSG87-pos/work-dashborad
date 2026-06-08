@@ -2,6 +2,19 @@
 
 ## Now
 
+- [x] Document company Linux local Supabase setup.
+  - Files: `docs/local-linux-supabase-runbook.md`, `docs/supabase-start-guide.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: reviewed the current Supabase boundary (`src/supabaseClient.js`, `src/supabaseStore.js`, `.env.example`) and migrations `001` through `020`.
+  - Done: added a Korean runbook for a company Linux computer covering prerequisites, clone/pull, pnpm install, Supabase CLI init/start/status, local migrations, `.env.local`, app port `10097`, first-admin promotion, same-machine vs LAN Supabase URL behavior, verification, and troubleshooting.
+  - Follow-up: migration `020_task_posts.sql` now covers `업무 노트` posts and post-category management. The runbook now marks only real attachment files and confirmed `tasks.workstream` persistence as future shared-data gaps.
+
+- [x] Add Supabase tables for task-detail 업무 노트 posts.
+  - Files: `supabase/migrations/020_task_posts.sql`, `src/supabaseStore.js`, `src/App.jsx`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`, `docs/local-linux-supabase-runbook.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added `task_post_categories` and `task_posts` migration with RLS, authenticated Data API grants, default category seed rows, and task/author indexes.
+  - Done: wired Supabase reads so UUID-backed tasks receive `postItems` from `task_posts`, and admin-managed post categories read from `task_post_categories`.
+  - Done: wired Supabase writes for post create/update/delete and category save/deactivate while keeping local fallback `postItems` behavior unchanged.
+  - Scope guard: real uploaded images/files still need Supabase Storage bucket/RLS. Current `attachment` is metadata-only.
+
 - [x] Add task-detail posts/workstream-feed mockup.
   - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added a compact `게시글` button to task detail that opens a read-only mockup panel.
@@ -13,7 +26,7 @@
   - Done: renamed the task-detail surface to `업무 노트`, removed the extra explanatory summary card, changed the write action to `노트 작성`, made `노트 구분` chips visibly selectable with a checked active state, and added emoji insertion to the body textarea.
   - Done: toned down post-category chips. Kept task-detail note reading in a larger dialog because the detail panel is narrow; moved row expand/collapse reading to the Highlights workstream post rollup instead.
   - Done: moved `업데이트 로그` above `관련 링크` and changed it to latest-three by default with a compact more/less control; edit/delete actions remain behind the separate `관리` toggle.
-  - Scope guard: local/demo persistence exists now. Real shared multi-PC persistence still needs a Supabase-backed `task_posts` table linked to task id and derived/filtered by workstream.
+  - Follow-up: Supabase shared persistence is now prepared in `020_task_posts.sql`; live/local Supabase databases need that migration applied before multi-PC posts are shared.
   - Verified: `git diff --check`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:mindmap-structure`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed.
   - Browser QA: `http://127.0.0.1:5177/` local fallback opened the task detail, `게시글` button toggled the mockup panel, 1366px layout kept task detail at 410px and the mockup panel at 380px with no page-level horizontal overflow. Console warnings were existing lanyard/Three deprecation warnings.
   - Superseded Browser QA: earlier cross-task workstream-feed expand/collapse checks no longer apply because task detail now only expands additional posts from the selected task.

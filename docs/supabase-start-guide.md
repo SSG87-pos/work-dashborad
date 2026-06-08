@@ -108,6 +108,7 @@ Because `Automatically expose new tables` is disabled, every new public table th
 
 Use these files when moving from prototype/sample users to real team operation:
 
+- `docs/local-linux-supabase-runbook.md` explains how to connect this dashboard to a local Supabase stack on a company Linux computer, including local CLI setup, migrations, `.env.local`, port `10097`, admin promotion, and current shared-persistence gaps.
 - `docs/company-supabase-review-brief.md` is the company-facing review summary for Supabase use, data scope, security boundaries, and temporary URL decisions.
 - `docs/company-demo-readiness-checklist.md` explains the company-approval demo stop point, real-name demo policy, temporary URL decision, and approval boundaries.
 - `docs/supabase-auth-security-checklist.md` explains the remaining Auth dashboard security check for leaked password protection and password policy.

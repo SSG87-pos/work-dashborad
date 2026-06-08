@@ -2215,11 +2215,27 @@ function App() {
         return { ...task, postItems: nextPosts };
       })
     );
-    showSyncNotice(
-      isSupabaseReady
-        ? "게시글은 화면에 저장됐습니다. Supabase 공유 저장은 task_posts 테이블 연결 후 적용됩니다."
-        : "게시글을 저장했습니다."
-    );
+    if (isSupabaseReady && isAuthenticated && savedPost) {
+      supabaseDashboardStore.tasks.savePost(taskId, savedPost)
+        .then((result) => {
+          handleSupabaseWriteResult(result, "업무 노트 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
+          if (!result?.id || result.id === savedPost.id) return;
+          setTasks((current) =>
+            current.map((task) => {
+              if (task.id !== taskId || !Array.isArray(task.postItems)) return task;
+              return {
+                ...task,
+                postItems: task.postItems.map((post) => (post.id === savedPost.id ? { ...post, id: result.id } : post))
+              };
+            })
+          );
+        })
+        .catch((error) => {
+          console.warn("Supabase 업무 노트 저장에 실패했습니다.", error);
+          showSyncNotice("업무 노트 저장을 Supabase에 반영하지 못했습니다. 화면에는 임시로 유지됩니다.");
+        });
+    }
+    showSyncNotice("게시글을 저장했습니다.");
     return Boolean(savedPost);
   }
 
@@ -2236,11 +2252,17 @@ function App() {
         };
       })
     );
-    showSyncNotice(
-      isSupabaseReady
-        ? "게시글 삭제는 화면에 반영됐습니다. Supabase 공유 저장은 task_posts 테이블 연결 후 적용됩니다."
-        : "게시글을 삭제했습니다."
-    );
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.deletePost(postId)
+        .then((result) => {
+          handleSupabaseWriteResult(result, "업무 노트 공유 삭제는 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
+        })
+        .catch((error) => {
+          console.warn("Supabase 업무 노트 삭제에 실패했습니다.", error);
+          showSyncNotice("업무 노트 삭제를 Supabase에 반영하지 못했습니다. 화면에서는 삭제됐습니다.");
+        });
+    }
+    showSyncNotice("게시글을 삭제했습니다.");
   }
 
   function saveTaskPostCategory(category) {
@@ -2273,6 +2295,16 @@ function App() {
         })
       );
     }
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.savePostCategory({ ...nextCategory, previousLabel: category.previousLabel })
+        .then((result) => {
+          handleSupabaseWriteResult(result, "게시글 유형 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
+        })
+        .catch((error) => {
+          console.warn("Supabase 게시글 유형 저장에 실패했습니다.", error);
+          showSyncNotice("게시글 유형 저장을 Supabase에 반영하지 못했습니다. 화면에는 임시로 유지됩니다.");
+        });
+    }
     showSyncNotice("게시글 유형을 저장했습니다.");
   }
 
@@ -2287,6 +2319,16 @@ function App() {
         category.id === categoryId ? { ...category, active: false } : category
       )
     );
+    if (isSupabaseReady && isAuthenticated) {
+      supabaseDashboardStore.tasks.deactivatePostCategory(categoryId)
+        .then((result) => {
+          handleSupabaseWriteResult(result, "게시글 유형 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
+        })
+        .catch((error) => {
+          console.warn("Supabase 게시글 유형 비활성화에 실패했습니다.", error);
+          showSyncNotice("게시글 유형 비활성화를 Supabase에 반영하지 못했습니다. 화면에는 임시로 유지됩니다.");
+        });
+    }
     showSyncNotice("게시글 유형을 비활성화했습니다.");
   }
 
