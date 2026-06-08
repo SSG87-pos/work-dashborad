@@ -11,6 +11,7 @@ Recommended implementation route:
 3. Add an API-backed store behind the same state shape after the backend service is selected.
 4. Start with auth, users, tasks, subtasks, updates, links, tags, and calendar events.
 5. Add recurring generation and frozen report snapshots after shared task CRUD is stable.
+6. Keep future AI/HERmes integrations read-only at first; use `docs/ai-agent-readiness.md` as the grounding, permission, and report-draft contract.
 
 Open approval required:
 
@@ -413,6 +414,18 @@ Use `/api/v1` as the initial namespace.
 | POST | `/reports/performance/snapshots` | lead/admin | Freeze a generated report. |
 | GET | `/reports/performance/snapshots/:id` | visible user | Read frozen report. |
 
+### AI Agent Read API
+
+These endpoints are future-facing and read-only. They should return permission-filtered evidence bundles for an approved AI agent or HERmes-style tool layer. See `docs/ai-agent-readiness.md` for answer rules, report templates, and excluded data.
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| GET | `/ai/read/person-work-status` | user | Query by `personId` or roster name plus period; returns visible tasks, recent updates, open checklist items, and issue signals. |
+| GET | `/ai/read/topic-search` | user | Query by text plus period; searches visible task title, description, tags, workstream, updates, and task posts. |
+| GET | `/ai/read/workstream-issues` | user | Query by workstream plus period; returns progress, recent updates, explicit issues, inferred signals, and source task ids. |
+| GET | `/ai/read/recent-updates` | user | Query by owner/status/tag/workstream/period; returns recent update evidence sorted newest first. |
+| GET | `/ai/read/report-evidence` | user | Query by report type, period, and filters; returns a report-ready evidence bundle with source ids and dates. |
+
 ## Permission Enforcement
 
 Server must enforce the same rules as `docs/permission-rules.md`.
@@ -427,6 +440,7 @@ Minimum rules:
 - Shared tag creation is allowed for all users.
 - Shared tag rename/delete is admin-only.
 - Archived tasks remain report-readable.
+- AI agent read endpoints must be read-only, permission-filtered before model access, and must exclude personal notes/private calendar data by default.
 
 ## Migration from Prototype JSON
 

@@ -2,6 +2,12 @@
 
 ## Now
 
+- [x] Document future read-only AI agent/report-generation readiness.
+  - Files: `docs/ai-agent-readiness.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`, `docs/backend-implementation-plan.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a future HERmes/AI-readiness contract for read-only dashboard Q&A, topic/issue search, workstream summaries, and report draft generation.
+  - Done: documented evidence-first answer rules, source citation requirements, personal/private data exclusions, issue-signal rules, recommended query tools, report templates, and implementation phases.
+  - Guardrail: AI write access, task mutation, private note access, and HR/personnel-style judgment remain out of initial scope.
+
 - [x] Document company Linux local Supabase setup.
   - Files: `docs/local-linux-supabase-runbook.md`, `docs/supabase-start-guide.md`, `HANDOFF.md`, `TODO.md`.
   - Done: reviewed the current Supabase boundary (`src/supabaseClient.js`, `src/supabaseStore.js`, `.env.example`) and migrations `001` through `020`.
@@ -13,7 +19,15 @@
   - Done: added `task_post_categories` and `task_posts` migration with RLS, authenticated Data API grants, default category seed rows, and task/author indexes.
   - Done: wired Supabase reads so UUID-backed tasks receive `postItems` from `task_posts`, and admin-managed post categories read from `task_post_categories`.
   - Done: wired Supabase writes for post create/update/delete and category save/deactivate while keeping local fallback `postItems` behavior unchanged.
+  - Done after approval: live Supabase migration `020_task_posts` was applied to project `nbefvcrcfwacvnohtsmy`.
+  - Verified live DB: migration history shows `20260608140147 020_task_posts`; `task_posts` and `task_post_categories` have RLS enabled; 7 active default post categories exist; authenticated-role rollback smoke created, read, updated, and deleted one task post with URL and attachment metadata, then confirmed 0 QA rows remained.
+  - Verified live UI: on `http://127.0.0.1:5188/`, Supabase-connected task detail created a test `업무 노트`, reopened it, confirmed body/URL, updated title/body/URL, deleted it, reloaded the dashboard, and confirmed the deleted note stayed gone. Follow-up DB query confirmed 0 leftover UI QA rows.
   - Scope guard: real uploaded images/files still need Supabase Storage bucket/RLS. Current `attachment` is metadata-only.
+
+- [x] Document company self-hosted Supabase operating path.
+  - Files: `docs/company-self-hosted-supabase-guide.md`, `docs/supabase-start-guide.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a Korean guide explaining demo branch pull, why `main` only contains the current landing/dashboard features after merge, recommended release branch strategy, the separate clone targets for the dashboard repo and official Supabase Docker repo, self-hosted setup outline, migration application options, app env wiring, and remaining production-readiness work.
+  - Scope guard: this is an operating plan/document. It does not install the company self-hosted server or merge the current branch to `main`.
 
 - [x] Add task-detail posts/workstream-feed mockup.
   - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.

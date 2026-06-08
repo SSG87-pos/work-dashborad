@@ -187,3 +187,23 @@ Members can see their own detailed performance rows.
 Lead and admin can see team-wide performance rows.
 
 If future reports include personal notes or private calendar data, those fields must be opt-in and excluded by default.
+
+## AI Agent Read Rules
+
+Future AI/HERmes access is read-only by default.
+
+Allowed:
+
+- Read only data the requesting user could read through the normal dashboard.
+- Query visible tasks, subtasks, updates, change history, links, task-level posts, tags, workstreams, roster display names, and report evidence.
+- Generate draft answers and draft reports with source task/update dates.
+
+Restricted:
+
+- Cannot create, update, archive, delete, or assign work without a separately approved write workflow.
+- Cannot bypass RLS or use service-role credentials from the frontend/model runtime.
+- Cannot read personal notes by default.
+- Cannot read private calendar event detail unless a future permission change explicitly allows it.
+- Cannot present personnel evaluation, blame, or HR-sensitive judgments as facts from ordinary task data.
+
+AI outputs must distinguish recorded facts from inferred signals and should say `최근 기록 부족` when source updates are stale or missing.

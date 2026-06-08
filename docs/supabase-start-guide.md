@@ -90,8 +90,16 @@ Current local project values:
   - `20260605105800 initial_dashboard_rls_policies`
   - `grant_data_api_table_access`
   - `promote_first_admin`
+  - `20260608140147 020_task_posts`
 
 Because `Automatically expose new tables` is disabled, every new public table that should be available through `supabase-js` needs explicit grants for the Data API roles. RLS policies still control row-level access after those grants.
+
+Latest live verification:
+
+- 2026-06-08: `020_task_posts` is applied to live project `nbefvcrcfwacvnohtsmy`.
+- Authenticated-role rollback smoke verified `task_posts` create, read, update, and delete with URL and attachment metadata; the rollback left 0 QA rows.
+- `task_posts` and `task_post_categories` both have RLS enabled. Default active post categories count is 7.
+- Browser UI smoke on `http://127.0.0.1:5188/` verified Supabase-connected `업무 노트` flow: open task detail, create note, read note, update title/body/URL, delete note, reload, and confirm the deleted note stays gone. DB cleanup check found 0 leftover UI QA rows.
 
 ## Permission Notes
 
@@ -109,6 +117,7 @@ Because `Automatically expose new tables` is disabled, every new public table th
 Use these files when moving from prototype/sample users to real team operation:
 
 - `docs/local-linux-supabase-runbook.md` explains how to connect this dashboard to a local Supabase stack on a company Linux computer, including local CLI setup, migrations, `.env.local`, port `10097`, admin promotion, and current shared-persistence gaps.
+- `docs/company-self-hosted-supabase-guide.md` explains the later company-internal self-hosted Supabase operating path, including GitHub branch strategy, what to clone, how the Supabase official Docker repo differs from this dashboard repo, migration application, app environment variables, and remaining production-readiness work.
 - `docs/company-supabase-review-brief.md` is the company-facing review summary for Supabase use, data scope, security boundaries, and temporary URL decisions.
 - `docs/company-demo-readiness-checklist.md` explains the company-approval demo stop point, real-name demo policy, temporary URL decision, and approval boundaries.
 - `docs/supabase-auth-security-checklist.md` explains the remaining Auth dashboard security check for leaked password protection and password policy.

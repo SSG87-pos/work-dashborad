@@ -51,6 +51,7 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 - **[Design system and product UI rules](./DESIGN.md)** — Approved visual direction, layout behavior, typography, chips, and component-specific design contracts.
 - **[Backend planning docs](./docs/backend-api-spec.md)** — Future API/storage/auth contract reference.
 - **[Permission rules](./docs/permission-rules.md)** — Role and permission model reference.
+- **[AI agent readiness](./docs/ai-agent-readiness.md)** — Future read-only HERmes/AI answer and report-generation contract.
 
 ## Maintenance Policy
 

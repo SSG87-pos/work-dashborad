@@ -18,6 +18,7 @@ Last updated: 2026-06-08
   - `src/styles.css`
   - `src/storage.js`
   - `docs/backend-api-spec.md`
+  - `docs/ai-agent-readiness.md`
   - `TODO.md`
 - Package manager: `/Users/seulgi/Library/pnpm/bin/pnpm`.
 - Build command: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
@@ -32,6 +33,11 @@ Last updated: 2026-06-08
 
 Key product decisions now in the prototype:
 
+- Future HERmes/AI-agent integration is documented as a read-only, evidence-first layer:
+  - `docs/ai-agent-readiness.md` is the contract for dashboard Q&A, 담당자별 진행내용, 아이디어/이슈 검색, 업무흐름 요약, and report draft generation.
+  - The recommended path is a permission-filtered Supabase/API/MCP read projection, not screen scraping or unrestricted table access.
+  - AI answers and report drafts must cite source tasks/update dates, separate recorded facts from inferred signals, and say `최근 기록 부족` when evidence is stale or missing.
+  - Personal notes, private calendar details, task mutation, service-role credentials, and HR/personnel-style judgments are excluded from the initial scope.
 - POSLAB entry landing is implemented on branch `codex/poslab-entry-landing`:
   - The entry screen appears before the dashboard body in the current browser session.
   - It uses a bright POSCO-inspired radial background, POSLAB/Work Hub title treatment, and a lazy-loaded WebGL lanyard card.
@@ -68,7 +74,7 @@ Key product decisions now in the prototype:
 - `오늘 브리핑` is personal-first: briefing task flow, today agenda, and a page-scoped shared memo.
 - The common top header keeps only the `Strategy Work Hub` title; repeated explanatory subtitles are intentionally removed across tabs.
 - The top header now includes a compact `넓게/기본` viewing-density toggle for real demo/desktop readability. The toggle preserves the approved UI direction while widening workflow/calendar task detail panels and improving key text sizes; the preference is stored locally through `src/storage.js` so it survives refresh without requiring a Supabase schema change.
-- Task detail now has a real `업무 노트` surface below `다음 액션 추천`. It is positioned as a general remembered-context/posting tool, not meeting-note-only: decisions, remembered context, reference URLs, risks, meeting notes, and lookup material can all fit. The narrow detail panel shows the selected task's latest three title-first rows plus a nearby `노트 작성` action, and additional posts from that same task remain available behind a compact more/less control. The previous explanatory card above the list was removed so the panel stays compact. Because the panel is narrow, reading opens a larger dialog; writing and editing also open a larger dialog with `노트 구분` selection chips, URL input, body textarea, and emoji insertion at the body cursor. It does not show posts from other tasks just because they share the same `상위 업무흐름`; that cross-task rollup belongs in Highlights. Users can write, read, edit, and delete posts. Local fallback stores posts as task-level `postItems`; Supabase mode now has migration `020_task_posts.sql` for shared `task_posts` and `task_post_categories` persistence. Real file attachments still need future Supabase Storage bucket/RLS, and optional post change history remains later scope.
+- Task detail now has a real `업무 노트` surface below `다음 액션 추천`. It is positioned as a general remembered-context/posting tool, not meeting-note-only: decisions, remembered context, reference URLs, risks, meeting notes, and lookup material can all fit. The narrow detail panel shows the selected task's latest three title-first rows plus a nearby `노트 작성` action, and additional posts from that same task remain available behind a compact more/less control. The previous explanatory card above the list was removed so the panel stays compact. Because the panel is narrow, reading opens a larger dialog; writing and editing also open a larger dialog with `노트 구분` selection chips, URL input, body textarea, and emoji insertion at the body cursor. It does not show posts from other tasks just because they share the same `상위 업무흐름`; that cross-task rollup belongs in Highlights. Users can write, read, edit, and delete posts. Local fallback stores posts as task-level `postItems`; Supabase mode now has live-applied migration `20260608140147 020_task_posts` for shared `task_posts` and `task_post_categories` persistence. Authenticated-role rollback smoke verified post create/read/update/delete with URL and attachment metadata, leaving 0 QA rows. Browser UI smoke on `http://127.0.0.1:5188/` verified create/read/update/delete/reload persistence for a Supabase-connected task note and DB cleanup confirmed 0 leftover UI QA rows. Real file attachments still need future Supabase Storage bucket/RLS, and optional post change history remains later scope.
 - Highlights now has `업무흐름별 게시글 모음` next to the existing performance report. It rolls remembered-context posts up by `상위 업무흐름`; groups are collapsed by default, sorted by each group's latest post date, and expanded rows show 게시날짜, 해당 업무, 담당자, and 게시자. Inside each expanded group, sort controls use short labels only: `날짜`, `사람`, `구분`, and `업무`. Clicking a post row expands/collapses the content inline; the expanded body omits repeated scope/workstream metadata and focuses on body text, URL, and attachment. This rollup stays in Highlights because it is a lookup/review surface, not a live execution board; Team Flow can later add a shortcut if daily use proves it necessary.
 - Admin now includes `게시글 유형 관리`. Default types are `결정사항`, `기억할 점`, `리스크`, `회의록`, `중요문서`, `참고자료`, and `다음 확인`; admins can rename labels, choose tone colors, and hide types from the write dialog while keeping existing posts. Older local labels `회의 메모` and `참고 URL` normalize to `회의록` and `중요문서`.
 - Task detail `업데이트 로그` now sits above `관련 링크`, shows the latest three logs by default, and reveals older logs through a compact more/less control while keeping edit/delete actions behind the separate management toggle.
@@ -166,6 +172,7 @@ Key product decisions now in the prototype:
   - initial schema draft: `supabase/migrations/001_initial_dashboard_schema.sql`
   - setup guide: `docs/supabase-start-guide.md`
   - company Linux local setup runbook: `docs/local-linux-supabase-runbook.md`
+  - company self-hosted operating guide: `docs/company-self-hosted-supabase-guide.md`
 - Live Supabase project:
   - URL: `https://nbefvcrcfwacvnohtsmy.supabase.co`
   - first admin email: `seulgis@posco.com`
@@ -174,6 +181,7 @@ Key product decisions now in the prototype:
 
 - Local/company Supabase setup note:
   - `docs/local-linux-supabase-runbook.md` documents the practical route for running this dashboard against a local Supabase CLI stack on a company Linux computer.
+  - `docs/company-self-hosted-supabase-guide.md` documents the later internal self-hosted path: the app repo and Supabase official Docker repo are separate clone targets; current demo work remains on `codex/poslab-entry-landing` until merged; final operation should use `main` or a release branch such as `release/company-self-hosted`.
   - The current app switches into Supabase mode from `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; empty values keep the local fallback/demo store.
   - The runbook separates same-machine testing (`http://127.0.0.1:54321`) from LAN demos where other browsers need a reachable Supabase URL such as `http://<linux-ip>:54321`.
   - Current shared Supabase coverage includes core task/calendar/tag/memo/update/history, Canvas storage, and migration `020_task_posts.sql` for task-detail `업무 노트`/post-category persistence. Real attachment files and confirmed `tasks.workstream` persistence still need future migrations before they are true multi-PC shared data.

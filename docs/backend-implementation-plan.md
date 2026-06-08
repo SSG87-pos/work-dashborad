@@ -108,6 +108,19 @@ Then add:
 
 Rules are defined in `docs/performance-report-rules.md`.
 
+### 9. AI Agent Readiness
+
+Keep AI/HERmes integration read-only until the shared backend and permission model are stable.
+
+First add a permission-filtered evidence projection for:
+
+- 담당자별 업무 진행내용
+- 주제/아이디어 관련 진행내용과 이슈
+- 상위 업무흐름별 진행/리스크
+- 주간/월간/임원 보고서 초안 근거
+
+Rules are defined in `docs/ai-agent-readiness.md`. AI-generated reports must include source task/update dates and stay human-reviewed drafts.
+
 ## Backend Options
 
 The approved first implementation path is Supabase:
@@ -167,6 +180,7 @@ After that, add recurring automation and report snapshots.
 - Whether members can create tasks assigned to other members.
 - Whether lead can edit member profile emoji/title, or only work data.
 - Whether performance report export should be Markdown only first, or also PDF/DOCX later.
+- Whether an approved AI agent such as HERmes should connect through Supabase RPC/views, a custom REST API, or an MCP tool layer.
 
 ## Immediate Next Technical Step
 

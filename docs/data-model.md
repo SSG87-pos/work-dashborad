@@ -356,3 +356,31 @@ Optional cached report output. The app can initially compute reports live from t
 | created_at | datetime | Audit field. |
 
 Report source rule: use actual completion dates for completed work, task planned dates for open work, completed subtasks, updates created in the period, task change history, and archived completion. Keep source task/update/change ids so the generated report is explainable.
+
+## AI-Readable Work Knowledge
+
+Future AI/HERmes integrations should not read arbitrary UI state or unrestricted database tables. They should read a permission-filtered projection built from the operational model.
+
+Recommended evidence fields:
+
+| Field | Source | Notes |
+| --- | --- | --- |
+| task id/title/status/priority | tasks | Basic cited unit for every answer. |
+| owner/creator/assignee names | users, team_roster | Use display names only unless a workflow needs ids. |
+| workstream | tasks.workstream | Primary grouping for topic and report answers. |
+| tags | tags, task_tags | Secondary search/filter metadata. |
+| due/completed dates | tasks | Used for overdue, recent completion, and report-period logic. |
+| checklist progress | subtasks or tasks.progress | Used for progress and open-action summaries. |
+| recent updates | task_updates | Main source for current progress and issues. |
+| change history | task_change_history | Source for status, due-date, archive, and correction context. |
+| task posts | task_posts | Source for decisions, risks, meeting notes, and remembered context. |
+| report source ids | performance_snapshots.body_json or live report query | Required for explainable generated reports. |
+
+Excluded by default:
+
+- personal_notes
+- private calendar event notes
+- hidden/admin-only users unless the requester has admin scope
+- raw service credentials or backend secrets
+
+AI report drafts must preserve source task/update/change/post ids or titles and dates so a human reviewer can trace every claim.
