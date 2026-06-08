@@ -52,6 +52,8 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 - **[Backend planning docs](./docs/backend-api-spec.md)** — Future API/storage/auth contract reference.
 - **[Permission rules](./docs/permission-rules.md)** — Role and permission model reference.
 - **[AI agent readiness](./docs/ai-agent-readiness.md)** — Future read-only HERmes/AI answer and report-generation contract.
+- **[AI implementation guide](./docs/ai-agent-implementation-guide.md)** — Beginner-friendly starting point for future OpenAI/HERmes/MCP integration.
+- **[AI Codex implementation brief](./docs/ai-agent-codex-implementation-brief.md)** — Developer execution checklist for future Codex implementation sessions.
 
 ## Maintenance Policy
 

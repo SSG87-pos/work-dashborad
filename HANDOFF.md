@@ -18,6 +18,8 @@ Last updated: 2026-06-08
   - `src/styles.css`
   - `src/storage.js`
   - `docs/backend-api-spec.md`
+  - `docs/ai-agent-codex-implementation-brief.md`
+  - `docs/ai-agent-implementation-guide.md`
   - `docs/ai-agent-readiness.md`
   - `TODO.md`
 - Package manager: `/Users/seulgi/Library/pnpm/bin/pnpm`.
@@ -34,6 +36,8 @@ Last updated: 2026-06-08
 Key product decisions now in the prototype:
 
 - Future HERmes/AI-agent integration is documented as a read-only, evidence-first layer:
+  - `docs/ai-agent-codex-implementation-brief.md` is the developer execution brief for future Codex sessions; it starts with Phase 1 evidence builders/check scripts and explicitly defers OpenAI calls and MCP.
+  - `docs/ai-agent-implementation-guide.md` is the beginner-friendly starting point for why the recommended path is `read-only API first, MCP Tool second`, what each piece means, and what to implement first.
   - `docs/ai-agent-readiness.md` is the contract for dashboard Q&A, 담당자별 진행내용, 아이디어/이슈 검색, 업무흐름 요약, and report draft generation.
   - The recommended path is a permission-filtered Supabase/API/MCP read projection, not screen scraping or unrestricted table access.
   - AI answers and report drafts must cite source tasks/update dates, separate recorded facts from inferred signals, and say `최근 기록 부족` when evidence is stale or missing.

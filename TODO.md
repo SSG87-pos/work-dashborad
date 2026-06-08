@@ -2,6 +2,18 @@
 
 ## Now
 
+- [x] Add Codex-ready AI agent implementation brief.
+  - Files: `docs/ai-agent-codex-implementation-brief.md`, `docs/ai-agent-implementation-guide.md`, `docs/ai-agent-readiness.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a developer execution brief that future Codex sessions can read first to implement Phase 1 without re-deciding architecture.
+  - Done: specified required reading order, first target (`report-evidence`), suggested files/functions, deterministic check script, verification commands, acceptance criteria, non-goals, and a ready-to-use future Codex prompt.
+  - Guardrail: Phase 1 should build/test the evidence layer only; no OpenAI calls, MCP server, write-back, or secret handling in the first pass.
+
+- [x] Add beginner-friendly AI agent implementation guide.
+  - Files: `docs/ai-agent-implementation-guide.md`, `docs/ai-agent-readiness.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: documented the recommended `read-only API first, MCP Tool second` path for OpenAI/HERmes integration in beginner-friendly terms.
+  - Done: explained core terms, architecture, first tools, evidence bundle shape, phased implementation plan, PoC choice, security checklist, and what not to implement first.
+  - Guardrail: direct Supabase access by AI, service role exposure, write-back actions, personal-note use, and HR/personnel-style judgment remain out of scope.
+
 - [x] Document future read-only AI agent/report-generation readiness.
   - Files: `docs/ai-agent-readiness.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`, `docs/backend-implementation-plan.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added a future HERmes/AI-readiness contract for read-only dashboard Q&A, topic/issue search, workstream summaries, and report draft generation.

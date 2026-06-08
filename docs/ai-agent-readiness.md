@@ -2,6 +2,9 @@
 
 This note defines the future read-only AI agent layer for the `연구기획그룹-전략` work dashboard. It is a planning contract, not an implemented feature.
 
+For a beginner-friendly implementation path, start from `docs/ai-agent-implementation-guide.md`.
+For a Codex execution brief, use `docs/ai-agent-codex-implementation-brief.md`.
+
 ## Goal
 
 The dashboard should eventually let an approved AI agent such as HERmes answer work-status questions and draft reports from the same source records used by the app.
