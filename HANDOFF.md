@@ -21,6 +21,7 @@ Last updated: 2026-06-08
   - `docs/ai-agent-codex-implementation-brief.md`
   - `docs/ai-agent-implementation-guide.md`
   - `docs/ai-agent-readiness.md`
+  - `docs/personal-notification-inbox-plan.md`
   - `TODO.md`
 - Package manager: `/Users/seulgi/Library/pnpm/bin/pnpm`.
 - Build command: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
@@ -178,6 +179,7 @@ Key product decisions now in the prototype:
   - company Linux local setup runbook: `docs/local-linux-supabase-runbook.md`
   - company self-hosted operating guide: `docs/company-self-hosted-supabase-guide.md`
   - future multi-group expansion plan: `docs/multi-workspace-expansion-plan.md`
+  - future personal notification inbox plan: `docs/personal-notification-inbox-plan.md`
 - Live Supabase project:
   - URL: `https://nbefvcrcfwacvnohtsmy.supabase.co`
   - first admin email: `seulgis@posco.com`
@@ -191,6 +193,7 @@ Key product decisions now in the prototype:
   - The current app switches into Supabase mode from `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; empty values keep the local fallback/demo store.
   - The runbook separates same-machine testing (`http://127.0.0.1:54321`) from LAN demos where other browsers need a reachable Supabase URL such as `http://<linux-ip>:54321`.
   - Current shared Supabase coverage includes core task/calendar/tag/memo/update/history, Canvas storage, and migration `020_task_posts.sql` for task-detail `업무 노트`/post-category persistence. Real attachment files and confirmed `tasks.workstream` persistence still need future migrations before they are true multi-PC shared data.
+  - `docs/personal-notification-inbox-plan.md` documents the later per-user notification inbox: a `notifications` table with recipient-only RLS, unread/read state, top bell badge behavior, click-through to task detail, dedupe rules, and Teams integration as a later high-signal-only option. The current app has alert-like signals and a bell icon, but no DB-backed notification inbox yet.
 
 Recent UI/UX refinements from the latest session:
 

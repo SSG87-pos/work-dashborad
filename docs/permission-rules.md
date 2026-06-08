@@ -154,6 +154,24 @@ Restricted:
 - non-admin users cannot rename or hide shared post categories
 - attachment file access requires separate Storage policies before real files are stored
 
+## Notification Rules
+
+Future dashboard notifications are personal read-state records. They tell each user what changed in work they need to see.
+
+Allowed:
+
+- authenticated users can read their own notification rows
+- authenticated users can update only their own `read_at` and `dismissed_at`
+- notification rows can link to visible tasks, update logs, change history rows, or 업무 노트 posts
+- high-signal notification types can later be bridged to Teams after company approval
+
+Restricted:
+
+- users cannot read another user's notification inbox
+- users cannot change another user's read state
+- ordinary frontend code cannot arbitrarily edit notification title, body, type, severity, recipient, or source fields
+- Teams delivery must not bypass dashboard RLS or expose private data in channel messages
+
 ## Task Change History Rules
 
 Task change history is append-first and should usually represent status, due-date, archive, delete, and recurring-instance events.

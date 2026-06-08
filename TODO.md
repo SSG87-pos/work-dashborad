@@ -2,6 +2,11 @@
 
 ## Now
 
+- [x] Document future personal notification inbox path.
+  - Files: `docs/personal-notification-inbox-plan.md`, `docs/supabase-start-guide.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: documented the recommended post-Supabase path for per-user notifications: event types, `notifications` table, RLS, least-privilege grants, unread/read state, top bell badge behavior, click-through task navigation, dedupe, validation, and the Teams integration boundary.
+  - Guardrail: implementation is intentionally deferred until company self-hosted Supabase, real users, and shared task/update/post persistence are stable. Teams push, real-time push, mobile push, and user-configurable alert rules remain later scope.
+
 - [x] Document future multi-workspace/group expansion path.
   - Files: `docs/multi-workspace-expansion-plan.md`, `docs/supabase-start-guide.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
   - Done: documented the recommended path after our-team stabilization: keep the current 10-person team scope first, then expand through `workspace_id`, optional `unit_id`, visibility scopes, workspace-specific tags/workstreams/post categories, workspace admin roles, RLS membership filtering, and performance indexes.

@@ -209,6 +209,30 @@ Only admin users can insert, rename, recolor, hide, or delete post categories.
 
 `업무 노트` reads only posts attached to the selected task. Highlights `업무흐름별 게시글 모음` derives its grouped view from `task_posts` joined to the parent task and grouped by `상위 업무흐름`. Authors or task managers may edit/delete task posts.
 
+### notifications
+
+Future Supabase-backed personal notification inbox. See `docs/personal-notification-inbox-plan.md` before implementing.
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | uuid pk | yes | Stable notification id. |
+| recipient_user_id | uuid/text fk users.id | yes | User who should see the notification. Match the actual `users.id` type in the migration. |
+| actor_user_id | uuid/text fk users.id | no | User who caused the event, when available. |
+| task_id | uuid/text fk tasks.id | no | Related task for navigation. |
+| source_type | text | yes | `task`, `task_update`, `task_post`, `task_change_history`, or `system`. |
+| source_id | uuid/text | no | Source row id used for dedupe and navigation. |
+| type | text | yes | Example: `task_assigned`, `task_overdue`, `task_update_added`, `task_post_added`, `risk_added`. |
+| severity | text | yes | `low`, `normal`, `high`, or `urgent`. |
+| title | text | yes | Compact list title. |
+| body | text | yes | Short reader-facing summary. Avoid copying long sensitive content. |
+| action_url | text | no | Optional deep link/action hint. |
+| metadata | jsonb | yes | Extra structured details such as due date or event date. |
+| created_at | timestamp | yes | Sort newest first. |
+| read_at | timestamp | no | Set when the recipient reads it. |
+| dismissed_at | timestamp | no | Set when the recipient hides it. |
+
+Notification rule: users can read only their own notification rows and can update only their own read/dismiss state. General frontend code should not be able to arbitrarily edit notification title/body/type/source fields.
+
 ### task_links
 
 | Column | Type | Required | Notes |
@@ -377,6 +401,17 @@ Use `/api/v1` as the initial namespace.
 | DELETE | `/tasks/:id/history/:historyId` | task manager | Delete an accidental history row without changing current task state. |
 | POST | `/tasks/:id/links` | owner/lead/admin | Add related link. |
 
+### Notifications
+
+These endpoints are future-facing and should be implemented only after the self-hosted Supabase user/task data is stable. The dashboard can also use the Supabase table API behind the `src/supabaseStore.js` boundary instead of a custom REST wrapper.
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| GET | `/notifications` | user | Return current user's notifications, newest first; supports `unreadOnly`, `limit`, and `severity`. |
+| PATCH | `/notifications/:id/read` | recipient | Mark one notification as read. |
+| PATCH | `/notifications/read-all` | user | Mark current user's unread notifications as read. |
+| PATCH | `/notifications/:id/dismiss` | recipient | Hide one notification without deleting audit context. |
+
 ### Tags
 
 | Method | Path | Role | Notes |
@@ -440,6 +475,7 @@ Minimum rules:
 - Shared tag creation is allowed for all users.
 - Shared tag rename/delete is admin-only.
 - Archived tasks remain report-readable.
+- Notifications are personal rows: users can read only their own notifications and update only their own read/dismiss state.
 - AI agent read endpoints must be read-only, permission-filtered before model access, and must exclude personal notes/private calendar data by default.
 
 ## Migration from Prototype JSON

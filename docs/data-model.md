@@ -167,6 +167,30 @@ Task-level remembered-context posts used by `업무 노트` and the Highlights `
 
 Post rule: visible task posts are readable by authenticated users who can see the parent task. Authors or task managers can edit/delete a post. Attachments are metadata-only until Supabase Storage policies are added.
 
+### notifications
+
+Future personal notification inbox used by the top bell icon. Implement after self-hosted Supabase auth, roster, tasks, update logs, and 업무 노트 persistence are stable. See `docs/personal-notification-inbox-plan.md`.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| id | uuid/string | Stable notification id. |
+| recipient_user_id | user id | User who should see this notification. |
+| actor_user_id | user id nullable | User who caused the event. |
+| task_id | task id nullable | Related task for click-through navigation. |
+| source_type | string | task, task_update, task_post, task_change_history, or system. |
+| source_id | string/uuid nullable | Source row id used for dedupe. |
+| type | enum/string | task_assigned, task_due_today, task_overdue, task_update_added, task_post_added, risk_added, and related event types. |
+| severity | enum/string | low, normal, high, urgent. |
+| title | string | Compact notification title. |
+| body | text | Short summary, not a full copy of sensitive detail. |
+| action_url | string nullable | Optional deep-link/action hint. |
+| metadata | json object | Extra event-specific details. |
+| created_at | datetime | Sort newest first. |
+| read_at | datetime nullable | Set when recipient reads the notification. |
+| dismissed_at | datetime nullable | Set when recipient hides the notification. |
+
+Notification rule: recipients can read only their own notifications. Recipients can update only `read_at` and `dismissed_at`. Alert row creation should happen through the storage/API boundary, not directly from arbitrary view code.
+
 ### task_links
 
 | Field | Type | Notes |
