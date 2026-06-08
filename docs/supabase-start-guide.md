@@ -117,7 +117,8 @@ Latest live verification:
 Use these files when moving from prototype/sample users to real team operation:
 
 - `docs/local-linux-supabase-runbook.md` explains how to connect this dashboard to a local Supabase stack on a company Linux computer, including local CLI setup, migrations, `.env.local`, port `10097`, admin promotion, and current shared-persistence gaps.
-- `docs/company-self-hosted-supabase-guide.md` explains the later company-internal self-hosted Supabase operating path, including GitHub branch strategy, what to clone, how the Supabase official Docker repo differs from this dashboard repo, migration application, app environment variables, and remaining production-readiness work.
+- `docs/company-self-hosted-supabase-guide.md` explains the later company-internal self-hosted Supabase operating path, including GitHub branch strategy, what to clone, how the Supabase official Docker repo differs from this dashboard repo, how to move the operating baseline to an internal company Git when GitHub push is blocked, migration application, app environment variables, and remaining production-readiness work.
+- `docs/multi-workspace-expansion-plan.md` explains the later expansion path for 30-person groups and multiple groups, including `workspace_id`, `unit_id`, visibility, group-specific tags/workstreams/post types, and RLS separation.
 - `docs/company-supabase-review-brief.md` is the company-facing review summary for Supabase use, data scope, security boundaries, and temporary URL decisions.
 - `docs/company-demo-readiness-checklist.md` explains the company-approval demo stop point, real-name demo policy, temporary URL decision, and approval boundaries.
 - `docs/supabase-auth-security-checklist.md` explains the remaining Auth dashboard security check for leaked password protection and password policy.

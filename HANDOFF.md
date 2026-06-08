@@ -177,6 +177,7 @@ Key product decisions now in the prototype:
   - setup guide: `docs/supabase-start-guide.md`
   - company Linux local setup runbook: `docs/local-linux-supabase-runbook.md`
   - company self-hosted operating guide: `docs/company-self-hosted-supabase-guide.md`
+  - future multi-group expansion plan: `docs/multi-workspace-expansion-plan.md`
 - Live Supabase project:
   - URL: `https://nbefvcrcfwacvnohtsmy.supabase.co`
   - first admin email: `seulgis@posco.com`
@@ -185,7 +186,8 @@ Key product decisions now in the prototype:
 
 - Local/company Supabase setup note:
   - `docs/local-linux-supabase-runbook.md` documents the practical route for running this dashboard against a local Supabase CLI stack on a company Linux computer.
-  - `docs/company-self-hosted-supabase-guide.md` documents the later internal self-hosted path: the app repo and Supabase official Docker repo are separate clone targets; current demo work remains on `codex/poslab-entry-landing` until merged; final operation should use `main` or a release branch such as `release/company-self-hosted`.
+  - `docs/company-self-hosted-supabase-guide.md` documents the later internal self-hosted path: the app repo and Supabase official Docker repo are separate clone targets; `release/company-self-hosted` is the current GitHub operating baseline; if company network policy blocks pushing later self-hosted work back to GitHub, the company internal Git repository can become the real operating repository and its `main` can become the production main.
+  - `docs/multi-workspace-expansion-plan.md` documents the future expansion path after our-team stabilization: 30-person groups and 10+ groups should use `workspace_id` RLS separation, optional `unit_id`, visibility scopes, and workspace-admin-managed tags/workstreams/post categories.
   - The current app switches into Supabase mode from `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; empty values keep the local fallback/demo store.
   - The runbook separates same-machine testing (`http://127.0.0.1:54321`) from LAN demos where other browsers need a reachable Supabase URL such as `http://<linux-ip>:54321`.
   - Current shared Supabase coverage includes core task/calendar/tag/memo/update/history, Canvas storage, and migration `020_task_posts.sql` for task-detail `업무 노트`/post-category persistence. Real attachment files and confirmed `tasks.workstream` persistence still need future migrations before they are true multi-PC shared data.

@@ -2,6 +2,11 @@
 
 ## Now
 
+- [x] Document future multi-workspace/group expansion path.
+  - Files: `docs/multi-workspace-expansion-plan.md`, `docs/supabase-start-guide.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: documented the recommended path after our-team stabilization: keep the current 10-person team scope first, then expand through `workspace_id`, optional `unit_id`, visibility scopes, workspace-specific tags/workstreams/post categories, workspace admin roles, RLS membership filtering, and performance indexes.
+  - Guardrail: multi-workspace UI, RLS migration, system-admin screens, and cross-group reporting remain later scope until the current team usage is stable.
+
 - [x] Add Codex-ready AI agent implementation brief.
   - Files: `docs/ai-agent-codex-implementation-brief.md`, `docs/ai-agent-implementation-guide.md`, `docs/ai-agent-readiness.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added a developer execution brief that future Codex sessions can read first to implement Phase 1 without re-deciding architecture.
@@ -39,6 +44,7 @@
 - [x] Document company self-hosted Supabase operating path.
   - Files: `docs/company-self-hosted-supabase-guide.md`, `docs/supabase-start-guide.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added a Korean guide explaining demo branch pull, why `main` only contains the current landing/dashboard features after merge, recommended release branch strategy, the separate clone targets for the dashboard repo and official Supabase Docker repo, self-hosted setup outline, migration application options, app env wiring, and remaining production-readiness work.
+  - Done: clarified that if company network policy prevents pushing self-hosted changes back to GitHub, the company internal Git repository can become the actual operating source of truth and its `main` can become the production main, while GitHub `release/company-self-hosted` remains the transfer baseline.
   - Scope guard: this is an operating plan/document. It does not install the company self-hosted server or merge the current branch to `main`.
 
 - [x] Add task-detail posts/workstream-feed mockup.

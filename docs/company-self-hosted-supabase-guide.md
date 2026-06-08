@@ -2,7 +2,7 @@
 
 이 문서는 회사 내부 self-hosted Supabase로 `연구기획그룹-전략` 대시보드를 운영할 때 필요한 GitHub/브랜치/클론/추가 작업을 쉽게 설명하는 자료입니다.
 
-작성 기준일: 2026-06-08
+작성 기준일: 2026-06-09
 
 ## 먼저 결론
 
@@ -30,11 +30,11 @@ pnpm run dev -- --host 0.0.0.0 --port 10097
 
 `main`을 새로 클론한다고 해서 랜딩페이지, Canvas, 업무 노트, Highlights 게시글 모음, Supabase 연결 작업이 모두 따라온다고 보장할 수는 없습니다. 그 기능들이 `main`에 merge되어 있어야만 기본 clone으로 따라옵니다.
 
-현재 기준으로는 최종 기능이 들어 있는 기준 브랜치는 `codex/poslab-entry-landing`입니다.
+현재 기준으로는 최종 기능이 들어 있는 기준 브랜치는 `release/company-self-hosted`입니다. 이 브랜치는 `codex/poslab-entry-landing`에서 운영 후보 기준점으로 만든 브랜치입니다.
 
 ## 큰 그림
 
-회사 내부 self-hosted Supabase 운영은 두 개의 Git 묶음이 필요합니다.
+회사 내부 self-hosted Supabase 운영은 최소 두 개의 Git 묶음이 필요합니다.
 
 ### 1. 우리 대시보드 앱 repo
 
@@ -69,13 +69,31 @@ https://github.com/supabase/supabase
 
 즉, `work-dashborad`만 클론하면 앱 코드는 받을 수 있지만, self-hosted Supabase 서버 자체가 설치되는 것은 아닙니다. 반대로 Supabase 공식 repo만 받으면 DB/Auth 서버는 생기지만, 우리 대시보드 화면은 없습니다.
 
+### 3. 회사 내부 Git 저장소
+
+회사 내부망 정책 때문에 self-hosted Supabase 작업 후 GitHub로 다시 push할 수 없을 수 있습니다. 이 경우 회사 내부 Git 저장소가 실제 운영 기준 저장소가 되어도 괜찮습니다.
+
+역할:
+
+- 회사 내부 운영 코드 보관
+- self-hosted Supabase 연결 후속 작업 관리
+- 내부 보안 정책에 맞는 운영 branch/tag 관리
+- GitHub로 되돌려 올릴 수 없는 내부망 전용 변경사항 관리
+
+중요한 기준:
+
+- GitHub의 `release/company-self-hosted`는 내부 운영을 시작하기 전 기준점입니다.
+- 회사 내부 Git의 `main`은 실제 운영 기준 branch가 될 수 있습니다.
+- 두 저장소의 `main`이 서로 달라도 괜찮습니다.
+- 다만 팀 안에서는 "운영 기준 저장소는 회사 내부 Git"이라고 명확히 정해야 합니다.
+
 ## 데모, 파일럿, 운영의 차이
 
 | 단계 | 앱 브랜치 | Supabase | 목적 |
 | --- | --- | --- | --- |
 | 내일 데모 | `codex/poslab-entry-landing` | 없어도 됨 또는 기존 fallback | 화면/흐름 확인 |
 | 로컬 파일럿 | `codex/poslab-entry-landing` 또는 release 브랜치 | Supabase CLI local stack | 한 PC에서 DB 연결 검증 |
-| 회사 내부 운영 | `main` 또는 `release/company-self-hosted` | self-hosted Docker Supabase | 여러 명이 같은 데이터 사용 |
+| 회사 내부 운영 | 내부 Git `main` 또는 `release/company-self-hosted` | self-hosted Docker Supabase | 여러 명이 같은 데이터 사용 |
 
 데모와 운영을 섞으면 헷갈립니다. 내일 데모는 현재 데모 브랜치로 충분합니다. 운영 전환은 데모가 끝난 뒤 별도 체크리스트로 진행하는 것이 좋습니다.
 
@@ -147,16 +165,19 @@ git push origin release/company-self-hosted
 
 네. “최종 구현”이라고 부르려면 결국 `main` 또는 명확한 운영 브랜치에 들어가야 합니다.
 
+단, 그 `main`이 꼭 GitHub의 `main`일 필요는 없습니다. 회사 내부망 때문에 GitHub로 다시 push할 수 없다면, 회사 내부 Git 저장소의 `main`을 실제 운영 메인으로 삼으면 됩니다. 이때 GitHub는 "외부 초기 기준점", 내부 Git은 "운영 기준 저장소" 역할로 나뉩니다.
+
 권장 순서:
 
 1. 지금 기능이 있는 `codex/poslab-entry-landing`을 안정화
 2. `release/company-self-hosted` 브랜치 생성
 3. self-hosted Supabase 연결/검증
 4. 회사 운영에 필요한 보안/백업/환경 설정 확인
-5. `release/company-self-hosted`를 `main`으로 merge
-6. `main`에 tag 생성
+5. GitHub 운영이면 `release/company-self-hosted`를 GitHub `main`으로 merge
+6. 내부 Git 운영이면 `release/company-self-hosted`를 내부 Git `main`으로 만들거나 merge
+7. 실제 운영 저장소의 `main`에 tag 생성
 
-예:
+GitHub를 계속 쓸 수 있는 경우:
 
 ```bash
 git checkout main
@@ -176,7 +197,96 @@ pnpm install
 
 하지만 이 merge가 되기 전에는 반드시 `git checkout codex/poslab-entry-landing` 또는 운영용 release 브랜치 checkout이 필요합니다.
 
+회사 내부 Git으로 운영 기준을 넘기는 경우:
+
+```bash
+git clone -b release/company-self-hosted https://github.com/SSG87-pos/work-dashborad.git
+cd work-dashborad
+
+git remote rename origin github
+git remote add origin 내부Git주소
+git push -u origin release/company-self-hosted
+```
+
+내부 Git에서 `main`을 운영 기준으로 삼는 경우:
+
+```bash
+git checkout -b main
+git push -u origin main
+```
+
+그 다음 회사 내부 Git 시스템에서 default branch를 `main`으로 설정합니다.
+
+이후 self-hosted Supabase와 관련된 내부망 전용 작업은 내부 Git에서만 관리해도 됩니다. GitHub로 다시 push하지 않아도 운영에는 문제가 없습니다.
+
+## 회사 내부 Git이 운영 메인이 되는 경우
+
+회사 내부망에서 작업한 내용을 외부 GitHub로 다시 올릴 수 없다면 아래 방식을 권장합니다.
+
+### 권장 저장소 역할
+
+| 저장소 | 역할 |
+| --- | --- |
+| GitHub `SSG87-pos/work-dashborad` | 외부 개발/초기 기준점 |
+| GitHub `release/company-self-hosted` | 회사 내부 이전용 기준 브랜치 |
+| 회사 내부 Git | 실제 운영 기준 저장소 |
+| 회사 내부 Git `main` | 실제 운영 메인 |
+| 회사 내부 Git tag | 운영 배포 기준점 |
+
+### 내부 Git 이전 절차
+
+처음 내부 Git으로 넘길 때:
+
+```bash
+git clone -b release/company-self-hosted https://github.com/SSG87-pos/work-dashborad.git
+cd work-dashborad
+
+git remote rename origin github
+git remote add origin 내부Git주소
+git push -u origin release/company-self-hosted
+```
+
+내부 Git의 `main`을 새 운영 메인으로 만들 때:
+
+```bash
+git checkout -b main
+git push -u origin main
+```
+
+이미 내부 Git에 빈 `main`이 있다면, 회사 Git 정책에 따라 merge request 또는 protected-branch 절차를 따릅니다.
+
+### 내부 Git으로 넘어간 뒤의 원칙
+
+- 내부 Git의 `main`을 진짜 운영 기준으로 봅니다.
+- GitHub의 `main`과 내부 Git의 `main`이 달라도 괜찮습니다.
+- GitHub로 다시 push할 수 없는 내부 작업은 내부 Git에만 남겨도 됩니다.
+- 단, GitHub 기준 문서와 내부 Git 기준 문서가 달라질 수 있으므로 내부 Git의 README/HANDOFF/TODO를 최신 기준으로 봅니다.
+- 운영 tag는 내부 Git에 남깁니다.
+
+예:
+
+```bash
+git tag v0.1.0-company-self-hosted
+git push origin v0.1.0-company-self-hosted
+```
+
+### 내부 Git에서 절대 올리면 안 되는 것
+
+내부 Git이어도 아래는 commit하지 않는 것을 권장합니다.
+
+- `.env.local`
+- self-hosted Supabase `.env`
+- DB password
+- JWT secret
+- service role key
+- SMTP password
+- 개인 비밀번호
+
+내부 Git에는 코드, migration, 문서, `.env.example`만 올리고, 실제 secret은 회사의 별도 보안 저장소나 서버 환경변수로 관리합니다.
+
 ## GitHub에서 사전에 해두면 좋은 것
+
+이 장은 GitHub를 계속 쓸 수 있거나, 회사 내부 Git으로 넘기기 전 기준점을 만들 때의 이야기입니다. 내부망 정책 때문에 GitHub로 다시 push할 수 없다면 이 장의 목표는 "GitHub에서 최종 운영까지 관리"가 아니라 "내부 Git으로 넘길 깨끗한 기준점 만들기"입니다.
 
 ### 1. 운영 기준 브랜치 결정
 
@@ -207,6 +317,7 @@ main
 - 업무 노트/게시글
 - Supabase migrations `001`부터 `020`
 - self-hosted 운영 문서
+- 내부 Git 운영 전환 안내
 
 ### 2. Pull Request 또는 merge 기록 남기기
 
@@ -712,14 +823,23 @@ git checkout codex/poslab-entry-landing
 대시보드 repo만 받아서 build합니다.
 
 ```bash
-git clone https://github.com/SSG87-pos/work-dashborad.git
+git clone 내부Git주소
 cd work-dashborad
-git checkout release/company-self-hosted
+git checkout main
 pnpm install --frozen-lockfile
 CI=true pnpm run build
 ```
 
 그 다음 `dist/`를 사내 웹서버가 서빙합니다.
+
+아직 내부 Git으로 이전하지 않았다면 GitHub의 `release/company-self-hosted`를 사용할 수 있습니다.
+
+```bash
+git clone -b release/company-self-hosted https://github.com/SSG87-pos/work-dashborad.git
+cd work-dashborad
+pnpm install --frozen-lockfile
+CI=true pnpm run build
+```
 
 ## 추천 진행 순서
 
@@ -747,6 +867,23 @@ git checkout codex/poslab-entry-landing
 git pull origin codex/poslab-entry-landing
 git checkout -b release/company-self-hosted
 git push origin release/company-self-hosted
+```
+
+현재 이 브랜치는 이미 만들어져 있습니다. 새 PC에서는 아래처럼 받을 수 있습니다.
+
+```bash
+git clone -b release/company-self-hosted https://github.com/SSG87-pos/work-dashborad.git
+cd work-dashborad
+```
+
+회사 내부 Git이 운영 기준이 될 예정이면, 이 단계 다음에 내부 Git으로 넘깁니다.
+
+```bash
+git remote rename origin github
+git remote add origin 내부Git주소
+git push -u origin release/company-self-hosted
+git checkout -b main
+git push -u origin main
 ```
 
 ### 3단계. 회사 내부 Supabase test 서버 설치
@@ -837,7 +974,8 @@ where email = '관리자_이메일';
 
 필수:
 
-- `codex/poslab-entry-landing`을 release 브랜치 또는 main으로 정리
+- `release/company-self-hosted`를 GitHub 또는 회사 내부 Git의 운영 기준으로 확정
+- 회사 내부 Git을 쓰는 경우 내부 Git `main`을 실제 운영 메인으로 설정
 - self-hosted Supabase 설치
 - `001`부터 `020` migration 적용
 - self-hosted URL/key를 앱 환경변수에 연결
@@ -864,4 +1002,4 @@ where email = '관리자_이메일';
 
 ## 한 줄 정리
 
-내일 데모는 지금 브랜치만 pull해서 보여주면 됩니다. self-hosted Supabase 운영으로 넘어갈 때는 `codex/poslab-entry-landing`을 운영 기준 브랜치나 `main`으로 정리한 뒤, 별도의 Supabase 공식 Docker 구성을 회사 서버에 설치하고, 우리 repo의 `supabase/migrations/001...020`을 그 DB에 적용한 다음, 앱의 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_ANON_KEY`를 회사 내부 Supabase 주소/key로 연결하면 됩니다.
+내일 데모는 지금 브랜치만 pull해서 보여주면 됩니다. self-hosted Supabase 운영으로 넘어갈 때는 `release/company-self-hosted`를 GitHub 또는 회사 내부 Git의 운영 기준으로 삼고, 내부망 때문에 GitHub로 다시 push할 수 없다면 회사 내부 Git의 `main`을 실제 운영 메인으로 사용하면 됩니다. 그 뒤 별도의 Supabase 공식 Docker 구성을 회사 서버에 설치하고, 우리 repo의 `supabase/migrations/001...020`을 그 DB에 적용한 다음, 앱의 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_ANON_KEY`를 회사 내부 Supabase 주소/key로 연결하면 됩니다.
