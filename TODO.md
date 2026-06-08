@@ -2,6 +2,50 @@
 
 ## Now
 
+- [x] Add task-detail posts/workstream-feed mockup.
+  - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a compact `게시글` button to task detail that opens a read-only mockup panel.
+  - Done: same-task older posts stay collapsed inside task detail, while posts from other tasks in the same workstream are reserved for the Highlights `게시글` tab.
+  - Done: follow-up mockup moved long reading/writing into larger dialogs and added image attachment thumbnail enlargement inside the post dialog.
+  - Done: follow-up retuned the feature from meeting-note-only to general remembered-context posts. The latest three posts now appear directly below `다음 액션 추천`, with a nearby `작성` action, same-task more/less control, and URL field/card mockup support.
+  - Done: converted the visible post surface from read-only sample UI into real local/demo task data. Users can write, read, edit, and delete task posts; posts are stored on the task as `postItems` and persisted through the local dashboard snapshot.
+  - Done: added admin `게시글 유형 관리` for post category labels, tone colors, and active/hidden state. Renaming a type updates stored task posts that used the previous label.
+  - Done: renamed the task-detail surface to `업무 노트`, removed the extra explanatory summary card, changed the write action to `노트 작성`, made `노트 구분` chips visibly selectable with a checked active state, and added emoji insertion to the body textarea.
+  - Done: toned down post-category chips. Kept task-detail note reading in a larger dialog because the detail panel is narrow; moved row expand/collapse reading to the Highlights workstream post rollup instead.
+  - Done: moved `업데이트 로그` above `관련 링크` and changed it to latest-three by default with a compact more/less control; edit/delete actions remain behind the separate `관리` toggle.
+  - Scope guard: local/demo persistence exists now. Real shared multi-PC persistence still needs a Supabase-backed `task_posts` table linked to task id and derived/filtered by workstream.
+  - Verified: `git diff --check`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:mindmap-structure`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed.
+  - Browser QA: `http://127.0.0.1:5177/` local fallback opened the task detail, `게시글` button toggled the mockup panel, 1366px layout kept task detail at 410px and the mockup panel at 380px with no page-level horizontal overflow. Console warnings were existing lanyard/Three deprecation warnings.
+  - Superseded Browser QA: earlier cross-task workstream-feed expand/collapse checks no longer apply because task detail now only expands additional posts from the selected task.
+  - Browser QA title-list follow-up: task detail now shows title-first post rows only; `작성` opens a larger write dialog; clicking a post title opens a larger read dialog; attachment lightbox opens from the read dialog and closes cleanly; no page-level horizontal overflow was detected. Console warnings remained the existing lanyard/Three warnings.
+  - Browser QA remembered-context follow-up: `다음 액션 추천` below the selected task shows exactly 3 recent post rows by default, `작성` dialog includes a URL field, read dialog shows a URL card, `업데이트 로그` appears before `관련 링크`, and no page-level horizontal overflow was detected. Console warnings remained the existing lanyard/Three warnings.
+
+- [x] Add Highlights workstream post rollup tab.
+  - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a `게시글` tab inside Highlights next to the existing performance report.
+  - Done: grouped remembered-context posts by `상위 업무흐름`; each workstream starts collapsed and expands to show post date, original task title, task owner, and post author.
+  - Done: follow-up renamed the visible tab/heading to `업무흐름별 게시글 모음`, sorted workstream groups by the latest post date, and removed the duplicated task-detail cross-task workstream surface so task detail stays focused on the selected task's posts.
+  - Done: changed expanded group post reading from a larger dialog to inline row expand/collapse and added short sort controls: `날짜`, `사람`, `구분`, `업무`.
+  - Product note: the rollup stays inside Highlights because it is a lookup/review surface. Team Flow can later add a lightweight shortcut, but another dense workflow tab beside mindmap is not recommended yet.
+  - Browser QA: `http://127.0.0.1:5177/` showed the Highlights `게시글` tab, 8 collapsed workstream groups, 0 rows visible while collapsed, and 10 rows after expanding the first group. Expanded rows included `게시날짜`, `해당 업무`, `담당`, and `게시` information with no page-level horizontal overflow. Console warnings remained existing lanyard/Three warnings.
+
+- [x] Add Markdown export for generated mindmap work structure.
+  - Files: `src/MindmapView.jsx`, `src/mindmapData.js`, `scripts/check-mindmap-structure.mjs`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added `MD 저장` to the mindmap header beside `중앙`/`샘플`.
+  - Done: current generated work structure exports as `mindmap-active-YYYY-MM-DD.md` or `mindmap-all-YYYY-MM-DD.md` depending on the selected scope.
+  - Done: Markdown includes the scope, generated date, total task count, workstream headings, status summaries, connected tags, and each task's status, owner, due date, priority, progress, tags, and classification context.
+  - Verified: `/Users/seulgi/Library/pnpm/bin/pnpm run check:mindmap-structure` and `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed.
+  - Browser QA: `http://127.0.0.1:5177/` rendered `MD 저장` in the mindmap header at 1280px with no page-level horizontal overflow. Codex in-app Browser reported that downloads are not supported, so the actual save event could not be observed there; the app uses a standard Blob + anchor download path for normal browsers.
+
+- [x] Add readable/comfortable dashboard viewing mode.
+  - Files: `src/App.jsx`, `src/storage.js`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a compact top-bar `넓게/기본` toggle that keeps the current UI direction but widens task detail panels and improves key text sizes for real demo/desktop environments.
+  - Done: default detail panels are wider than the previous compact prototype width; `넓게 보기` expands workflow and calendar task detail to 410px at 1280-1366px and up to 460px on wider screens.
+  - Done: display-density preference is persisted through a small local display-preference store so it survives refresh in local fallback and Supabase-login modes without adding a DB migration.
+  - Done: follow-up readability pass enlarged Updates log text, Highlights performance summary/detail text, and compact mindmap node labels; compact mindmap node width calculation was widened slightly so larger Korean labels do not truncate more aggressively.
+  - Verified: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed. Browser QA on `http://127.0.0.1:5177/` verified local fallback entry, top-bar density toggle, Team Flow detail width changing from 368px to 410px at 1280px, My Desk detail at 410px, Calendar task detail at 410px, 1366px detail at 410px, and no page-level horizontal overflow. Console warnings were existing third-party lanyard/Three deprecation warnings.
+  - Verified follow-up: Browser QA on `http://127.0.0.1:5177/` measured Updates log body at 13.5px, Highlights weekly detail rows at 13-13.5px, compact mindmap labels at 12.5px with owner at 11px, compact task node width around 277px, and no page-level horizontal overflow.
+
 - [x] Move history/log correction actions behind management toggles.
   - Files: `src/App.jsx`, `src/supabaseStore.js`, `src/styles.css`, `supabase/migrations/019_task_updates_manage.sql`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/backend-implementation-plan.md`, `docs/data-model.md`, `docs/permission-rules.md`, `HANDOFF.md`, `TODO.md`.
   - Done: `변경 이력` now defaults to the wider 3-column read layout; row edit/delete icons appear only after clicking the compact `관리` button beside the section title.

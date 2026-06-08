@@ -7,6 +7,10 @@ const fallbackGroup = {
   tone: "custom"
 };
 const statusSummaryOrder = ["진행중", "계획", "검토/대기", "완료", "보류"];
+const scopeLabels = {
+  active: "현재 진행업무",
+  all: "전체 진행업무"
+};
 
 export function normalizeMindmapTags(tags) {
   return Array.from(new Set((tags ?? []).map((tag) => String(tag ?? "").trim()).filter(Boolean)));
@@ -43,6 +47,60 @@ export function mindmapGroupStatusSummary(group) {
     ...Object.keys(statusCounts).filter((status) => !statusSummaryOrder.includes(status)).sort((a, b) => a.localeCompare(b, "ko-KR"))
   ];
   return orderedStatuses.slice(0, 3).map((status) => `${status} ${statusCounts[status]}`);
+}
+
+function markdownPersonName(people, personId) {
+  return people?.find((person) => person.id === personId)?.name ?? "미지정";
+}
+
+function markdownTaskLine(task, people) {
+  const lines = [
+    `- ${task.title}`,
+    `  - 상태: ${task.status}`,
+    `  - 담당: ${markdownPersonName(people, task.ownerId)}`,
+    `  - 기한: ${task.dueDate || "미정"}`,
+    `  - 우선순위: ${task.priority || "미정"}`,
+    `  - 진행률: ${task.progress ?? 0}%`
+  ];
+  if (task.tags?.length) lines.push(`  - 태그: ${task.tags.join(", ")}`);
+  if (task.connectedLocations?.length) {
+    lines.push(`  - 분류: ${task.connectedLocations.map((location) => `${location.groupLabel} > ${location.tag}`).join(" / ")}`);
+  }
+  return lines.join("\n");
+}
+
+export function buildMindmapMarkdown(structure, people = [], options = {}) {
+  const scopeLabel = scopeLabels[options.scope] ?? "현재 필터 기준";
+  const generatedAt = options.generatedAt ?? new Date().toISOString().slice(0, 10);
+  const lines = [
+    "# 업무 구조",
+    "",
+    `- 범위: ${scopeLabel}`,
+    `- 생성일: ${generatedAt}`,
+    `- 총 업무: ${structure?.uniqueTaskCount ?? 0}건`,
+    ""
+  ];
+
+  if (!structure?.groups?.length) {
+    lines.push("현재 조건에 맞는 업무가 없습니다.");
+    return `${lines.join("\n")}\n`;
+  }
+
+  structure.groups.forEach((group) => {
+    const statusSummary = mindmapGroupStatusSummary(group);
+    lines.push(`## ${group.label}`);
+    lines.push("");
+    lines.push(`- 업무 수: ${group.uniqueTaskCount}건`);
+    if (statusSummary.length) lines.push(`- 상태 요약: ${statusSummary.join(", ")}`);
+    if (group.tags?.length) lines.push(`- 연결 태그: ${group.tags.join(", ")}`);
+    lines.push("");
+    group.tasks.forEach((task) => {
+      lines.push(markdownTaskLine(task, people));
+      lines.push("");
+    });
+  });
+
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 export function filterMindmapTasksByScope(tasks, scope = "active") {

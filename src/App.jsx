@@ -30,6 +30,7 @@ import {
   MessageSquareText,
   Network,
   NotebookPen,
+  PanelRightOpen,
   Plus,
   Search,
   ShieldCheck,
@@ -44,7 +45,7 @@ import {
   X
 } from "lucide-react";
 import { TODAY, assignerTypes, categories, initialCalendarEvents, initialTasks, mindmapSampleTasks, people, statuses, tagOptions } from "./data.js";
-import { localDashboardStore, supabaseImportHistoryStore } from "./storage.js";
+import { localDashboardStore, localDisplayPreferenceStore, supabaseImportHistoryStore } from "./storage.js";
 import { buildSupabaseImportPlan, formatSupabaseImportPlanMessage } from "./supabaseImportPlan.js";
 import { supabaseConfig } from "./supabaseClient.js";
 import { supabaseDashboardStore } from "./supabaseStore.js";
@@ -58,6 +59,17 @@ const PoslabLanyard = lazy(() => import("./PoslabLanyard.jsx"));
 const dayMs = 24 * 60 * 60 * 1000;
 const boardStatuses = ["검토/대기", "계획", "진행중", "완료", "보류"];
 const priorityFilters = ["전체", "높음", "보통", "낮음"];
+const displayDensityOptions = ["standard", "comfortable"];
+const taskPostToneOptions = ["blue", "green", "amber", "red", "violet", "slate"];
+const defaultTaskPostCategories = [
+  { id: "decision", label: "결정사항", tone: "blue", active: true },
+  { id: "memory", label: "기억할 점", tone: "green", active: true },
+  { id: "risk", label: "리스크", tone: "red", active: true },
+  { id: "meeting", label: "회의록", tone: "slate", active: true },
+  { id: "important-doc", label: "중요문서", tone: "violet", active: true },
+  { id: "reference", label: "참고자료", tone: "slate", active: true },
+  { id: "followup", label: "다음 확인", tone: "amber", active: true }
+];
 const UNASSIGNED_OWNER_ID = "unassigned";
 const unassignedPerson = {
   id: UNASSIGNED_OWNER_ID,
@@ -1493,6 +1505,173 @@ function performanceReportMarkdown(activePeople, mode, range, reportTitle, optio
   return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+function normalizeTaskPostCategoryLabel(label) {
+  const cleanLabel = String(label ?? "").trim();
+  if (cleanLabel === "회의 메모") return "회의록";
+  if (cleanLabel === "참고 URL") return "중요문서";
+  return cleanLabel;
+}
+
+function normalizeTaskPostCategories(categories) {
+  const inputCategories = Array.isArray(categories) ? categories : [];
+  const migratedInput = inputCategories.map((category) => ({
+    ...category,
+    label: normalizeTaskPostCategoryLabel(category?.label)
+  }));
+  const inputByLabel = new Map(migratedInput.filter((category) => category.label).map((category) => [category.label, category]));
+  const defaultLabels = new Set(defaultTaskPostCategories.map((category) => category.label));
+  const source = [
+    ...defaultTaskPostCategories.map((category) => ({
+      ...category,
+      ...(inputByLabel.get(category.label) ?? {}),
+      label: category.label
+    })),
+    ...migratedInput.filter((category) => category.label && !defaultLabels.has(category.label))
+  ];
+  const seen = new Set();
+  const seenIds = new Set();
+  const normalized = source
+    .map((category, index) => {
+      const label = normalizeTaskPostCategoryLabel(category?.label);
+      if (!label || seen.has(label)) return null;
+      seen.add(label);
+      const baseId = String(category?.id ?? label)
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-") || `post-type-${index}`;
+      const id = seenIds.has(baseId) ? `${baseId}-${index}` : baseId;
+      seenIds.add(id);
+      const tone = taskPostToneOptions.includes(category?.tone) ? category.tone : taskPostToneOptions[index % taskPostToneOptions.length];
+      return {
+        id,
+        label,
+        tone,
+        active: category?.active !== false
+      };
+    })
+    .filter(Boolean);
+  return normalized.length ? normalized : defaultTaskPostCategories;
+}
+
+function taskPostCategoryMeta(scope, categories = defaultTaskPostCategories) {
+  return normalizeTaskPostCategories(categories).find((category) => category.label === scope) ?? {
+    id: "custom",
+    label: scope || "기억할 점",
+    tone: "slate",
+    active: true
+  };
+}
+
+function seedTaskKnowledgePosts(task) {
+  if (!task || isDeletedTask(task)) return [];
+  const workstream = taskWorkstreamLabel(task);
+  const taskTitle = displayTaskTitle(task);
+  const baseDate = task.updates?.[0]?.date || task.dueDate || TODAY;
+  const ownerId = task.ownerId;
+  const creatorId = task.creatorId || task.ownerId;
+  return [
+    {
+      id: `${task.id}-decision`,
+      scope: "결정사항",
+      title: "보고서 흐름은 현안 먼저 정리",
+      authorId: ownerId,
+      date: baseDate,
+      body: "다음 공유 전까지 외부자료 검증 근거와 내부 검토 의견을 분리해서 남겨두기로 했습니다.",
+      taskId: task.id,
+      taskTitle,
+      ownerId,
+      workstream,
+      url: "https://intra.research-strategy.local/docs/monthly-kpi-evidence",
+      attachment: {
+        label: "근거자료 캡처",
+        caption: "월간보고 근거표 이미지"
+      }
+    },
+    {
+      id: `${task.id}-memory`,
+      scope: "기억할 점",
+      title: "팀즈 게시글처럼 나중에 찾아보기",
+      authorId: creatorId,
+      date: baseDate,
+      body: "업무 상세에는 이 업무 관련 글만 보이고, 업무흐름 피드에서는 같은 흐름의 글을 날짜순으로 모아봅니다. 회의록뿐 아니라 기억할 점, 중요문서, 판단 근거를 같이 남길 수 있습니다.",
+      taskId: task.id,
+      taskTitle,
+      ownerId,
+      workstream
+    },
+    {
+      id: `${task.id}-risk`,
+      scope: "리스크",
+      title: "자료 출처 보강 필요",
+      authorId: ownerId,
+      date: baseDate,
+      body: "수치가 바뀔 수 있는 근거는 링크와 함께 남겨두고, 최종 보고 전 한 번 더 확인합니다.",
+      taskId: task.id,
+      taskTitle: `${workstream} 관련 업무`,
+      ownerId,
+      workstream,
+      url: "https://intra.research-strategy.local/reference/kpi-source"
+    },
+    {
+      id: `${task.id}-reference`,
+      scope: "중요문서",
+      title: "원본 문서 보관",
+      authorId: ownerId,
+      date: baseDate,
+      body: "나중에 다시 찾기 쉬우도록 중요 문서 위치와 확인 기준을 같이 남깁니다.",
+      taskId: task.id,
+      taskTitle,
+      ownerId,
+      workstream,
+      url: "https://intra.research-strategy.local/drive/monthly-report"
+    },
+    {
+      id: `${task.id}-followup`,
+      scope: "다음 확인",
+      title: "최종 공유 전 확인할 질문",
+      authorId: creatorId,
+      date: baseDate,
+      body: "다음 확인 전 물어볼 질문과 담당자에게 다시 확인할 내용을 정리합니다.",
+      taskId: task.id,
+      taskTitle: `${workstream} 관련 업무`,
+      ownerId,
+      workstream
+    }
+  ];
+}
+
+function normalizeTaskPosts(posts, task, categories = defaultTaskPostCategories) {
+  if (!Array.isArray(posts)) return seedTaskKnowledgePosts(task);
+  const workstream = taskWorkstreamLabel(task);
+  const taskTitle = displayTaskTitle(task);
+  return posts
+    .map((post, index) => {
+      const scope = normalizeTaskPostCategoryLabel(post?.scope) || normalizeTaskPostCategories(categories)[0]?.label || "기억할 점";
+      return {
+        id: post?.id || `${task.id}-post-${index}`,
+        scope,
+        title: String(post?.title ?? "").trim() || "제목 없음",
+        authorId: post?.authorId || task.creatorId || task.ownerId,
+        date: post?.date || TODAY,
+        body: String(post?.body ?? "").trim(),
+        taskId: task.id,
+        taskTitle,
+        ownerId: task.ownerId,
+        workstream,
+        url: String(post?.url ?? "").trim(),
+        attachment: post?.attachment || null,
+        createdAt: post?.createdAt || post?.date || TODAY,
+        updatedAt: post?.updatedAt || ""
+      };
+    })
+    .filter((post) => post.title || post.body);
+}
+
+function taskKnowledgePosts(task, categories = defaultTaskPostCategories) {
+  if (!task || isDeletedTask(task)) return [];
+  return normalizeTaskPosts(task.postItems, task, categories);
+}
+
 async function copyText(text) {
   if (typeof navigator !== "undefined" && navigator.clipboard) {
     try {
@@ -1805,6 +1984,7 @@ function dashboardSummary(tasks, activePage, selectedPersonId) {
 
 function App() {
   const persisted = useMemo(localDashboardStore.read, []);
+  const persistedDisplayPreferences = useMemo(localDisplayPreferenceStore.read, []);
   const isSupabaseReady = supabaseConfig.isConfigured;
   const importInputRef = useRef(null);
   const detailColumnRef = useRef(null);
@@ -1823,6 +2003,10 @@ function App() {
     () => Array.isArray(persisted.tagGroups) && persisted.tagGroups.length ? persisted.tagGroups : defaultTagFilterPresets,
     [persisted]
   );
+  const initialTaskPostCategories = useMemo(
+    () => normalizeTaskPostCategories(persisted.taskPostCategories),
+    [persisted]
+  );
   const [tasks, setTasks] = useState(initialPersistedTasks);
   const [selectedPersonId, setSelectedPersonId] = useState(() => persistedPerson(persisted.selectedPersonId));
   const [isAuthenticated, setIsAuthenticated] = useState(() => isSupabaseReady ? false : persisted.isAuthenticated === true);
@@ -1835,12 +2019,14 @@ function App() {
   const [query, setQuery] = useState("");
   const [activeView, setActiveView] = useState(() => persistedOption(persisted.activeView, viewOptions, "board"));
   const [activePage, setActivePage] = useState(() => persistedOption(persisted.activePage, pageOptions, "my"));
+  const [displayDensity, setDisplayDensity] = useState(() => persistedOption(persistedDisplayPreferences.displayDensity ?? persisted.displayDensity, displayDensityOptions, "standard"));
   const [timelineMode, setTimelineMode] = useState(() => persistedOption(persisted.timelineMode, timelineModeOptions, "month"));
   const [timelineMonth, setTimelineMonth] = useState(() => persistedMonth(persisted.timelineMonth));
   const [timelineYear, setTimelineYear] = useState(() => persistedYear(persisted.timelineYear));
   const [calendarEvents, setCalendarEvents] = useState(initialPersistedEvents);
   const [availableTags, setAvailableTags] = useState(initialPersistedTags);
   const [tagGroups, setTagGroups] = useState(initialTagGroups);
+  const [taskPostCategories, setTaskPostCategories] = useState(initialTaskPostCategories);
   const [selectedTaskId, setSelectedTaskId] = useState(() => persistedTaskId(persisted.selectedTaskId, initialPersistedTasks));
   const [selectedBriefingKey, setSelectedBriefingKey] = useState("");
   const [detailContext, setDetailContext] = useState("briefing");
@@ -1926,6 +2112,9 @@ function App() {
     if (Array.isArray(snapshot.tagGroups)) {
       setTagGroups(snapshot.tagGroups);
     }
+    if (Array.isArray(snapshot.taskPostCategories) && snapshot.taskPostCategories.length) {
+      setTaskPostCategories(normalizeTaskPostCategories(snapshot.taskPostCategories));
+    }
     if (Array.isArray(snapshot.calendarEvents) && (!preservePrototypeTasks || snapshot.calendarEvents.length > 0)) {
       setCalendarEvents(snapshot.calendarEvents);
     }
@@ -1944,6 +2133,7 @@ function App() {
       setActivePage(snapshot.activePage);
     }
     if (snapshot.activeView && viewOptions.includes(snapshot.activeView)) setActiveView(snapshot.activeView);
+    if (snapshot.displayDensity && displayDensityOptions.includes(snapshot.displayDensity)) setDisplayDensity(snapshot.displayDensity);
     if (snapshot.category) setCategory(snapshot.category);
     if (snapshot.timelineMode && timelineModeOptions.includes(snapshot.timelineMode)) setTimelineMode(snapshot.timelineMode);
     if (snapshot.timelineMonth) setTimelineMonth(snapshot.timelineMonth);
@@ -1990,6 +2180,114 @@ function App() {
         console.warn("Supabase 업무 저장에 실패했습니다.", error);
         showSyncNotice("업무 저장을 Supabase에 반영하지 못했습니다. 화면에는 임시로 유지됩니다.");
       });
+  }
+
+  function saveTaskPost(taskId, draft) {
+    const title = String(draft?.title ?? "").trim();
+    const body = String(draft?.body ?? "").trim();
+    if (!title || !body) {
+      showSyncNotice("게시글 제목과 본문을 입력해 주세요.");
+      return false;
+    }
+    const scope = String(draft?.scope ?? "").trim() || taskPostCategories.find((category) => category.active)?.label || "기억할 점";
+    const nowId = Date.now().toString(36);
+    let savedPost = null;
+    setTasks((current) =>
+      current.map((task) => {
+        if (task.id !== taskId) return task;
+        const currentPosts = taskKnowledgePosts(task, taskPostCategories);
+        const existingPost = currentPosts.find((post) => post.id === draft.id);
+        savedPost = {
+          ...(existingPost ?? {}),
+          id: draft.id || `post-${taskId}-${nowId}`,
+          scope,
+          title,
+          body,
+          url: String(draft.url ?? "").trim(),
+          authorId: existingPost?.authorId || selectedPersonId,
+          date: existingPost?.date || TODAY,
+          createdAt: existingPost?.createdAt || TODAY,
+          updatedAt: existingPost ? TODAY : ""
+        };
+        const nextPosts = existingPost
+          ? currentPosts.map((post) => (post.id === existingPost.id ? savedPost : post))
+          : [savedPost, ...currentPosts];
+        return { ...task, postItems: nextPosts };
+      })
+    );
+    showSyncNotice(
+      isSupabaseReady
+        ? "게시글은 화면에 저장됐습니다. Supabase 공유 저장은 task_posts 테이블 연결 후 적용됩니다."
+        : "게시글을 저장했습니다."
+    );
+    return Boolean(savedPost);
+  }
+
+  function deleteTaskPost(taskId, postId) {
+    if (!postId) return;
+    const confirmed = window.confirm("이 게시글을 삭제할까요?");
+    if (!confirmed) return;
+    setTasks((current) =>
+      current.map((task) => {
+        if (task.id !== taskId) return task;
+        return {
+          ...task,
+          postItems: taskKnowledgePosts(task, taskPostCategories).filter((post) => post.id !== postId)
+        };
+      })
+    );
+    showSyncNotice(
+      isSupabaseReady
+        ? "게시글 삭제는 화면에 반영됐습니다. Supabase 공유 저장은 task_posts 테이블 연결 후 적용됩니다."
+        : "게시글을 삭제했습니다."
+    );
+  }
+
+  function saveTaskPostCategory(category) {
+    if (!isSelectedAdmin) return;
+    const cleanLabel = String(category?.label ?? "").trim();
+    if (!cleanLabel) return;
+    const cleanId = category.id || `post-type-${Date.now().toString(36)}`;
+    const nextCategory = {
+      id: cleanId,
+      label: cleanLabel,
+      tone: taskPostToneOptions.includes(category.tone) ? category.tone : "slate",
+      active: category.active !== false
+    };
+    setTaskPostCategories((current) => {
+      const normalized = normalizeTaskPostCategories(current);
+      return normalized.some((item) => item.id === cleanId)
+        ? normalized.map((item) => (item.id === cleanId ? nextCategory : item))
+        : [...normalized, nextCategory];
+    });
+    if (category.previousLabel && category.previousLabel !== cleanLabel) {
+      setTasks((current) =>
+        current.map((task) => {
+          if (!Array.isArray(task.postItems)) return task;
+          return {
+            ...task,
+            postItems: task.postItems.map((post) =>
+              post.scope === category.previousLabel ? { ...post, scope: cleanLabel } : post
+            )
+          };
+        })
+      );
+    }
+    showSyncNotice("게시글 유형을 저장했습니다.");
+  }
+
+  function deleteTaskPostCategory(categoryId) {
+    if (!isSelectedAdmin) return;
+    const target = taskPostCategories.find((category) => category.id === categoryId);
+    if (!target) return;
+    const confirmed = window.confirm(`${target.label} 유형을 비활성화할까요? 기존 게시글은 유지됩니다.`);
+    if (!confirmed) return;
+    setTaskPostCategories((current) =>
+      normalizeTaskPostCategories(current).map((category) =>
+        category.id === categoryId ? { ...category, active: false } : category
+      )
+    );
+    showSyncNotice("게시글 유형을 비활성화했습니다.");
   }
 
   const filteredTasks = useMemo(() => {
@@ -2040,12 +2338,17 @@ function App() {
   ).length;
 
   useEffect(() => {
+    localDisplayPreferenceStore.write({ displayDensity });
+  }, [displayDensity]);
+
+  useEffect(() => {
     if (isSupabaseReady) return;
     const nextState = {
       version: 1,
       tasks,
       availableTags,
       tagGroups,
+      taskPostCategories,
       calendarEvents,
       isAuthenticated,
       selectedPersonId,
@@ -2053,6 +2356,7 @@ function App() {
       activeView,
       category,
       priorityFilter,
+      displayDensity,
       timelineMode,
       timelineMonth,
       timelineYear,
@@ -2066,8 +2370,10 @@ function App() {
     activeView,
     availableTags,
     tagGroups,
+    taskPostCategories,
     calendarEvents,
     category,
+    displayDensity,
     isAuthenticated,
     selectedPersonId,
     selectedTaskId,
@@ -2135,6 +2441,7 @@ function App() {
       activePage,
       activeView,
       category,
+      displayDensity,
       timelineMode,
       timelineMonth,
       timelineYear,
@@ -2156,6 +2463,7 @@ function App() {
     activeView,
     authStatus,
     category,
+    displayDensity,
     isAuthenticated,
     isSupabaseReady,
     memoByPage,
@@ -3442,7 +3750,10 @@ function App() {
       onAddLink={(link) => addTaskLink(selectedTask.id, link)}
       onAddUpdate={(text) => addTaskUpdate(selectedTask.id, text)}
       onToggleSubtask={toggleSubtask}
+      onDeletePost={(postId) => deleteTaskPost(selectedTask.id, postId)}
+      onSavePost={(draft) => saveTaskPost(selectedTask.id, draft)}
       canManage={canManageTaskFor(selectedTask, selectedPersonId)}
+      postCategories={taskPostCategories}
       selectedPersonId={selectedPersonId}
       task={selectedTask}
     />
@@ -3451,7 +3762,7 @@ function App() {
   const isBriefingDetailContext = isDetailOpen && !fullPageViews.includes(activeView) && detailContext === "briefing";
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${displayDensity === "comfortable" ? "comfortable-density" : ""}`}>
       <aside className="sidebar" aria-label="주요 메뉴">
         <div className="brand-block">
           <div className="brand-wordmark">
@@ -3602,6 +3913,16 @@ function App() {
             </label>
             <button className="icon-button" type="button" title="알림">
               <Bell size={18} />
+            </button>
+            <button
+              aria-pressed={displayDensity === "comfortable"}
+              className={`view-density-button ${displayDensity === "comfortable" ? "active" : ""}`}
+              onClick={() => setDisplayDensity((current) => current === "comfortable" ? "standard" : "comfortable")}
+              title={displayDensity === "comfortable" ? "기본 보기로 전환" : "넓게 보기로 전환"}
+              type="button"
+            >
+              <PanelRightOpen size={16} />
+              <span>{displayDensity === "comfortable" ? "기본" : "넓게"}</span>
             </button>
             <span
               className={`backend-status ${supabaseConfig.isConfigured ? "connected" : "local"}`}
@@ -3889,6 +4210,7 @@ function App() {
             )}
             {activeView === "performance" && (
               <PerformanceView
+                postCategories={taskPostCategories}
                 tasks={tasks}
               />
             )}
@@ -3909,9 +4231,12 @@ function App() {
                 onMoveTagToPreset={moveTagToPreset}
                 onRenameTag={renameTag}
                 onRenameWorkstream={renameWorkstream}
+                onSavePostCategory={saveTaskPostCategory}
+                onDeletePostCategory={deleteTaskPostCategory}
                 onSavePreset={saveTagGroup}
                 onUpdateUserAdministration={updateUserAdministration}
                 people={directory}
+                postCategories={taskPostCategories}
                 presets={tagGroups}
                 tags={availableTags}
                 tasks={tasks}
@@ -3964,7 +4289,8 @@ function App() {
 
 function orderedAccounts(accounts) {
   const admins = accounts.filter((person) => person.permissionRole === "admin");
-  return [...admins, ...teamCompositionOrder(teamAssignablePeople(accounts))];
+  const adminIds = new Set(admins.map((person) => person.id));
+  return [...admins, ...teamCompositionOrder(teamAssignablePeople(accounts).filter((person) => !adminIds.has(person.id)))];
 }
 
 function EmojiPopover({ onSelect, selectedEmoji, triggerLabel = "이모지 선택", triggerClassName = "" }) {
@@ -4284,7 +4610,7 @@ function LoginScreen({ authMessage, authStatus, isAlreadyAuthenticated, isSupaba
   );
 }
 
-function AdminView({ currentPersonId, onAddTag, onDeletePreset, onDeleteTag, onMoveTagToPreset, onRenameTag, onRenameWorkstream, onSavePreset, onUpdateUserAdministration, people, presets, tags, tasks }) {
+function AdminView({ currentPersonId, onAddTag, onDeletePostCategory, onDeletePreset, onDeleteTag, onMoveTagToPreset, onRenameTag, onRenameWorkstream, onSavePostCategory, onSavePreset, onUpdateUserAdministration, people, postCategories, presets, tags, tasks }) {
   const [activeAdminTab, setActiveAdminTab] = useState("people");
   const activeTasks = useMemo(() => (tasks ?? []).filter((task) => task && !isDeletedTask(task)), [tasks]);
   const workstreamGroups = useMemo(
@@ -4294,7 +4620,8 @@ function AdminView({ currentPersonId, onAddTag, onDeletePreset, onDeleteTag, onM
   const tabs = [
     { id: "people", label: "사람 관리", count: teamAssignablePeople(people).length },
     { id: "tags", label: "태그 관리", count: tags.length },
-    { id: "workstreams", label: "업무흐름 관리", count: workstreamGroups.filter((group) => group.label).length }
+    { id: "workstreams", label: "업무흐름 관리", count: workstreamGroups.filter((group) => group.label).length },
+    { id: "postTypes", label: "게시글 유형 관리", count: normalizeTaskPostCategories(postCategories).filter((category) => category.active).length }
   ];
 
   return (
@@ -4349,6 +4676,124 @@ function AdminView({ currentPersonId, onAddTag, onDeletePreset, onDeleteTag, onM
           people={people}
         />
       )}
+      {activeAdminTab === "postTypes" && (
+        <AdminPostCategoriesPanel
+          categories={postCategories}
+          onDelete={onDeletePostCategory}
+          onSave={onSavePostCategory}
+        />
+      )}
+    </section>
+  );
+}
+
+function AdminPostCategoriesPanel({ categories, onDelete, onSave }) {
+  const normalizedCategories = normalizeTaskPostCategories(categories);
+  const [selectedId, setSelectedId] = useState(normalizedCategories[0]?.id ?? "");
+  const selectedCategory = normalizedCategories.find((category) => category.id === selectedId) ?? normalizedCategories[0];
+  const [draft, setDraft] = useState(selectedCategory ?? { id: "", label: "", tone: "blue", active: true });
+
+  useEffect(() => {
+    if (!selectedCategory) return;
+    setDraft(selectedCategory);
+  }, [selectedCategory?.id, selectedCategory?.label, selectedCategory?.tone, selectedCategory?.active]);
+
+  function submitCategory(event) {
+    event.preventDefault();
+    const savedId = draft.id || `post-type-${Date.now().toString(36)}`;
+    onSave({ ...draft, id: savedId, previousLabel: selectedCategory?.label });
+    setSelectedId(savedId);
+  }
+
+  function addCategory() {
+    const id = `post-type-${Date.now().toString(36)}`;
+    const next = { id, label: "새 게시글 유형", tone: "slate", active: true };
+    setSelectedId(id);
+    setDraft(next);
+  }
+
+  return (
+    <section className="admin-panel">
+      <div className="admin-panel-heading">
+        <div>
+          <span className="panel-label">
+            <MessageSquareText size={14} />
+            게시글 유형 관리
+          </span>
+          <h3>게시글 성격 구분</h3>
+        </div>
+        <p>결정사항, 회의록, 중요문서처럼 나중에 찾기 쉬운 게시글 유형을 관리합니다.</p>
+      </div>
+      <div className="admin-tree-manager post-category-manager">
+        <section className="admin-tree-pane">
+          <div className="admin-tree-head">
+            <strong>게시글 유형</strong>
+            <small>{normalizedCategories.filter((category) => category.active).length}개 사용</small>
+          </div>
+          <div className="admin-tree-list">
+            {normalizedCategories.map((category) => (
+              <button
+                className={`admin-tree-file post-category-file tone-${category.tone} ${selectedCategory?.id === category.id ? "active" : ""} ${category.active ? "" : "inactive"}`}
+                key={category.id}
+                onClick={() => setSelectedId(category.id)}
+                type="button"
+              >
+                <MessageSquareText size={14} />
+                <span>{category.label}</span>
+                <small>{category.active ? "사용" : "숨김"}</small>
+              </button>
+            ))}
+          </div>
+          <button className="secondary-button small" onClick={addCategory} type="button">
+            <Plus size={14} />
+            유형 추가
+          </button>
+        </section>
+        <section className="admin-editor-pane">
+          <div className="admin-editor-head">
+            <strong>유형 수정</strong>
+            <small>작성창 선택지와 게시글 칩에 반영</small>
+          </div>
+          <form className="admin-editor-form" onSubmit={submitCategory}>
+            <label>
+              <small>유형 이름</small>
+              <input
+                onChange={(event) => setDraft((current) => ({ ...current, label: event.target.value }))}
+                value={draft.label ?? ""}
+              />
+            </label>
+            <label>
+              <small>색상</small>
+              <select
+                onChange={(event) => setDraft((current) => ({ ...current, tone: event.target.value }))}
+                value={draft.tone ?? "slate"}
+              >
+                <option value="blue">파랑</option>
+                <option value="green">초록</option>
+                <option value="amber">노랑</option>
+                <option value="red">빨강</option>
+                <option value="violet">보라</option>
+                <option value="slate">회색</option>
+              </select>
+            </label>
+            <label className="admin-mini-toggle">
+              <input
+                checked={draft.active !== false}
+                onChange={(event) => setDraft((current) => ({ ...current, active: event.target.checked }))}
+                type="checkbox"
+              />
+              작성창에 표시
+            </label>
+            <div className="admin-editor-actions">
+              <button className="secondary-button small" type="submit">저장</button>
+              <button className="secondary-button small danger-text" onClick={() => onDelete(draft.id)} type="button">
+                비활성화
+              </button>
+            </div>
+            <p className="admin-editor-note">이름을 바꾸면 실제 저장된 게시글의 유형명도 함께 갱신됩니다.</p>
+          </form>
+        </section>
+      </div>
     </section>
   );
 }
@@ -7131,7 +7576,8 @@ function RecurringEditScopeModal({ onCancel, onSelect, task }) {
   );
 }
 
-function PerformanceView({ tasks }) {
+function PerformanceView({ postCategories, tasks }) {
+  const [activePerformanceTab, setActivePerformanceTab] = useState("report");
   const [mode, setMode] = useState("week");
   const [anchorDate, setAnchorDate] = useState(TODAY);
   const [showLongDetails, setShowLongDetails] = useState(false);
@@ -7139,6 +7585,7 @@ function PerformanceView({ tasks }) {
   const [copyState, setCopyState] = useState("");
   const [showCopyFallback, setShowCopyFallback] = useState(false);
   const [personFilter, setPersonFilter] = useState("전체");
+  const [expandedPostGroups, setExpandedPostGroups] = useState({});
   const range = periodRange(mode, anchorDate);
   const selectedYear = anchorDate.slice(0, 4);
   const selectedMonth = Number(anchorDate.slice(5, 7));
@@ -7157,6 +7604,21 @@ function PerformanceView({ tasks }) {
   const updateQuarterAnchor = (year, quarter) => setAnchorDate(`${year}-${String((Number(quarter) - 1) * 3 + 1).padStart(2, "0")}-01`);
   const updateYearAnchor = (year) => setAnchorDate(`${year}-01-01`);
   const displayTasks = tasksWithRecurringInstances(tasks, range.start, range.end);
+  const highlightPostGroups = useMemo(() => {
+    const posts = displayTasks
+      .filter((task) => !isDeletedTask(task) && !task.archived)
+      .flatMap((task) => taskKnowledgePosts(task, postCategories))
+      .sort((a, b) => b.date.localeCompare(a.date) || a.taskTitle.localeCompare(b.taskTitle, "ko-KR"));
+    const groupMap = new Map();
+    posts.forEach((post) => {
+      const label = post.workstream || "업무흐름 미지정";
+      if (!groupMap.has(label)) groupMap.set(label, []);
+      groupMap.get(label).push(post);
+    });
+    return Array.from(groupMap.entries())
+      .map(([label, items]) => ({ label, items, latestDate: items[0]?.date || "" }))
+      .sort((a, b) => b.latestDate.localeCompare(a.latestDate) || a.label.localeCompare(b.label, "ko-KR"));
+  }, [displayTasks, postCategories]);
   const periodTasks = displayTasks.filter((task) => taskInPerformanceRange(task, range));
   const personRows = teamAssignablePeople().map((person) => {
     const owned = periodTasks.filter((task) => task.ownerId === person.id);
@@ -7198,10 +7660,20 @@ function PerformanceView({ tasks }) {
       <div className="performance-heading">
         <div>
           <span className="panel-label">업무실적</span>
-          <h2>{reportTitle}</h2>
-          <p>{range.label} 기준으로 업무명과 세부 진행내역을 보고서 초안처럼 묶어 보여줍니다.</p>
+          <h2>{activePerformanceTab === "posts" ? "업무흐름별 게시글 모음" : reportTitle}</h2>
+          <p>{activePerformanceTab === "posts" ? "업무흐름별로 게시글을 접어 두고 필요한 흐름만 펼쳐 봅니다." : `${range.label} 기준으로 업무명과 세부 진행내역을 보고서 초안처럼 묶어 보여줍니다.`}</p>
         </div>
         <div className="performance-controls">
+          <div className="segmented small performance-tabs" role="tablist" aria-label="Highlights 보기">
+            <button className={activePerformanceTab === "report" ? "active" : ""} onClick={() => setActivePerformanceTab("report")} type="button">
+              실적
+            </button>
+            <button className={activePerformanceTab === "posts" ? "active" : ""} onClick={() => setActivePerformanceTab("posts")} type="button">
+              업무흐름별 게시글 모음
+            </button>
+          </div>
+          {activePerformanceTab === "report" && (
+            <>
           <div className="performance-period-row">
             <div className="segmented small" role="tablist" aria-label="실적 기간">
               {[
@@ -7318,8 +7790,19 @@ function PerformanceView({ tasks }) {
               {copyState && <span>{copyState}</span>}
             </div>
           </div>
+            </>
+          )}
         </div>
       </div>
+      {activePerformanceTab === "posts" ? (
+        <HighlightsPostsView
+          expandedGroups={expandedPostGroups}
+          groups={highlightPostGroups}
+          onToggleGroup={(label) => setExpandedPostGroups((current) => ({ ...current, [label]: !current[label] }))}
+          postCategories={postCategories}
+        />
+      ) : (
+        <>
       {showCopyFallback && (
         <div className="markdown-copy-panel">
           <div>
@@ -7428,20 +7911,161 @@ function PerformanceView({ tasks }) {
       ) : (
         <p className="empty-note">선택한 기간에 집계할 업무가 없습니다.</p>
       )}
+        </>
+      )}
     </section>
   );
 }
 
-function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onDelete, onDeleteHistory, onDeleteUpdate, onEdit, onRestore, onToggleSubtask, onUpdateHistory, onUpdateLog, selectedPersonId, task }) {
+function HighlightsPostsView({ expandedGroups, groups, onToggleGroup, postCategories }) {
+  const [expandedPostId, setExpandedPostId] = useState("");
+  const [expandedImageId, setExpandedImageId] = useState(null);
+  const [sortByGroup, setSortByGroup] = useState({});
+  const allPosts = groups.flatMap((group) => group.items);
+  const expandedImagePost = allPosts.find((post) => post.id === expandedImageId);
+  const sortOptions = [
+    { key: "date", label: "날짜" },
+    { key: "person", label: "사람" },
+    { key: "scope", label: "구분" },
+    { key: "task", label: "업무" }
+  ];
+  const sortedPosts = (items, sortBy) =>
+    [...items].sort((a, b) => {
+      if (sortBy === "person") {
+        return personName(a.ownerId).localeCompare(personName(b.ownerId), "ko-KR") || b.date.localeCompare(a.date) || a.title.localeCompare(b.title, "ko-KR");
+      }
+      if (sortBy === "scope") {
+        return a.scope.localeCompare(b.scope, "ko-KR") || b.date.localeCompare(a.date) || a.title.localeCompare(b.title, "ko-KR");
+      }
+      if (sortBy === "task") {
+        return a.taskTitle.localeCompare(b.taskTitle, "ko-KR") || b.date.localeCompare(a.date) || a.title.localeCompare(b.title, "ko-KR");
+      }
+      return b.date.localeCompare(a.date) || a.taskTitle.localeCompare(b.taskTitle, "ko-KR") || a.title.localeCompare(b.title, "ko-KR");
+    });
+  const togglePost = (postId) => {
+    setExpandedPostId((current) => (current === postId ? "" : postId));
+    setExpandedImageId(null);
+  };
+  const renderExpandedPost = (post) => (
+    <article className="highlight-post-inline-detail">
+      <p>{post.body}</p>
+      {post.url && (
+        <a className="task-post-url-card" href={post.url} rel="noreferrer" target="_blank">
+          <Link2 size={14} />
+          <span>{post.url}</span>
+        </a>
+      )}
+      {post.attachment && (
+        <button className="task-post-image-thumb" onClick={() => setExpandedImageId(post.id)} type="button">
+          <span>
+            <FileText size={13} />
+            {post.attachment.label}
+          </span>
+          <small>{post.attachment.caption} · 클릭해서 크게 보기</small>
+        </button>
+      )}
+    </article>
+  );
+  const updateGroupSort = (groupLabel, sortKey) => {
+    setSortByGroup((current) => ({ ...current, [groupLabel]: sortKey }));
+    setExpandedPostId("");
+  };
+
+  if (!groups.length) {
+    return <p className="empty-note">표시할 게시글이 없습니다.</p>;
+  }
+  return (
+    <div className="highlight-posts-view">
+      {groups.map((group) => {
+        const isOpen = Boolean(expandedGroups[group.label]);
+        const latestDate = group.latestDate || group.items[0]?.date;
+        const owners = Array.from(new Set(group.items.map((post) => personName(post.ownerId)))).slice(0, 3);
+        const activeSort = sortByGroup[group.label] || "date";
+        const groupItems = sortedPosts(group.items, activeSort);
+        return (
+          <section className={`highlight-post-group ${isOpen ? "open" : ""}`} key={group.label}>
+            <button className="highlight-post-group-head" onClick={() => onToggleGroup(group.label)} type="button" aria-expanded={isOpen}>
+              <span className="highlight-post-group-main">
+                {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                <strong>{group.label}</strong>
+                <em>{group.items.length}건</em>
+              </span>
+              <span className="highlight-post-group-meta">
+                <small>{latestDate}</small>
+                <small>{owners.join(", ")}</small>
+              </span>
+            </button>
+            {isOpen && (
+              <div className="highlight-post-list">
+                <div className="highlight-post-sort-row" aria-label={`${group.label} 게시글 정렬`}>
+                  {sortOptions.map((option) => (
+                    <button
+                      className={activeSort === option.key ? "active" : ""}
+                      key={option.key}
+                      onClick={() => updateGroupSort(group.label, option.key)}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                {groupItems.map((post) => (
+                  <div className="highlight-post-row-wrap" key={post.id}>
+                    <button
+                      aria-expanded={expandedPostId === post.id}
+                      className={`highlight-post-row ${expandedPostId === post.id ? "selected" : ""}`}
+                      onClick={() => togglePost(post.id)}
+                      type="button"
+                    >
+                      <span className={`post-scope-chip tone-${taskPostCategoryMeta(post.scope, postCategories).tone}`}>{post.scope}</span>
+                      <div>
+                        <strong>{post.title}</strong>
+                        <small>{post.date} · 해당 업무: {post.taskTitle} · 담당: {personName(post.ownerId)} · 게시: {personName(post.authorId)}</small>
+                      </div>
+                      {post.url && <Link2 size={14} />}
+                    </button>
+                    {expandedPostId === post.id && renderExpandedPost(post)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
+      {expandedImagePost?.attachment && (
+        <div className="task-post-image-lightbox" role="dialog" aria-label={`${expandedImagePost.attachment.label} 확대 보기`}>
+          <button className="task-post-image-backdrop" onClick={() => setExpandedImageId(null)} type="button" aria-label="첨부 이미지 확대 닫기" />
+          <div className="task-post-image-modal">
+            <div className="task-post-image-modal-head">
+              <strong>{expandedImagePost.attachment.label}</strong>
+              <button className="icon-button" onClick={() => setExpandedImageId(null)} type="button" title="첨부 이미지 닫기">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="task-post-image-preview-large">
+              <span>{expandedImagePost.workstream}</span>
+              <strong>{expandedImagePost.attachment.caption}</strong>
+              <em>{expandedImagePost.taskTitle}</em>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onDelete, onDeleteHistory, onDeletePost, onDeleteUpdate, onEdit, onRestore, onSavePost, onToggleSubtask, onUpdateHistory, onUpdateLog, postCategories = defaultTaskPostCategories, selectedPersonId, task }) {
   const [quickUpdate, setQuickUpdate] = useState("");
   const [quickLink, setQuickLink] = useState({ title: "", url: "", type: "자료" });
   const [isHistoryManaging, setIsHistoryManaging] = useState(false);
   const [isUpdateManaging, setIsUpdateManaging] = useState(false);
+  const [isUpdateLogExpanded, setIsUpdateLogExpanded] = useState(false);
   const quickUpdateRef = useRef(null);
   const canManageHistory = canManage && typeof onDeleteHistory === "function" && typeof onUpdateHistory === "function";
   useEffect(() => {
     setIsHistoryManaging(false);
     setIsUpdateManaging(false);
+    setIsUpdateLogExpanded(false);
   }, [task?.id]);
   if (!task) return null;
   const canManageAnyUpdate = (task.updates ?? []).some((update) =>
@@ -7555,6 +8179,108 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onD
             <span>다음 액션 추천</span>
             <strong>{nextAction}</strong>
           </div>
+          <TaskPostsMockup
+            canManageTask={canManage}
+            currentPersonId={selectedPersonId}
+            onDeletePost={onDeletePost}
+            onSavePost={onSavePost}
+            postCategories={postCategories}
+            task={task}
+          />
+          <div className="detail-section">
+            <div className="detail-section-title">
+              <h3>
+                <MessageSquareText size={16} />
+                업데이트 로그
+              </h3>
+              <span className="detail-section-actions">
+                {task.updates.length > 3 && (
+                  <button
+                    aria-expanded={isUpdateLogExpanded}
+                    className="section-manage-button"
+                    onClick={() => setIsUpdateLogExpanded((current) => !current)}
+                    type="button"
+                  >
+                    {isUpdateLogExpanded ? "접기" : `더보기 ${task.updates.length - 3}`}
+                  </button>
+                )}
+                {canManageAnyUpdate && (
+                  <button
+                    aria-pressed={isUpdateManaging}
+                    className={`section-manage-button ${isUpdateManaging ? "active" : ""}`}
+                    onClick={() => setIsUpdateManaging((current) => !current)}
+                    type="button"
+                  >
+                    {isUpdateManaging ? "완료" : "관리"}
+                  </button>
+                )}
+              </span>
+            </div>
+            <form
+              className="quick-update-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onAddUpdate(quickUpdate);
+                setQuickUpdate("");
+              }}
+            >
+              <span className="avatar tiny emoji-avatar" style={avatarStyle(selectedPersonId)}>
+                {personEmoji(selectedPersonId)}
+              </span>
+              <div className="emoji-textarea-frame quick-update-textarea-frame">
+                <textarea
+                  aria-label="업데이트 바로 남기기"
+                  onChange={(event) => setQuickUpdate(event.target.value)}
+                  placeholder="진행상황, 막힌 점, 다음 요청을 짧게 남기기"
+                  ref={quickUpdateRef}
+                  rows={2}
+                  value={quickUpdate}
+                />
+                <EmojiPopover
+                  onSelect={(emoji) => insertEmojiAtCursor(quickUpdateRef, quickUpdate, emoji, setQuickUpdate)}
+                  triggerLabel="업데이트 로그에 이모지 넣기"
+                  triggerClassName="textarea-emoji-trigger"
+                />
+              </div>
+              <button className="primary-button small" type="submit">
+                남기기
+              </button>
+            </form>
+            {task.updates.length ? (
+              (isUpdateLogExpanded ? task.updates : task.updates.slice(0, 3)).map((update, index) => {
+                const canManageThisUpdate = canManage || update.authorId === selectedPersonId;
+                const editUpdate = () => {
+                  const nextText = window.prompt("업데이트 로그 내용을 수정하세요.", update.text ?? "");
+                  if (nextText === null) return;
+                  onUpdateLog(update, index, nextText);
+                };
+                const deleteUpdate = () => {
+                  const confirmed = window.confirm("이 업데이트 로그를 삭제할까요?");
+                  if (!confirmed) return;
+                  onDeleteUpdate(update, index);
+                };
+                return (
+                  <div className={`log-item ${showUpdateActions && canManageThisUpdate ? "is-managing" : ""}`} key={`${update.id ?? update.date}-${update.text}-${index}`}>
+                    <strong>{personName(update.authorId)}</strong>
+                    <small>{update.date}</small>
+                    <p>{update.text}</p>
+                    {showUpdateActions && canManageThisUpdate && (
+                      <span className="log-item-actions">
+                        <button className="ghost-icon" onClick={editUpdate} type="button" title="업데이트 로그 수정">
+                          <Edit3 size={13} />
+                        </button>
+                        <button className="ghost-icon danger" onClick={deleteUpdate} type="button" title="업데이트 로그 삭제">
+                          <Trash2 size={13} />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <p className="empty-note">아직 업데이트 로그가 없습니다.</p>
+            )}
+          </div>
           <div className="detail-section">
             <h3>
               <Link2 size={16} />
@@ -7607,88 +8333,6 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onD
               ))
             ) : (
               <p className="empty-note">아직 등록된 링크가 없습니다.</p>
-            )}
-          </div>
-          <div className="detail-section">
-            <div className="detail-section-title">
-              <h3>
-                <MessageSquareText size={16} />
-                업데이트 로그
-              </h3>
-              {canManageAnyUpdate && (
-                <button
-                  aria-pressed={isUpdateManaging}
-                  className={`section-manage-button ${isUpdateManaging ? "active" : ""}`}
-                  onClick={() => setIsUpdateManaging((current) => !current)}
-                  type="button"
-                >
-                  {isUpdateManaging ? "완료" : "관리"}
-                </button>
-              )}
-            </div>
-            <form
-              className="quick-update-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                onAddUpdate(quickUpdate);
-                setQuickUpdate("");
-              }}
-            >
-              <span className="avatar tiny emoji-avatar" style={avatarStyle(selectedPersonId)}>
-                {personEmoji(selectedPersonId)}
-              </span>
-              <div className="emoji-textarea-frame quick-update-textarea-frame">
-                <textarea
-                  aria-label="업데이트 바로 남기기"
-                  onChange={(event) => setQuickUpdate(event.target.value)}
-                  placeholder="진행상황, 막힌 점, 다음 요청을 짧게 남기기"
-                  ref={quickUpdateRef}
-                  rows={2}
-                  value={quickUpdate}
-                />
-                <EmojiPopover
-                  onSelect={(emoji) => insertEmojiAtCursor(quickUpdateRef, quickUpdate, emoji, setQuickUpdate)}
-                  triggerLabel="업데이트 로그에 이모지 넣기"
-                  triggerClassName="textarea-emoji-trigger"
-                />
-              </div>
-              <button className="primary-button small" type="submit">
-                남기기
-              </button>
-            </form>
-            {task.updates.length ? (
-              task.updates.map((update, index) => {
-                const canManageThisUpdate = canManage || update.authorId === selectedPersonId;
-                const editUpdate = () => {
-                  const nextText = window.prompt("업데이트 로그 내용을 수정하세요.", update.text ?? "");
-                  if (nextText === null) return;
-                  onUpdateLog(update, index, nextText);
-                };
-                const deleteUpdate = () => {
-                  const confirmed = window.confirm("이 업데이트 로그를 삭제할까요?");
-                  if (!confirmed) return;
-                  onDeleteUpdate(update, index);
-                };
-                return (
-                  <div className={`log-item ${showUpdateActions && canManageThisUpdate ? "is-managing" : ""}`} key={`${update.id ?? update.date}-${update.text}-${index}`}>
-                    <strong>{personName(update.authorId)}</strong>
-                    <small>{update.date}</small>
-                    <p>{update.text}</p>
-                    {showUpdateActions && canManageThisUpdate && (
-                      <span className="log-item-actions">
-                        <button className="ghost-icon" onClick={editUpdate} type="button" title="업데이트 로그 수정">
-                          <Edit3 size={13} />
-                        </button>
-                        <button className="ghost-icon danger" onClick={deleteUpdate} type="button" title="업데이트 로그 삭제">
-                          <Trash2 size={13} />
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                );
-              })
-            ) : (
-              <p className="empty-note">아직 업데이트 로그가 없습니다.</p>
             )}
           </div>
         </div>
@@ -7774,6 +8418,260 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onD
   );
 }
 
+function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSavePost, postCategories = defaultTaskPostCategories, task }) {
+  const workstream = taskWorkstreamLabel(task);
+  const taskTitle = displayTaskTitle(task);
+  const tags = taskTags(task).slice(0, 2);
+  const normalizedPostCategories = normalizeTaskPostCategories(postCategories);
+  const activePostCategories = normalizedPostCategories.filter((category) => category.active);
+  const defaultScope = activePostCategories[0]?.label || normalizedPostCategories[0]?.label || "기억할 점";
+  const blankDraft = { id: "", scope: defaultScope, title: "", url: "", body: "" };
+  const [expandedImageId, setExpandedImageId] = useState(null);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [activePostDialog, setActivePostDialog] = useState(null);
+  const [postDraft, setPostDraft] = useState(blankDraft);
+  const postBodyRef = useRef(null);
+  const postItems = taskKnowledgePosts(task, postCategories);
+  const recentPosts = postItems.slice(0, 3);
+  const olderPosts = postItems.slice(3);
+  const activePost =
+    activePostDialog?.mode === "read"
+      ? postItems.find((post) => post.id === activePostDialog.postId)
+      : null;
+  const expandedImagePost = postItems.find((post) => post.id === expandedImageId);
+  const canEditActivePost = activePost && (canManageTask || activePost.authorId === currentPersonId);
+  const openPost = (postId) => {
+    setActivePostDialog({ mode: "read", postId });
+    setExpandedImageId(null);
+  };
+  const openWriteDialog = () => {
+    setPostDraft(blankDraft);
+    setActivePostDialog({ mode: "write" });
+    setExpandedImageId(null);
+  };
+  const openEditDialog = (post) => {
+    setPostDraft({
+      id: post.id,
+      scope: post.scope || defaultScope,
+      title: post.title || "",
+      url: post.url || "",
+      body: post.body || ""
+    });
+    setActivePostDialog({ mode: "edit", postId: post.id });
+    setExpandedImageId(null);
+  };
+  const closePostDialog = () => {
+    setActivePostDialog(null);
+    setExpandedImageId(null);
+  };
+  const submitPost = (event) => {
+    event.preventDefault();
+    if (!onSavePost?.(postDraft)) return;
+    closePostDialog();
+  };
+  const deleteActivePost = () => {
+    if (!activePost || !onDeletePost) return;
+    onDeletePost(activePost.id);
+    closePostDialog();
+  };
+
+  return (
+    <div className="task-posts-mockup-panel" aria-label="업무 노트">
+      <div className="task-posts-mockup-head">
+        <div>
+          <strong>업무 노트</strong>
+        </div>
+        <button className="secondary-button small" onClick={openWriteDialog} type="button">
+          <Plus size={13} />
+          노트 작성
+        </button>
+      </div>
+      <div className="task-post-feed-grid">
+        <section>
+          <h3>
+            <MessageSquareText size={15} />
+            최근 노트
+          </h3>
+          {recentPosts.map((post) => (
+            <button className="task-post-list-row" key={post.id} onClick={() => openPost(post.id)} type="button">
+              <span className={`post-scope-chip tone-${taskPostCategoryMeta(post.scope, postCategories).tone}`}>{post.scope}</span>
+              <div>
+                <strong>{post.title}</strong>
+                <small>{post.date} · {personName(post.authorId)}{post.url ? " · URL" : ""}{post.attachment ? " · 이미지" : ""}</small>
+              </div>
+            </button>
+          ))}
+        </section>
+        {olderPosts.length > 0 && (
+          <section>
+            <div className="task-post-more-title">
+              <h3>
+                <MessageSquareText size={15} />
+                이 업무 노트 더보기
+              </h3>
+              <button aria-expanded={isMoreOpen} className="section-manage-button" onClick={() => setIsMoreOpen((current) => !current)} type="button">
+                {isMoreOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                {isMoreOpen ? "접기" : `펼치기 ${olderPosts.length}`}
+              </button>
+            </div>
+            {isMoreOpen && (
+              <div className="task-post-more-list">
+                {olderPosts.map((post) => (
+                  <button
+                    className="task-post-more-row"
+                    key={`task-more-${post.id}`}
+                    onClick={() => openPost(post.id)}
+                    type="button"
+                  >
+                    <span className={`post-scope-chip tone-${taskPostCategoryMeta(post.scope, postCategories).tone}`}>{post.scope}</span>
+                    <div>
+                      <strong>{post.title}</strong>
+                      <small>{post.date} · {personName(post.authorId)}{post.url ? " · URL" : ""}</small>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+      {activePostDialog && (
+        <div className="task-post-dialog-layer" role="dialog" aria-label={activePostDialog.mode === "read" ? "업무 노트 상세" : "업무 노트 작성"}>
+          <button className="task-post-dialog-backdrop" onClick={closePostDialog} type="button" aria-label="업무 노트 창 닫기" />
+          <div className="task-post-dialog">
+            <div className="task-post-dialog-head">
+              <div>
+                <strong>{activePostDialog.mode === "read" ? activePost?.title : activePostDialog.mode === "edit" ? "업무 노트 수정" : "업무 노트 작성"}</strong>
+                <small>{activePostDialog.mode === "read" ? `${activePost?.date} · ${personName(activePost?.authorId)} · ${activePost?.taskTitle}` : `${taskTitle} · ${workstream}`}</small>
+              </div>
+              <button className="icon-button" onClick={closePostDialog} type="button" title="업무 노트 창 닫기">
+                <X size={16} />
+              </button>
+            </div>
+            {activePostDialog.mode !== "read" && (
+            <form className="task-post-write-mockup" onSubmit={submitPost}>
+              <div className="task-post-type-field">
+                <span>노트 구분</span>
+                <div className="task-post-type-options" role="group" aria-label="업무 노트 구분 선택">
+                  {[...activePostCategories, ...normalizedPostCategories.filter((category) => category.label === postDraft.scope && !category.active)].map((category) => (
+                    <button
+                      className={`post-scope-chip tone-${category.tone} ${postDraft.scope === category.label ? "active" : ""}`}
+                      key={category.id}
+                      onClick={() => setPostDraft((current) => ({ ...current, scope: category.label }))}
+                      type="button"
+                    >
+                      {postDraft.scope === category.label && <Check size={13} aria-hidden="true" />}
+                      {category.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label>
+                <span>제목</span>
+                <input
+                  onChange={(event) => setPostDraft((current) => ({ ...current, title: event.target.value }))}
+                  placeholder="나중에 찾을 수 있는 제목"
+                  value={postDraft.title}
+                />
+              </label>
+              <label>
+                <span>URL</span>
+                <input
+                  onChange={(event) => setPostDraft((current) => ({ ...current, url: event.target.value }))}
+                  placeholder="https:// 또는 공유 문서 주소"
+                  value={postDraft.url}
+                />
+              </label>
+              <label>
+                <span>본문</span>
+                <div className="emoji-textarea-frame task-post-body-frame">
+                  <textarea
+                    ref={postBodyRef}
+                    onChange={(event) => setPostDraft((current) => ({ ...current, body: event.target.value }))}
+                    placeholder={"기억해야 할 내용, 결정사항, 회의록, 중요문서, 리스크, 확인 질문 등을 남겨두세요.\n\n- 핵심 내용:\n- 확인 필요:\n- 다음 액션:"}
+                    rows={10}
+                    value={postDraft.body}
+                  />
+                  <EmojiPopover
+                    onSelect={(emoji) =>
+                      insertEmojiAtCursor(postBodyRef, postDraft.body, emoji, (value) => setPostDraft((current) => ({ ...current, body: value })))
+                    }
+                    triggerClassName="textarea-emoji-trigger"
+                  />
+                </div>
+              </label>
+              <div className="task-post-write-foot">
+                <span className={`post-scope-chip tone-${taskPostCategoryMeta(postDraft.scope, postCategories).tone}`}>{postDraft.scope}</span>
+                {tags.length > 0 && <small>업무 태그</small>}
+                {tags.map((tag) => (
+                  <em className={`tag-tone-${tagTone(tag)}`} key={tag}>{tag}</em>
+                ))}
+                <button className="primary-button small" disabled={!postDraft.title.trim() || !postDraft.body.trim() || !onSavePost} type="submit">
+                  {activePostDialog.mode === "edit" ? "수정 저장" : "노트 남기기"}
+                </button>
+              </div>
+            </form>
+            )}
+            {activePostDialog.mode === "read" && activePost && (
+              <article className="task-post-read-mockup">
+                <div className="task-post-read-meta">
+                  <span className={`post-scope-chip tone-${taskPostCategoryMeta(activePost.scope, postCategories).tone}`}>{activePost.scope}</span>
+                  <small>{workstream}</small>
+                </div>
+                <p>{activePost.body}</p>
+                {activePost.url && (
+                  <a className="task-post-url-card" href={activePost.url} rel="noreferrer" target="_blank">
+                    <Link2 size={14} />
+                    <span>{activePost.url}</span>
+                  </a>
+                )}
+                {activePost.attachment && (
+                  <button className="task-post-image-thumb" onClick={() => setExpandedImageId(activePost.id)} type="button">
+                    <span>
+                      <FileText size={13} />
+                      {activePost.attachment.label}
+                    </span>
+                    <small>{activePost.attachment.caption} · 클릭해서 크게 보기</small>
+                  </button>
+                )}
+                {canEditActivePost && (
+                  <div className="task-post-read-actions">
+                    <button className="secondary-button small" onClick={() => openEditDialog(activePost)} type="button">
+                      <Edit3 size={13} />
+                      수정
+                    </button>
+                    <button className="secondary-button small danger-text" onClick={deleteActivePost} type="button">
+                      <Trash2 size={13} />
+                      삭제
+                    </button>
+                  </div>
+                )}
+              </article>
+            )}
+          </div>
+        </div>
+      )}
+      {expandedImagePost?.attachment && (
+        <div className="task-post-image-lightbox" role="dialog" aria-label={`${expandedImagePost.attachment.label} 확대 보기`}>
+          <button className="task-post-image-backdrop" onClick={() => setExpandedImageId(null)} type="button" aria-label="첨부 이미지 확대 닫기" />
+          <div className="task-post-image-modal">
+            <div className="task-post-image-modal-head">
+              <strong>{expandedImagePost.attachment.label}</strong>
+              <button className="icon-button" onClick={() => setExpandedImageId(null)} type="button" title="첨부 이미지 닫기">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="task-post-image-preview-large">
+              <span>{workstream}</span>
+              <strong>{expandedImagePost.attachment.caption}</strong>
+              <em>{taskTitle}</em>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 function TaskModal({ availableTags, mode = "task", onClose, onSave, task, workstreamOptions = [] }) {
   const isRecurringRuleMode = mode === "recurringRule";
   const canEditRecurringFields = isRecurringRuleMode || !task.id || (!task.recurring && !task.recurringTemplateId);

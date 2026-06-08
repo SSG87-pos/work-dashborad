@@ -50,6 +50,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - The common page header should keep only the `Strategy Work Hub` title; do not show repeated explanatory subtitles below it.
 - The title can be slightly larger than the surrounding toolbar controls, but should remain compact enough for 1366px desktop layouts.
 - Search input is compact; placeholder text should not dominate the page.
+- The top bar may include a compact `넓게/기본` viewing-density toggle for demo-room and low-legibility monitor conditions. It should adjust readability and detail width without changing the dashboard's approved navigation, color, or card structure.
 - Account button shows emoji/profile, name, and role on one line when possible.
 - Admin indication belongs in the top account area, not in every team list row.
 - Account modal stays focused on account switching and personal profile edits.
@@ -58,11 +59,12 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 ### Admin
 
 - The `관리자` sidebar tab is visible only to users with `permissionRole: admin`.
-- The admin page groups operational management into `사람 관리`, `태그 관리`, and `업무흐름 관리`.
+- The admin page groups operational management into `사람 관리`, `태그 관리`, `업무흐름 관리`, and `게시글 유형 관리`.
 - `사람 관리` owns roster add/edit, permission role, team display, and active-state controls.
 - `태그 관리` should use a compact tree/editor layout: Category folders on the left, tag-file rows under each folder, and a right-side editor for the selected Category or tag.
 - Admins can collapse/expand Category folders, click tags to rename/delete them, and drag tags between Category folders to keep the tag dictionary scannable as the list grows.
 - `업무흐름 관리` should use the same compact tree/editor pattern: current `상위 업무흐름` labels on the left, selected-flow details on the right, and similar-flow review candidates inside the selected detail panel. Renaming a flow can intentionally merge tasks under one label.
+- `게시글 유형 관리` owns the type/category labels used on task posts, such as `결정사항`, `기억할 점`, `리스크`, `회의록`, `중요문서`, `참고자료`, and `다음 확인`. Admins can rename labels, choose a tone color, and hide a type from the write dialog without deleting existing posts.
 - Non-admin users must not see the `관리자` tab, and stale persisted admin routes should return to a normal workflow view.
 
 ### Today Briefing
@@ -102,7 +104,7 @@ Greetings:
 
 ## Emoji Picker Contract
 
-- Emoji selection is a shared interaction for profile settings, memo, calendar notes, and update logs.
+- Emoji selection is a shared interaction for profile settings, memo, calendar notes, update logs, and task `업무 노트` body text.
 - The shared picker now uses `emoji-picker-react` for the full emoji set, search, categories, and recent emojis.
 - Load the picker only when the popover opens, so the main dashboard bundle stays light.
 - Use native emoji rendering rather than image/CDN emoji styles for company-network reliability.
@@ -143,6 +145,7 @@ Greetings:
 - In compact mindmap mode, task nodes should stay small but show a clearly visible status-colored dot and the owner name so users can scan state and responsibility without opening the card.
 - In compact mindmap mode, task nodes may grow horizontally by title length and should keep status dot, task title, and owner on one line whenever possible. Keep count/owner metadata right-aligned inside each box, but avoid a large fixed minimum width; short labels should stay compact, and only long labels should widen the box.
 - The mindmap header should include a compact status-color legend when status dots are shown.
+- The currently generated mindmap work structure can be exported as a Markdown file from the mindmap header. The export should reflect the current `현재 진행업무`/`전체 진행업무` scope and preserve workstream headings, task status, owner, due date, priority, progress, tags, and classification context.
 - Do not reserve a blank detail column before a task node is selected.
 
 ### Canvas
@@ -209,6 +212,14 @@ Task detail is contextual and appears only after explicit selection.
 - Calendar task selections open the same common task detail style in the calendar side panel.
 - Do not reserve a blank right column before detail is opened.
 - Include a close action.
+- Task detail should be readable on common 1280-1366px desktop monitors. The default detail column can be wider than the earlier compact prototype width, and `넓게 보기` may widen it further when there is enough screen width.
+- `넓게 보기` should favor detail text, update logs, change history, and calendar detail readability. It must avoid page-level horizontal overflow; workflow boards may keep their existing internal horizontal scroll behavior if the detail panel is open.
+- Updates log rows, Highlights performance summaries, and compact mindmap nodes should stay readable on standard office monitors. If these areas feel low-resolution or overly small, prefer small font-size/spacing adjustments over changing the approved component structure.
+- A task-level Teams-like `업무 노트` surface may sit inside task detail as a contextual notes/posts area for decisions, remembered context, reference URLs, risks, meeting notes, and future lookup. In local/demo mode, task posts are real local dashboard state saved with the task data; shared Supabase persistence still needs a future `task_posts` table and RLS. In the narrow task-detail panel, show the selected task's latest three title-first rows below `다음 액션 추천`, with a nearby `노트 작성` action and a compact more/less control for additional posts from that same task only. Do not add a separate explanatory card above the list; the section title and rows should carry the meaning. Because the task-detail panel is narrow, clicking a note row should open a larger read dialog. Writing and editing also open a larger dialog, and writing should allow emoji insertion in the body field.
+- Future task posts should be task-linked first and workstream-aggregatable second, so a later `업무흐름 피드` can collect posts from every task under the same `상위 업무흐름`.
+- Task-post attachments may show compact image thumbnails that open into a larger lightbox when clicked. Real implementation should store image metadata separately from post text and avoid loading large original images in the normal task-detail reading path.
+- Highlights may include `업무흐름별 게시글 모음`, which groups task posts by `상위 업무흐름`. Keep it in Highlights because it is a lookup/review surface rather than a live execution board; Team Flow can later add a small shortcut if needed, but should not gain another dense tab beside the mindmap unless daily workflow proves it necessary. Workstream groups should start collapsed, be sorted by each group's latest post date, and expanded rows should show 게시날짜, 해당 업무, 담당자, and 게시자 in the row summary. Clicking a row opens the body inline; the expanded body should avoid repeating scope/workstream metadata already visible in the row/group and focus on body text, URL, and attachment. Inside an expanded workstream, the sort controls should use short labels only: `날짜`, `사람`, `구분`, and `업무`. Task detail should not show posts from other tasks simply because they share the same workstream.
+- Update logs should sit above related links in task detail. Show the latest three logs by default and reveal older logs through a compact more/less control; management actions should remain hidden behind the existing management toggle.
 
 Header:
 
@@ -281,6 +292,7 @@ Metadata and history:
 ## Performance Report Contract
 
 - `업무실적` opens in weekly mode by default.
+- Highlights has an additional `업무흐름별 게시글 모음` tab for remembered-context posts. It should group posts by `상위 업무흐름`, keep each workstream collapsed by default, show 게시날짜, 해당 업무, 담당자, and 게시자 when expanded, and support short sort controls: `날짜`, `사람`, `구분`, and `업무`.
 - Weekly view shows issue, description/content, completed, and planned lines.
 - Weekly view remains task-oriented.
 - Monthly, quarterly, and yearly views summarize by `상위 업무흐름` inside the period grouping, with source tasks retained for copy/export evidence.

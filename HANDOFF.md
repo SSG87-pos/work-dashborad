@@ -6,7 +6,7 @@ Mainline handoff for `/Users/seulgi/Documents/work-dashboard`.
 
 Project goal: build a clickable React/Vite prototype and evolve it into a usable shared work dashboard for `연구기획그룹-전략`. The dashboard is centered on personal daily briefing, public team workflow, task assignment, task detail/update logs, tag filtering, timeline/calendar, recurring work, archive, personal notes, performance reporting, and later real login/admin/backend support.
 
-Last updated: 2026-06-07
+Last updated: 2026-06-08
 
 ## Current State
 
@@ -67,6 +67,12 @@ Key product decisions now in the prototype:
   - Later collaboration scope remains separate: live cursors, simultaneous-edit conflict handling, per-node locking, task-linking, and visible change history.
 - `오늘 브리핑` is personal-first: briefing task flow, today agenda, and a page-scoped shared memo.
 - The common top header keeps only the `Strategy Work Hub` title; repeated explanatory subtitles are intentionally removed across tabs.
+- The top header now includes a compact `넓게/기본` viewing-density toggle for real demo/desktop readability. The toggle preserves the approved UI direction while widening workflow/calendar task detail panels and improving key text sizes; the preference is stored locally through `src/storage.js` so it survives refresh without requiring a Supabase schema change.
+- Task detail now has a real local/demo `업무 노트` surface below `다음 액션 추천`. It is positioned as a general remembered-context/posting tool, not meeting-note-only: decisions, remembered context, reference URLs, risks, meeting notes, and lookup material can all fit. The narrow detail panel shows the selected task's latest three title-first rows plus a nearby `노트 작성` action, and additional posts from that same task remain available behind a compact more/less control. The previous explanatory card above the list was removed so the panel stays compact. Because the panel is narrow, reading opens a larger dialog; writing and editing also open a larger dialog with `노트 구분` selection chips, URL input, body textarea, and emoji insertion at the body cursor. It does not show posts from other tasks just because they share the same `상위 업무흐름`; that cross-task rollup belongs in Highlights. Users can write, read, edit, and delete posts; the data is stored as task-level `postItems` and saved through the local dashboard snapshot. Existing sample tasks without `postItems` still seed example posts until the user writes/edits/deletes, at which point the task owns its real post list. Shared Supabase persistence still needs a future `task_posts` table, attachment metadata/storage, task navigation wiring, CRUD/RLS, and optional change history.
+- Highlights now has `업무흐름별 게시글 모음` next to the existing performance report. It rolls remembered-context posts up by `상위 업무흐름`; groups are collapsed by default, sorted by each group's latest post date, and expanded rows show 게시날짜, 해당 업무, 담당자, and 게시자. Inside each expanded group, sort controls use short labels only: `날짜`, `사람`, `구분`, and `업무`. Clicking a post row expands/collapses the content inline; the expanded body omits repeated scope/workstream metadata and focuses on body text, URL, and attachment. This rollup stays in Highlights because it is a lookup/review surface, not a live execution board; Team Flow can later add a shortcut if daily use proves it necessary.
+- Admin now includes `게시글 유형 관리`. Default types are `결정사항`, `기억할 점`, `리스크`, `회의록`, `중요문서`, `참고자료`, and `다음 확인`; admins can rename labels, choose tone colors, and hide types from the write dialog while keeping existing posts. Older local labels `회의 메모` and `참고 URL` normalize to `회의록` and `중요문서`.
+- Task detail `업데이트 로그` now sits above `관련 링크`, shows the latest three logs by default, and reveals older logs through a compact more/less control while keeping edit/delete actions behind the separate management toggle.
+- Follow-up readability tuning also enlarged Updates log text, Highlights performance summary/detail text, and compact mindmap labels. Compact mindmap node width calculation was widened slightly with the larger text so Korean task labels do not truncate more aggressively.
 - Top insight cards are number-first action filters: nonzero cards show a small `보기 →` action and clicking filters the board to that cohort, while zero-value cards stay visually quieter and non-actionable.
 - Memo behavior is page-scoped, not account-scoped: `오늘 브리핑` and `전체 업무흐름` each have an independent memo, and any signed-in team member can edit the memo for the page they are viewing.
 - `전체 업무흐름` is the shared public team board/timeline/recurring/archive area.
@@ -79,6 +85,7 @@ Key product decisions now in the prototype:
   - The mindmap calculates node coordinates to avoid overlap and sets its container height from the generated layout so the page grows vertically instead of adding a separate internal mindmap scrollbar.
   - tasks that match 2+ Category branches can appear in multiple branches while total counts dedupe by task id and show a compact `공유 N곳` indicator.
   - clicking a group/tag node applies the existing multi-tag filter and returns to the board; clicking a task node opens the common workflow-side task detail.
+  - the generated work structure can be exported from the mindmap header with `MD 저장`; the Markdown reflects the current scope and includes workstream headings, status summaries, connected tags, task status/owner/due date/priority/progress/tags, and classification context.
 - `Canvas` is now its own main sidebar tab below `Highlights`, with internal tabs for several canvas/thinking spaces. It is conceptually separate from the auto-generated workflow mindmap.
 - Current `Canvas` implementation starts with only the default `생각 정리` tab and supports draft editing: add tabs, add nodes, switch `카드/작게` node size, choose compact node templates, edit node text, edit checklist-style `투두` nodes, delete nodes, drag nodes on a scrollable plane, create child nodes, show connector lines, directly connect existing nodes, auto-arrange the node tree, and export the current tab to Markdown by copy or download. Canvas card-mode node actions are visible for easier use, compact mode is title-only with actions hidden until hover/focus, decorative node icons were removed, parent-child connectors render as solid lines, and direct related-node connectors render as dashed lines. Shared Supabase persistence is now live-applied for active signed-in users. Task-linking, live multi-user collaboration, conflict handling, and change-history views remain later next steps.
 - Task detail placement is contextual:
@@ -86,6 +93,7 @@ Key product decisions now in the prototype:
   - board selections move the detail panel beside the board in a sticky workflow column
   - timeline/recurring/archive selections move the detail panel beside the clicked workflow area in the same sticky workflow column
   - task detail space is not reserved before selection; workflow views use their full width until a task is clicked.
+  - default workflow/calendar detail width is wider than the older compact prototype width, and `넓게 보기` expands detail to 410px around 1280-1366px desktop widths while avoiding page-level horizontal overflow.
 - Board columns are ordered `검토/대기 -> 계획 -> 진행중 -> 완료 -> 보류`.
 - New tasks start as `계획` unless the user explicitly chooses another status.
 - Task progress is automatically calculated from `상세 업무 내용` checklist items. At least one detail item is required when saving a task.

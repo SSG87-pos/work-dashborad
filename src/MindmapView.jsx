@@ -7,8 +7,8 @@ import {
   ReactFlow
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Info, LocateFixed, Plus } from "lucide-react";
-import { buildMindmapStructure, filterMindmapTasksByScope, mindmapGroupStatusSummary } from "./mindmapData.js";
+import { Download, Info, LocateFixed, Plus } from "lucide-react";
+import { buildMindmapMarkdown, buildMindmapStructure, filterMindmapTasksByScope, mindmapGroupStatusSummary } from "./mindmapData.js";
 
 const nodeWidth = {
   root: 190,
@@ -19,8 +19,8 @@ const nodeWidth = {
 
 const compactNodeWidth = {
   root: 220,
-  group: 170,
-  task: 220
+  group: 184,
+  task: 240
 };
 const statusLegendItems = ["진행중", "계획", "검토/대기", "완료", "보류"];
 
@@ -97,7 +97,7 @@ function compactWidthForText(text, baseWidth, maxWidth) {
   const koreanChars = [...normalized].filter((char) => /[가-힣]/.test(char)).length;
   const wideChars = [...normalized].filter((char) => !/[가-힣A-Za-z0-9\s]/.test(char)).length;
   const weightedLength = normalized.length + koreanChars * 0.35 + wideChars * 0.25;
-  return Math.min(maxWidth, Math.max(baseWidth, Math.round(weightedLength * 7.6 + 72)));
+  return Math.min(maxWidth, Math.max(baseWidth, Math.round(weightedLength * 8.2 + 78)));
 }
 
 function mindmapNodeWidth(data) {
@@ -131,6 +131,15 @@ function addEdge(edges, source, target) {
     animated: false,
     style: { stroke: "#b9c8d8", strokeWidth: 1.8 }
   });
+}
+
+function safeFilePart(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "mindmap";
 }
 
 function buildFlowElements(structure, people, density = "card") {
@@ -248,6 +257,20 @@ export function MindmapView({ onFillDemo, onFilterTags, onSelectTask, people, pr
     flowInstance?.fitView?.({ padding: 0.18, duration: 360 });
   }
 
+  function downloadMarkdown() {
+    const generatedAt = new Date().toISOString().slice(0, 10);
+    const markdown = buildMindmapMarkdown(structure, people, { generatedAt, scope });
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `mindmap-${safeFilePart(scope)}-${generatedAt}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   return (
     <section className="mindmap-view" aria-label="업무 마인드맵" ref={mindmapRef}>
       <div className="mindmap-header">
@@ -276,6 +299,10 @@ export function MindmapView({ onFillDemo, onFilterTags, onSelectTask, people, pr
             <button className="mindmap-home-button" onClick={returnToCenter} type="button">
               <LocateFixed size={14} />
               중앙
+            </button>
+            <button className="mindmap-home-button" onClick={downloadMarkdown} type="button">
+              <Download size={14} />
+              MD 저장
             </button>
             {onFillDemo && (
               <button className="mindmap-home-button" onClick={onFillDemo} type="button">

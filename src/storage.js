@@ -1,5 +1,6 @@
 export const dashboardStorageKey = "research-strategy-dashboard:v1";
 export const supabaseImportHistoryKey = `${dashboardStorageKey}:supabase-import-history`;
+export const dashboardDisplayPreferencesKey = `${dashboardStorageKey}:display-preferences`;
 
 export const dashboardStateVersion = 1;
 export const maxSupabaseImportHistory = 20;
@@ -12,7 +13,8 @@ export const defaultDashboardPreferences = {
   timelineMode: "month",
   timelineMonth: "",
   timelineYear: "",
-  selectedTaskId: ""
+  selectedTaskId: "",
+  displayDensity: "standard"
 };
 
 export function canUseBrowserStorage() {
@@ -36,12 +38,19 @@ export const supabaseImportHistoryStore = {
   clear: clearSupabaseImportHistory
 };
 
+export const localDisplayPreferenceStore = {
+  canUse: canUseBrowserStorage,
+  read: readDisplayPreferences,
+  write: writeDisplayPreferences
+};
+
 export function createDashboardSnapshot(state) {
   return {
     version: dashboardStateVersion,
     tasks: state.tasks ?? [],
     availableTags: state.availableTags ?? [],
     tagGroups: state.tagGroups ?? [],
+    taskPostCategories: state.taskPostCategories ?? [],
     calendarEvents: state.calendarEvents ?? [],
     isAuthenticated: state.isAuthenticated ?? true,
     selectedPersonId: state.selectedPersonId ?? "kmryu",
@@ -53,6 +62,7 @@ export function createDashboardSnapshot(state) {
     timelineMonth: state.timelineMonth ?? defaultDashboardPreferences.timelineMonth,
     timelineYear: state.timelineYear ?? defaultDashboardPreferences.timelineYear,
     selectedTaskId: state.selectedTaskId ?? defaultDashboardPreferences.selectedTaskId,
+    displayDensity: state.displayDensity ?? defaultDashboardPreferences.displayDensity,
     memoByPage: state.memoByPage ?? { my: "", team: "" },
     profileOverrides: state.profileOverrides ?? {}
   };
@@ -84,6 +94,28 @@ export function clearDashboardState() {
   if (!canUseBrowserStorage()) return false;
   window.localStorage.removeItem(dashboardStorageKey);
   return true;
+}
+
+export function readDisplayPreferences() {
+  if (!canUseBrowserStorage()) return {};
+  try {
+    const raw = window.localStorage.getItem(dashboardDisplayPreferencesKey);
+    return raw ? JSON.parse(raw) : {};
+  } catch (error) {
+    console.warn("화면 보기 설정을 불러오지 못했습니다.", error);
+    return {};
+  }
+}
+
+export function writeDisplayPreferences(preferences) {
+  if (!canUseBrowserStorage()) return false;
+  try {
+    window.localStorage.setItem(dashboardDisplayPreferencesKey, JSON.stringify(preferences ?? {}));
+    return true;
+  } catch (error) {
+    console.warn("화면 보기 설정을 저장하지 못했습니다.", error);
+    return false;
+  }
 }
 
 export function readSupabaseImportHistory() {

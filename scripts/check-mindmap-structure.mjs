@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { initialTasks, mindmapSampleTasks } from "../src/data.js";
-import { buildMindmapStructure, filterMindmapTasksByScope, mindmapGroupStatusSummary } from "../src/mindmapData.js";
+import { buildMindmapMarkdown, buildMindmapStructure, filterMindmapTasksByScope, mindmapGroupStatusSummary } from "../src/mindmapData.js";
 
 const presets = [
   { id: "preset:report", label: "기획/임원보고", tags: ["기획보고", "임원보고"], tone: "report" },
@@ -65,6 +65,18 @@ assert.deepEqual(
   "shared task locations should remain stable and readable"
 );
 assert.equal(workstreamTask.progress, 50, "task progress should come from subtask completion");
+
+const markdown = buildMindmapMarkdown(structure, [{ id: "kmryu", name: "류강묵" }], {
+  generatedAt: "2026-06-08",
+  scope: "active"
+});
+
+assert.ok(markdown.includes("# 업무 구조"), "mindmap markdown should include the document title");
+assert.ok(markdown.includes("- 범위: 현재 진행업무"), "mindmap markdown should include the exported scope");
+assert.ok(markdown.includes("## 월간 전략보고 추진"), "mindmap markdown should include workstream headings");
+assert.ok(markdown.includes("- 담당: 류강묵"), "mindmap markdown should resolve task owner names");
+assert.ok(markdown.includes("- 진행률: 50%"), "mindmap markdown should include calculated progress");
+assert.ok(markdown.includes("기획/임원보고 > 기획보고"), "mindmap markdown should retain classification context");
 
 const sampleStructure = buildMindmapStructure(filterMindmapTasksByScope(initialTasks, "all"), presets);
 const innovationSampleGroup = sampleStructure.groups.find((group) => group.label === "혁신아이디어");
