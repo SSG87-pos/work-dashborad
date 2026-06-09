@@ -333,10 +333,15 @@ uvicorn app.main:app --host 0.0.0.0 --port 18080
 
 회사에서 backend 구현을 시작할 때 Codex에게 아래처럼 요청하면 됩니다.
 
+먼저 회사 PC에서 Codex를 열고 이 프로젝트 폴더를 workspace로 연결합니다. 그 다음 아래 요청문을 그대로 붙여넣습니다.
+
 ```text
-release/company-fastapi-postgres 브랜치 기준으로 진행해줘.
-docs/company-fastapi-postgres-beginner-runbook.md와 docs/fastapi-postgres-backend-spec.md를 먼저 읽고,
-Docker 없는 회사 내부망용 FastAPI + PostgreSQL backend Phase 1을 실제 코드로 구현해줘.
+이 폴더의 AGENTS.md, HANDOFF.md, TODO.md,
+docs/company-fastapi-postgres-beginner-runbook.md,
+docs/fastapi-postgres-backend-spec.md를 먼저 읽고 진행해줘.
+
+목표는 이 대시보드를 회사 내부 FastAPI + PostgreSQL backend로 연결하는 거야.
+아직 backend/ 폴더는 없으니 release/company-fastapi-postgres 브랜치 기준으로 Phase 1부터 구현해줘.
 
 범위:
 - backend/ 폴더 생성
@@ -357,6 +362,46 @@ Docker 없는 회사 내부망용 FastAPI + PostgreSQL backend Phase 1을 실제
 
 구현 후 git diff --check, backend 기본 API 검증, CI=true pnpm run build까지 확인해줘.
 ```
+
+### 8.1 Codex가 해줄 수 있는 일
+
+Codex는 프로젝트 폴더 안에서 다음 작업을 할 수 있습니다.
+
+- 현재 폴더 구조와 문서 읽기
+- `backend/` 코드 생성
+- FastAPI route, schema, model, service 코드 작성
+- Alembic migration 파일 작성
+- 프론트 API 연결 준비
+- `VITE_API_BASE_URL` 기준 store 구조 추가
+- build와 기본 검증 명령 실행
+- 오류 로그를 보고 코드 수정
+
+### 8.2 슬기님 또는 회사 IT가 직접 확인해야 하는 일
+
+아래는 Codex가 코드로 대신할 수 없거나 회사 권한 승인이 필요한 일입니다.
+
+- PostgreSQL 설치 권한 확인
+- `$ADMIN`에 어떤 관리자 권한 명령을 쓸지 확인
+- DB 비밀번호와 JWT secret 생성
+- `.env`, `.env.local`에 실제 비밀값 입력
+- 방화벽/포트 `10097`, `18080` 허용 여부 확인
+- 회사 보안 정책상 실제 업무 데이터 입력 가능 시점 확인
+- systemd 서비스 등록 권한 확인
+
+즉, Codex는 backend 코드를 만들고 연결 흐름을 잡아줄 수 있지만, 회사 권한/비밀번호/포트/보안 승인은 슬기님 또는 회사 IT가 확인해야 합니다.
+
+### 8.3 추천 진행 순서
+
+회사 PC에서는 아래 순서가 가장 안전합니다.
+
+1. 이 브랜치를 clone 또는 pull한다.
+2. 이 매뉴얼의 `3.0 관리자 권한 명령 확인`에서 `$ADMIN` 값을 정한다.
+3. PostgreSQL 설치 가능 여부를 확인한다.
+4. Codex에 위 요청문을 전달한다.
+5. Codex가 `backend/` Phase 1을 구현한다.
+6. 슬기님이 DB 비밀번호, JWT secret, `.env` 값을 입력한다.
+7. Codex가 health check, migration, frontend build를 검증한다.
+8. 최소 2계정으로 권한 검증을 진행한다.
 
 ## 9. FastAPI backend 구현 후 실행 순서
 
