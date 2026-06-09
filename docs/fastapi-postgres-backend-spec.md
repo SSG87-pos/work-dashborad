@@ -870,14 +870,16 @@ Supabase 관련 파일은 바로 삭제하지 않습니다. 내부망 전환이 
 
 ### 10.1 PostgreSQL
 
+초보자용 전체 설치 절차와 `sudo` 대체 명령은 `docs/company-fastapi-postgres-beginner-runbook.md`를 우선 참고합니다. 회사 리눅스에서 `sudo`가 막혀 있으면 `ADMIN=gksudo`, `ADMIN=gsudo`, 또는 `ADMIN=pkexec`처럼 회사에서 허용한 관리자 권한 명령을 먼저 정한 뒤 아래 `$ADMIN` 자리에 사용합니다.
+
 예시:
 
 ```bash
-sudo apt update
-sudo apt install postgresql postgresql-contrib
-sudo -u postgres createuser work_dashboard_user
-sudo -u postgres createdb work_dashboard
-sudo -u postgres psql
+$ADMIN apt update
+$ADMIN apt install postgresql postgresql-contrib
+$ADMIN -u postgres createuser work_dashboard_user
+$ADMIN -u postgres createdb work_dashboard
+$ADMIN -u postgres psql
 ```
 
 ```sql

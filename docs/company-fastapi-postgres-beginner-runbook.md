@@ -94,6 +94,42 @@ pnpm install
 
 프론트엔드 실행에는 Node.js와 pnpm이 필요합니다.
 
+### 3.0 관리자 권한 명령 확인
+
+회사 리눅스에서는 `sudo`를 직접 쓸 수 없고 `gksudo`, `gsudo`, `pkexec` 같은 별도 관리자 권한 명령을 쓰는 경우가 있습니다. 슬기님이 기억한 `g*sudo`는 보통 `gksudo` 또는 `gsudo`일 가능성이 큽니다.
+
+먼저 어떤 명령이 있는지 확인합니다.
+
+```bash
+command -v sudo
+command -v gsudo
+command -v gksudo
+command -v pkexec
+command -v doas
+```
+
+출력되는 명령 중 회사에서 허용한 것을 하나 고릅니다.
+
+예시:
+
+```bash
+ADMIN=gksudo
+```
+
+또는:
+
+```bash
+ADMIN=gsudo
+```
+
+또는:
+
+```bash
+ADMIN=pkexec
+```
+
+아래 문서에서 `$ADMIN`이라고 적힌 부분은 이 관리자 권한 명령을 뜻합니다. 새 터미널을 열면 이 값이 사라질 수 있으므로, 설치 작업을 시작하기 전에 다시 한 번 `ADMIN=gksudo`처럼 입력합니다.
+
 먼저 설치 여부를 확인합니다.
 
 ```bash
@@ -108,10 +144,10 @@ pnpm -v
 회사 리눅스가 Ubuntu/Debian이면 보통 아래처럼 설치합니다.
 
 ```bash
-sudo apt update
-sudo apt install -y curl git
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
+$ADMIN apt update
+$ADMIN apt install -y curl git
+curl -fsSL https://deb.nodesource.com/setup_20.x | $ADMIN -E bash -
+$ADMIN apt install -y nodejs
 corepack enable
 corepack prepare pnpm@latest --activate
 ```
@@ -128,8 +164,8 @@ pnpm -v
 회사 리눅스가 Rocky/RHEL/CentOS 계열이면 IT 정책에 따라 설치 방법이 다를 수 있습니다. 일반 예시는 다음과 같습니다.
 
 ```bash
-sudo dnf install -y git curl
-sudo dnf module install -y nodejs:20
+$ADMIN dnf install -y git curl
+$ADMIN dnf module install -y nodejs:20
 corepack enable
 corepack prepare pnpm@latest --activate
 ```
@@ -183,11 +219,11 @@ PostgreSQL은 업무 데이터가 저장될 DB입니다.
 ### 5.1 Ubuntu/Debian 예시
 
 ```bash
-sudo apt update
-sudo apt install -y postgresql postgresql-contrib
-sudo systemctl enable postgresql
-sudo systemctl start postgresql
-sudo systemctl status postgresql
+$ADMIN apt update
+$ADMIN apt install -y postgresql postgresql-contrib
+$ADMIN systemctl enable postgresql
+$ADMIN systemctl start postgresql
+$ADMIN systemctl status postgresql
 ```
 
 상태 확인에서 `active (running)`이 보이면 실행 중입니다.
@@ -197,11 +233,11 @@ sudo systemctl status postgresql
 회사 환경마다 다르지만 일반 예시는 다음과 같습니다.
 
 ```bash
-sudo dnf install -y postgresql-server postgresql-contrib
-sudo postgresql-setup --initdb
-sudo systemctl enable postgresql
-sudo systemctl start postgresql
-sudo systemctl status postgresql
+$ADMIN dnf install -y postgresql-server postgresql-contrib
+$ADMIN postgresql-setup --initdb
+$ADMIN systemctl enable postgresql
+$ADMIN systemctl start postgresql
+$ADMIN systemctl status postgresql
 ```
 
 ### 5.3 DB와 사용자 만들기
@@ -209,8 +245,16 @@ sudo systemctl status postgresql
 아래 예시는 DB 이름을 `work_dashboard`, DB 사용자를 `work_dashboard_user`로 만듭니다.
 
 ```bash
-sudo -u postgres psql
+$ADMIN -u postgres psql
 ```
+
+만약 여기서 `-u` 옵션 오류가 나면 회사 관리자 권한 도구가 사용자 전환 옵션을 지원하지 않는 것입니다. 그 경우 아래 중 회사 환경에서 허용되는 방법을 사용합니다.
+
+```bash
+$ADMIN psql -U postgres
+```
+
+또는 IT/서버 관리자에게 `postgres` 사용자로 `psql`에 접속하는 회사 표준 명령을 확인합니다.
 
 PostgreSQL 콘솔이 열리면 아래 SQL을 한 줄씩 실행합니다.
 
@@ -257,14 +301,14 @@ python3 --version
 ### 6.1 Ubuntu/Debian 예시
 
 ```bash
-sudo apt install -y python3 python3-venv python3-pip
+$ADMIN apt install -y python3 python3-venv python3-pip
 python3 --version
 ```
 
 ### 6.2 Rocky/RHEL/CentOS 예시
 
 ```bash
-sudo dnf install -y python3 python3-pip
+$ADMIN dnf install -y python3 python3-pip
 python3 --version
 ```
 
@@ -510,7 +554,7 @@ http://서버IP:10097/
 아래는 예시입니다. 실제 경로는 회사 서버 경로에 맞게 바꿔야 합니다.
 
 ```bash
-sudo nano /etc/systemd/system/work-dashboard-api.service
+$ADMIN nano /etc/systemd/system/work-dashboard-api.service
 ```
 
 내용:
@@ -535,16 +579,16 @@ WantedBy=multi-user.target
 등록:
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable work-dashboard-api
-sudo systemctl start work-dashboard-api
-sudo systemctl status work-dashboard-api
+$ADMIN systemctl daemon-reload
+$ADMIN systemctl enable work-dashboard-api
+$ADMIN systemctl start work-dashboard-api
+$ADMIN systemctl status work-dashboard-api
 ```
 
 로그 확인:
 
 ```bash
-sudo journalctl -u work-dashboard-api -f
+$ADMIN journalctl -u work-dashboard-api -f
 ```
 
 ## 13. 자주 막히는 문제
@@ -597,13 +641,13 @@ PostgreSQL client가 설치되지 않았습니다.
 Ubuntu/Debian:
 
 ```bash
-sudo apt install -y postgresql-client
+$ADMIN apt install -y postgresql-client
 ```
 
 Rocky/RHEL/CentOS:
 
 ```bash
-sudo dnf install -y postgresql
+$ADMIN dnf install -y postgresql
 ```
 
 ### 13.5 DB 비밀번호 오류
@@ -615,7 +659,7 @@ DB 접속 문자열의 비밀번호가 틀렸거나 특수문자 인코딩 문�
 비밀번호 변경:
 
 ```bash
-sudo -u postgres psql
+$ADMIN -u postgres psql
 ```
 
 ```sql
@@ -630,8 +674,8 @@ alter user work_dashboard_user with encrypted password '새_비밀번호';
 확인:
 
 ```bash
-sudo lsof -i :10097
-sudo lsof -i :18080
+$ADMIN lsof -i :10097
+$ADMIN lsof -i :18080
 ```
 
 다른 포트를 쓰려면:
@@ -658,7 +702,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 18081
 ```bash
 curl http://127.0.0.1:18080/api/v1/health
 cat .env.local
-sudo journalctl -u work-dashboard-api -n 100
+$ADMIN journalctl -u work-dashboard-api -n 100
 ```
 
 개발 중 직접 실행했다면 backend 터미널 로그를 확인합니다.
@@ -691,16 +735,16 @@ pnpm run dev -- --host 0.0.0.0 --port 10097
 PostgreSQL 설치:
 
 ```bash
-sudo apt update
-sudo apt install -y postgresql postgresql-contrib
-sudo systemctl enable postgresql
-sudo systemctl start postgresql
+$ADMIN apt update
+$ADMIN apt install -y postgresql postgresql-contrib
+$ADMIN systemctl enable postgresql
+$ADMIN systemctl start postgresql
 ```
 
 DB 생성:
 
 ```bash
-sudo -u postgres psql
+$ADMIN -u postgres psql
 ```
 
 ```sql
