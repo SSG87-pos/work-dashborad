@@ -2,22 +2,22 @@
 
 작성 기준일: 2026-06-09
 
-이 문서는 회사 내부 self-hosted Supabase 연결 이후에 구현할 `개인별 알림함` 후속 작업 기준입니다. 지금 dashboard에는 상단 종 아이콘, 오늘 브리핑, Updates, 업무 카드 배지, 지연/마감 표시처럼 알림에 가까운 시각 신호가 있지만, 아직 DB에 저장되는 읽음/안읽음 알림함은 없습니다.
+이 문서는 회사 내부 backend 연결 이후에 구현할 `개인별 알림함` 후속 작업 기준입니다. 현재 승인된 backend 경로는 `FastAPI + PostgreSQL`입니다. 지금 dashboard에는 상단 종 아이콘, 오늘 브리핑, Updates, 업무 카드 배지, 지연/마감 표시처럼 알림에 가까운 시각 신호가 있지만, 아직 DB에 저장되는 읽음/안읽음 알림함은 없습니다.
 
 후속 Codex 작업을 시작할 때는 이 문서를 먼저 읽고, 아래의 `미래 Codex 작업 프롬프트`를 그대로 사용하면 됩니다.
 
 ## 구현 시점
 
-개인별 알림함은 바로 로컬 fallback에 얹는 기능보다 Supabase 연결 이후에 구현하는 것이 좋습니다.
+개인별 알림함은 바로 로컬 fallback에 얹는 기능보다 FastAPI/PostgreSQL 연결 이후에 구현하는 것이 좋습니다.
 
 권장 선행 조건:
 
-1. 회사 내부 self-hosted Supabase가 설치되어 있고 dashboard가 `.env.local`의 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`로 연결된다.
-2. 실제 사용자 로스터와 Supabase Auth 사용자가 연결되어 있다.
-3. 업무, 업무 업데이트 로그, 업무 노트/게시글, 변경 이력 CRUD가 Supabase에서 정상 동작한다.
-4. 최소 2명 이상의 계정으로 RLS 검증을 할 수 있다.
+1. 회사 내부 FastAPI/PostgreSQL backend가 설치되어 있고 dashboard가 `.env.local`의 `VITE_API_BASE_URL`로 연결된다.
+2. 실제 사용자 로스터와 로그인 계정이 연결되어 있다.
+3. 업무, 업무 업데이트 로그, 업무 노트/게시글, 변경 이력 CRUD가 API/DB에서 정상 동작한다.
+4. 최소 2명 이상의 계정으로 개인별 권한 검증을 할 수 있다.
 
-이 기능은 `내가 봐야 하는 일`을 개인별로 보여주는 기능이므로, 실제 사용자 id와 RLS가 안정된 뒤에 넣어야 의미가 있습니다.
+이 기능은 `내가 봐야 하는 일`을 개인별로 보여주는 기능이므로, 실제 사용자 id와 API 권한 검사가 안정된 뒤에 넣어야 의미가 있습니다.
 
 ## 목표
 
@@ -227,7 +227,7 @@ least privilege 기준:
 ### Phase 1: DB 알림함 MVP
 
 - `notifications` migration 추가
-- `src/supabaseStore.js`에 notifications read/update API 추가
+- future `src/apiStore.js`에 notifications read/update API 추가
 - 기존 업무 저장 흐름에서 명확한 이벤트만 알림 row 생성
   - 새 업무 배정
   - 업데이트 로그 추가
@@ -241,7 +241,7 @@ least privilege 기준:
 ### Phase 2: 마감/지연 알림 안정화
 
 - `task_due_today`, `task_due_soon`, `task_overdue` 생성 전략 결정
-- Supabase self-hosted 환경에서 scheduled job 또는 앱 접속 시 생성 중 하나를 선택
+- FastAPI/PostgreSQL 환경에서 scheduler, background job, 또는 앱 접속 시 생성 중 하나를 선택
 - 중복 방지 기준 추가
   - 예: 같은 업무/같은 날짜/같은 type은 하루 1개만 생성
 
@@ -397,14 +397,14 @@ Teams 발송 제외 후보:
 
 Phase 1 완료 기준:
 
-- Supabase migration으로 `notifications` 테이블, RLS, grants, indexes가 적용된다.
-- authenticated 사용자는 본인 알림만 select 가능하다.
-- authenticated 사용자는 본인 알림의 `read_at`, `dismissed_at`만 update 가능하다.
+- PostgreSQL migration으로 `notifications` 테이블과 indexes가 적용된다.
+- FastAPI 권한 검사로 사용자는 본인 알림만 조회 가능하다.
+- FastAPI 권한 검사로 사용자는 본인 알림의 `read_at`, `dismissed_at`만 update 가능하다.
 - 업무 배정/update log/업무 노트/상태 변경 중 최소 2종 이상이 실제 알림 row를 만든다.
 - 상단 종 아이콘에 unread count가 표시된다.
 - 알림 패널에서 읽음/전체 읽음이 동작한다.
 - 알림 row 클릭 시 해당 업무 상세가 열린다.
-- `git diff --check`, build, 브라우저 QA, RLS SQL smoke가 통과한다.
+- `git diff --check`, build, 브라우저 QA, 최소 2계정 API 권한 smoke가 통과한다.
 
 ## 미래 Codex 작업 프롬프트
 
@@ -412,7 +412,7 @@ Phase 1 완료 기준:
 
 ```text
 docs/personal-notification-inbox-plan.md,
-docs/company-self-hosted-supabase-guide.md,
+docs/fastapi-postgres-backend-spec.md,
 docs/multi-workspace-expansion-plan.md,
 docs/backend-api-spec.md,
 docs/data-model.md,
@@ -420,11 +420,11 @@ docs/permission-rules.md,
 src/AGENTS.md,
 DESIGN.md를 먼저 읽고 진행해줘.
 
-회사 내부 self-hosted Supabase 연결 상태에서 개인별 알림함 Phase 1을 구현해줘.
-범위는 notifications 테이블/RLS/grants/indexes migration, supabaseStore notifications API,
+회사 내부 FastAPI/PostgreSQL 연결 상태에서 개인별 알림함 Phase 1을 구현해줘.
+범위는 notifications 테이블/indexes migration, apiStore notifications API,
 상단 종 아이콘 unread badge, 알림 패널, 읽음/전체읽음, 업무 상세 이동까지야.
 Teams 연동, 실시간 push, 모바일 push, 사용자별 알림 설정은 제외해줘.
 
 구현 후 git diff --check, CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build,
-브라우저 QA, 최소 2계정 RLS smoke 결과를 정리해줘.
+브라우저 QA, 최소 2계정 API 권한 smoke 결과를 정리해줘.
 ```

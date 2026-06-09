@@ -187,7 +187,14 @@ Key product decisions now in the prototype:
   - shared emoji picker now uses lazy-loaded `emoji-picker-react` with native emoji rendering for profile, memo, calendar notes, and update logs
   - team composition order is `그룹장 -> 팀장 -> 가나다순`.
 - Backend direction is now approved at the architecture level:
-  - first backend route: Supabase/Postgres
+  - current company backend route: FastAPI + PostgreSQL without Docker
+  - current operating branch for this route: `release/company-fastapi-postgres`
+  - implementation spec: `docs/fastapi-postgres-backend-spec.md`
+  - Supabase/self-hosted Supabase is no longer the active operating target because the company backend environment cannot install the Supabase Docker stack.
+  - previous Supabase migrations and docs remain schema/permission reference material only.
+  - first implementation milestone: create `backend/` with FastAPI health check, PostgreSQL connection, Alembic, `users`/`team_roster`, and first-admin seed.
+  - frontend integration route: keep `src/storage.js` as fallback, add `VITE_API_BASE_URL` API store, and avoid spreading network calls through view components.
+  - first backend route before the Docker constraint changed: Supabase/Postgres
   - first login route: email/password signup/login
   - new signups default to `member`
   - `admin` permission is assigned separately after signup
@@ -205,13 +212,14 @@ Key product decisions now in the prototype:
   - Data API table grants are applied manually because automatic table exposure was disabled.
 
 - Local/company Supabase setup note:
+  - Status update 2026-06-09: these Supabase notes are historical/reference only for now. The active company backend plan is `FastAPI + PostgreSQL` in `docs/fastapi-postgres-backend-spec.md`.
   - `docs/local-linux-supabase-runbook.md` documents the practical route for running this dashboard against a local Supabase CLI stack on a company Linux computer.
-  - `docs/company-self-hosted-supabase-guide.md` documents the later internal self-hosted path: the app repo and Supabase official Docker repo are separate clone targets; `release/company-self-hosted` is the current GitHub operating baseline; if company network policy blocks pushing later self-hosted work back to GitHub, the company internal Git repository can become the real operating repository and its `main` can become the production main.
-  - `docs/multi-workspace-expansion-plan.md` documents the future expansion path after our-team stabilization: 30-person groups and 10+ groups should use `workspace_id` RLS separation, optional `unit_id`, visibility scopes, and workspace-admin-managed tags/workstreams/post categories.
-  - The current app switches into Supabase mode from `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; empty values keep the local fallback/demo store.
-  - The runbook separates same-machine testing (`http://127.0.0.1:54321`) from LAN demos where other browsers need a reachable Supabase URL such as `http://<linux-ip>:54321`.
-  - Current shared Supabase coverage includes core task/calendar/tag/memo/update/history, Canvas storage, and migration `020_task_posts.sql` for task-detail `업무 노트`/post-category persistence. Real attachment files and confirmed `tasks.workstream` persistence still need future migrations before they are true multi-PC shared data.
-  - `docs/personal-notification-inbox-plan.md` documents the later per-user notification inbox: a `notifications` table with recipient-only RLS, unread/read state, top bell badge behavior, click-through to task detail, dedupe rules, and Teams integration as a later high-signal-only option. The current app has alert-like signals and a bell icon, but no DB-backed notification inbox yet.
+  - `docs/company-self-hosted-supabase-guide.md` documents the earlier internal self-hosted Supabase path for reference only.
+  - `release/company-self-hosted` remains the previous Supabase/self-hosted transfer baseline; do not use it as the active backend implementation branch unless the Docker constraint changes.
+  - `release/company-fastapi-postgres` is the active company backend branch. Company clones for real backend work should use this branch.
+  - `docs/multi-workspace-expansion-plan.md` documents the future expansion path after our-team stabilization: 30-person groups and 10+ groups should use workspace separation, optional unit separation, visibility scopes, and workspace-admin-managed tags/workstreams/post categories. In FastAPI/PostgreSQL mode these are API permission and schema rules, not Supabase RLS rules.
+  - The future app should switch into API mode from `VITE_API_BASE_URL`; empty values keep the local fallback/demo store.
+  - `docs/personal-notification-inbox-plan.md` documents the later per-user notification inbox: a `notifications` table with recipient-only API permission checks, unread/read state, top bell badge behavior, click-through to task detail, dedupe rules, and Teams integration as a later high-signal-only option. The current app has alert-like signals and a bell icon, but no DB-backed notification inbox yet.
 
 Recent UI/UX refinements from the latest session:
 

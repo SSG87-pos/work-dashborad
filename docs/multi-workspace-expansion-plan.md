@@ -230,8 +230,8 @@ workspace 전체
 
 현재 우선순위입니다.
 
-- `release/company-self-hosted` 기준으로 우리 팀 운영 검증
-- self-hosted Supabase 연결
+- `release/company-fastapi-postgres` 기준으로 우리 팀 운영 검증
+- FastAPI/PostgreSQL 연결
 - 업무 노트/Canvas/보고서 흐름 안정화
 - 실제 팀 roster와 권한 검증
 
@@ -241,7 +241,7 @@ workspace 전체
 
 - workspace/unit/visibility 용어 확정
 - 어느 데이터가 workspace별 설정인지 결정
-- RLS 정책 초안 작성
+- API 권한 정책과 DB 제약 초안 작성
 - migration 영향 범위 산정
 
 ### Phase 2. DB 전환

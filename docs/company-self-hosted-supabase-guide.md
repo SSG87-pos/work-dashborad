@@ -1,6 +1,10 @@
 # Company Self-Hosted Supabase Guide
 
-이 문서는 회사 내부 self-hosted Supabase로 `연구기획그룹-전략` 대시보드를 운영할 때 필요한 GitHub/브랜치/클론/추가 작업을 쉽게 설명하는 자료입니다.
+상태: 2026-06-09 기준 **참고 자료**입니다.
+
+회사 백엔드 조건상 Supabase Docker 구성을 설치할 수 없는 것으로 확인되어, 현재 운영 구현 방향은 `FastAPI + PostgreSQL`로 변경되었습니다. 실제 구현 기준은 `docs/fastapi-postgres-backend-spec.md`를 먼저 읽으세요.
+
+이 문서는 Docker 기반 self-hosted Supabase가 가능한 환경일 때의 GitHub/브랜치/클론/추가 작업 이력과 대안 자료로 유지합니다.
 
 작성 기준일: 2026-06-09
 

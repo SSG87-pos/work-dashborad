@@ -2,12 +2,12 @@
 
 ## Purpose
 
-회사에서 Supabase를 그대로 사용할 수 있는지 확인하기 전까지, 이 프로젝트는 실사용 확정본이 아니라 검토용 데모 상태로 둔다.
+회사 backend 운영 조건이 확정되기 전까지, 이 프로젝트는 실사용 확정본이 아니라 검토용 데모 상태로 둔다. 2026-06-09 기준으로 Supabase Docker 설치가 불가하므로 실제 구현 방향은 `FastAPI + PostgreSQL`이다.
 
 목표는 다음 세 가지다.
 
 - 실제 업무 데이터 없이 제품 흐름을 설명한다.
-- Supabase 사용 승인에 필요한 정보와 보안 질문을 정리한다.
+- FastAPI/PostgreSQL 내부 운영에 필요한 정보와 보안 질문을 정리한다.
 - 기본은 회사 내부 포트/로컬 네트워크 방식으로 시연한다. 다만 같은 회사망 접속이 어렵거나 회의 시간 동안만 여러 명에게 보여줘야 하면, 예시 데이터만 사용하는 조건으로 임시 인터넷 URL 시연을 별도 선택할 수 있다.
 - 나중에 GitHub repo를 회사 Windows/Linux PC에 clone해서 실행할 수 있도록 별도 절차를 유지한다.
 
@@ -17,8 +17,8 @@
 
 1. 예시 데이터로 My Desk, Team Flow, Calendar, Updates, Highlights의 주요 흐름을 보여준다.
 2. 실제 팀원 auth 가입/계정 연결은 보류한다.
-3. 기존 로컬 JSON 업무 이관은 실행하지 않는다. 팀은 Supabase에 새 데이터로 시작한다.
-4. Supabase RLS/function 보안 패스는 적용 완료 상태이며, 남은 Auth dashboard 보안 설정은 `docs/supabase-auth-security-checklist.md`를 기준으로 확인한다.
+3. 기존 로컬 JSON 업무 이관은 실행하지 않는다. 팀은 운영 backend가 준비된 뒤 새 데이터로 시작한다.
+4. Supabase RLS/function 보안 패스는 이전 검토 이력으로만 둔다. 새 운영 기준은 FastAPI 서비스 권한 검사와 PostgreSQL schema/migration이다.
 5. 임시 배포 URL은 기본안에서 제외한다. 회사에서는 포트/로컬 네트워크 방식으로 먼저 확인하되, 필요하면 `docs/internal-port-demo-runbook.md`의 임시 인터넷 URL 절차를 따른다.
 
 ## Demo Data Policy
@@ -59,19 +59,19 @@
 
 - 내부 실명 데모 중에는 예시 데이터를 유지한다.
 - 회사 포트/로컬 네트워크 시연 후 더 넓은 공유가 필요해지면 예시 데이터를 유지할지, 익명화할지, 비울지 먼저 결정한다.
-- Supabase에 실제로 seed한 데모 데이터를 한 번에 제거해야 하면 별도 admin 전용 `데모 데이터 비우기` 기능이나 검토된 cleanup SQL을 만든 뒤 실행한다.
+- 운영 DB에 실제로 seed한 데모 데이터를 한 번에 제거해야 하면 별도 admin 전용 `데모 데이터 비우기` 기능이나 검토된 cleanup SQL을 만든 뒤 실행한다.
 - 실제 업무 데이터와 예시 데이터를 섞기 시작했다면 전체 초기화 대신 태그/ID 기준으로 삭제 대상을 확인한 뒤 지운다.
 
-## Supabase Approval Questions
+## Backend Approval Questions
 
 회사에 확인할 질문:
 
-- Supabase 같은 외부 SaaS/Postgres/Auth 서비스를 업무 도구에 사용할 수 있는가?
-- 프로젝트 리전 `ap-northeast-1` 사용이 허용되는가?
+- 회사 리눅스 서버에 PostgreSQL을 직접 설치해도 되는가?
+- Python/FastAPI 애플리케이션을 `systemd` 서비스로 운영해도 되는가?
+- 내부 API 포트 예시 `18080`과 프론트 포트 예시 `10097` 사용이 가능한가?
 - 저장 가능한 데이터 범위는 어디까지인가?
 - 회사 이메일 로그인 또는 향후 SSO 연동이 필요한가?
-- RLS, 권한 역할, audit/접속 기록에 대한 최소 요구사항은 무엇인가?
-- leaked password protection 사용을 위해 Supabase Pro Plan 이상 사용이 가능한가?
+- 권한 역할, audit/접속 기록, DB 백업에 대한 최소 요구사항은 무엇인가?
 - 비밀번호 최소 길이/문자 조합/MFA/CAPTCHA에 대한 회사 기준은 무엇인가?
 - 회사 내부 포트/로컬 네트워크 시연 방식이 허용되는가?
 - 실제 업무 자료, 메모, 일정, 링크를 저장해도 되는 시점은 언제인가?
@@ -103,7 +103,7 @@
 - 실명 사용 여부를 회의 목적에 맞게 결정했다.
 - 데모 계정 또는 관리자 계정 사용 범위가 정해져 있다.
 - `.env.example`에서 `.env.local`을 만들었고 secret 값은 문서/Git에 남기지 않았다.
-- `Supabase 연결` 상태에서 주요 화면이 열리는지 확인했다.
+- 현재 데모는 local fallback 또는 연결 가능한 backend 상태에서 주요 화면이 열리는지 확인했다.
 - `pnpm run check:demo-readiness`가 blocking 실패 없이 통과했다.
 - My Desk, Team Flow, Calendar, Updates, Highlights 흐름이 모두 설명 가능하다.
 - JSON import는 현재 launch path에서 제외되어 있다.
@@ -123,7 +123,7 @@
 
 승인이 필요한 작업:
 
-- live DB 보안 정책 변경.
+- live DB/API 보안 정책 변경.
 - 운영성/지속 배포 URL 생성.
 - 실제 팀원 계정 가입/연결.
 - 실제 업무 데이터 입력.

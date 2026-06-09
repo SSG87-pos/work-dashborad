@@ -1,10 +1,15 @@
 # Supabase Start Guide
 
-This guide records the approved first backend path for the `연구기획그룹-전략` dashboard.
+Status as of 2026-06-09: **reference only**.
+
+This guide records the earlier Supabase backend path for the `연구기획그룹-전략` dashboard. The current approved company-internal implementation route is now `FastAPI + PostgreSQL without Docker`; read `docs/fastapi-postgres-backend-spec.md` first.
+
+Supabase remains useful as design history and schema reference, but it is not the active operating plan while the company backend environment cannot run Supabase Docker.
 
 ## Approved Direction
 
-- Backend: Supabase.
+- Previous backend direction: Supabase.
+- Current backend direction: FastAPI + PostgreSQL. See `docs/fastapi-postgres-backend-spec.md`.
 - Login first: email/password signup and login.
 - Signup policy: anyone who can sign up becomes a normal `member` by default.
 - Admin policy: administrator permission is assigned separately after signup.

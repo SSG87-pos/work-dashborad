@@ -1,6 +1,8 @@
 # Backend Decision Brief
 
-This brief defines the next approval point for turning the local React/Vite prototype into a shared work dashboard.
+This brief defines the backend decision for turning the local React/Vite prototype into a shared work dashboard.
+
+Status as of 2026-06-09: the approved route changed from Supabase to **FastAPI + PostgreSQL without Docker** because the company backend environment cannot install the Supabase Docker stack. Use `docs/fastapi-postgres-backend-spec.md` for the implementation plan.
 
 ## Decision Needed
 
@@ -11,9 +13,13 @@ Choose the first shared-data route:
 | BaaS / managed backend | The team wants a usable shared dashboard quickly. | Faster auth/tables, but service account and permission setup are required. |
 | Internal API | The dashboard must live inside an existing company system. | Better internal fit, but slower first usable version. |
 
-Recommended first production path: start with a managed/backend-table route unless an internal system requirement is already fixed.
+Recommended first production path under the current company constraint: internal API.
 
-Approved first route: Supabase managed backend with Postgres and Row Level Security.
+Approved first route: FastAPI backend with directly installed PostgreSQL. Supabase remains a design reference only.
+
+Active implementation branch:
+
+- `release/company-fastapi-postgres`
 
 ## Authentication Decision
 
@@ -51,16 +57,16 @@ Build only the data needed for a shared daily dashboard:
 
 Recurring automation and frozen report snapshots can come after shared task CRUD is stable.
 
-First Supabase migration draft:
+Implementation guide:
 
-- `supabase/migrations/001_initial_dashboard_schema.sql`
+- `docs/fastapi-postgres-backend-spec.md`
 
-Setup guide:
+Reference schema history:
 
-- `docs/supabase-start-guide.md`
+- `supabase/migrations/*.sql`
 
 ## Approval Boundary
 
-Do not implement real backend calls until the actual Supabase project URL and anon key are provided.
+Do not implement real backend calls until the internal PostgreSQL/FastAPI host, first admin account, and deployment folder are confirmed.
 
-After project connection details are available, the implementation should add a Supabase-backed store beside `src/storage.js` and keep the current local store as a development fallback.
+After API connection details are available, the implementation should add an API-backed store beside `src/storage.js` and keep the current local store as a development fallback. The frontend should switch through `VITE_API_BASE_URL`.

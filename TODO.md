@@ -2,6 +2,20 @@
 
 ## Now
 
+- [x] Reframe backend implementation from Supabase Docker to FastAPI + PostgreSQL.
+  - Files: `docs/fastapi-postgres-backend-spec.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/backend-implementation-plan.md`, `docs/backend-decision-brief.md`, `docs/company-demo-readiness-checklist.md`, `docs/supabase-start-guide.md`, `docs/company-self-hosted-supabase-guide.md`, `docs/personal-notification-inbox-plan.md`, `docs/ai-agent-readiness.md`, `docs/ai-agent-codex-implementation-brief.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: documented the current company backend constraint that Supabase Docker/self-hosted Supabase is not available.
+  - Done: established `FastAPI + PostgreSQL without Docker` as the new active implementation route.
+  - Done: added PostgreSQL DDL, FastAPI endpoint contract, auth/permission rules, project structure, deployment outline, validation checklist, and future Codex prompt in `docs/fastapi-postgres-backend-spec.md`.
+  - Done: changed existing backend docs so Supabase is reference/design history only, while FastAPI/PostgreSQL is the active operating target.
+  - Next: implement Phase 1 backend skeleton: `backend/`, health check, DB config, Alembic, `users`/`team_roster`, first-admin seed, and frontend `VITE_API_BASE_URL` store boundary.
+
+- [ ] Implement FastAPI/PostgreSQL backend Phase 1.
+  - Target docs: `docs/fastapi-postgres-backend-spec.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`.
+  - Scope: create `backend/`, install FastAPI dependencies, add PostgreSQL connection, Alembic setup, `users` and `team_roster` models/migration, first-admin seed, `/api/v1/health`, and initial auth scaffolding if time allows.
+  - Frontend boundary: add an API store behind `VITE_API_BASE_URL` while keeping `localDashboardStore` as fallback.
+  - Defer: realtime, Teams push, AI model calls, Canvas simultaneous editing, and multi-workspace separation.
+
 - [x] Replace Today Briefing memo with structured My Desk inbox and Team checklist.
   - Files: `src/App.jsx`, `src/storage.js`, `src/supabaseStore.js`, `src/styles.css`, `supabase/migrations/022_briefing_items.sql`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/local-linux-supabase-runbook.md`, `HANDOFF.md`, `TODO.md`.
   - Done: My Desk now shows `업무 인박스` instead of a plain memo textarea, with type, title, body, URL, and status fields for mail/meeting/idea/risk/reference/todo/note capture.
@@ -52,7 +66,7 @@
 - [x] Document future personal notification inbox path.
   - Files: `docs/personal-notification-inbox-plan.md`, `docs/supabase-start-guide.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
   - Done: documented the recommended post-Supabase path for per-user notifications: event types, `notifications` table, RLS, least-privilege grants, unread/read state, top bell badge behavior, click-through task navigation, dedupe, validation, and the Teams integration boundary.
-  - Guardrail: implementation is intentionally deferred until company self-hosted Supabase, real users, and shared task/update/post persistence are stable. Teams push, real-time push, mobile push, and user-configurable alert rules remain later scope.
+  - Guardrail: implementation is intentionally deferred until company FastAPI/PostgreSQL backend, real users, and shared task/update/post persistence are stable. Teams push, real-time push, mobile push, and user-configurable alert rules remain later scope.
 
 - [x] Document future multi-workspace/group expansion path.
   - Files: `docs/multi-workspace-expansion-plan.md`, `docs/supabase-start-guide.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.

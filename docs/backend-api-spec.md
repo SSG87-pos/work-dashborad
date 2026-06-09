@@ -1,6 +1,10 @@
 # Backend API and Table Spec
 
-This spec is the concrete backend contract for the `연구기획그룹-전략` work dashboard. It is written to fit either a BaaS table API or a custom REST API.
+This spec is the concrete backend contract for the `연구기획그룹-전략` work dashboard.
+
+Current approved implementation route: **FastAPI + PostgreSQL without Docker**.
+
+Read `docs/fastapi-postgres-backend-spec.md` first for the actual company-internal implementation architecture, PostgreSQL DDL, FastAPI endpoint plan, and deployment sequence. This file remains the app-level API/table contract that the frontend should continue to match. Older Supabase wording and migrations are retained as design history and schema reference only.
 
 ## Backend Route
 
@@ -8,15 +12,16 @@ Recommended implementation route:
 
 1. Keep the React/Vite UI as the canonical product surface.
 2. Use the current `src/storage.js` localStorage adapter as the development store.
-3. Add an API-backed store behind the same state shape after the backend service is selected.
-4. Start with auth, users, tasks, subtasks, updates, links, tags, and calendar events.
-5. Add recurring generation and frozen report snapshots after shared task CRUD is stable.
-6. Keep future AI/HERmes integrations read-only at first; use `docs/ai-agent-readiness.md` as the grounding, permission, and report-draft contract.
+3. Add a `VITE_API_BASE_URL` FastAPI-backed store behind the same state shape.
+4. Use PostgreSQL as the durable database.
+5. Start with auth, users/roster, tasks, subtasks, updates, links, tags, and calendar events.
+6. Add task posts, briefing inbox/team check, Canvas, recurring generation, and frozen report snapshots after shared task CRUD is stable.
+7. Keep future AI/HERmes integrations read-only at first; use `docs/ai-agent-readiness.md` as the grounding, permission, and report-draft contract.
 
 Open approval required:
 
-- Actual backend provider or internal API host.
-- Email/password versus internal SSO.
+- Actual internal API host/port.
+- Email/password first login details and future internal SSO timing.
 - Production user list and initial admin account.
 
 Until those are approved, the local prototype remains the safe implementation path.
@@ -234,7 +239,7 @@ Only admin users can insert, rename, recolor, hide, or delete post categories.
 
 ### notifications
 
-Future Supabase-backed personal notification inbox. See `docs/personal-notification-inbox-plan.md` before implementing.
+Future backend-backed personal notification inbox. See `docs/personal-notification-inbox-plan.md` before implementing.
 
 | Column | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -334,7 +339,7 @@ Canvas is a team-shared freeform thinking area. It is separate from the generate
 Canvas MVP rule:
 
 - Active signed-in users can read, insert, update, and delete shared Canvas tabs/nodes/links.
-- The current implementation saves a whole-tab snapshot after edits and refreshes from Supabase when Canvas loads.
+- The current shared-backend implementation should save a whole-tab snapshot after edits and refresh from the API when Canvas loads.
 - Todo nodes are still Canvas-local objects, but their structured `todoItems` shape is intentionally compatible with later task detail checklist/task-linking work.
 - Live cursors, simultaneous-edit conflict resolution, per-node locking, and visible change history are intentionally later collaboration features.
 
@@ -426,7 +431,7 @@ Use `/api/v1` as the initial namespace.
 
 ### Notifications
 
-These endpoints are future-facing and should be implemented only after the self-hosted Supabase user/task data is stable. The dashboard can also use the Supabase table API behind the `src/supabaseStore.js` boundary instead of a custom REST wrapper.
+These endpoints are future-facing and should be implemented only after the FastAPI/PostgreSQL user/task data is stable.
 
 | Method | Path | Role | Notes |
 | --- | --- | --- | --- |
@@ -503,15 +508,15 @@ Minimum rules:
 
 ## Migration from Prototype JSON
 
-The current `JSON 내보내기` payload can seed the backend when a legacy migration is explicitly needed. The current launch path skips old local JSON migration and starts fresh in Supabase, so this flow is retained as an admin backup/future migration tool.
+The current `JSON 내보내기` payload can seed the backend when a legacy migration is explicitly needed. The current launch path should skip old local JSON migration and start fresh in the approved backend, so this flow is retained as an admin backup/future migration tool.
 
 Current app behavior:
 
 - `src/supabaseImportPlan.js` summarizes exported prototype JSON before any backend writes.
-- In signed-in Supabase mode, `JSON 가져오기` displays the import summary and requires administrator confirmation before live DB writes.
-- Actual Supabase import execution is merge/upsert oriented: local-id rows are inserted as new rows, same UUID rows can update, and related subtasks/links/tags/calendar events/memos/profile-roster data are written through the existing Supabase store boundary.
-- After a successful Supabase import, the browser records a local JSON fingerprint. Selecting the same JSON again shows an additional duplicate-risk confirmation because local-id rows can be inserted again as new rows.
-- If an import references local person IDs that are not present in the current people directory/team roster, the Supabase import must be blocked until the ID-to-person mapping is fixed. Unknown local IDs must not be auto-created as operational roster rows.
+- In signed-in backend mode, `JSON 가져오기` should display the import summary and require administrator confirmation before live DB writes.
+- Actual backend import execution should be merge/upsert oriented: local-id rows are inserted as new rows, same UUID rows can update, and related subtasks/links/tags/calendar events/memos/profile-roster data are written through the active store boundary.
+- After a successful backend import, the browser should record a local JSON fingerprint. Selecting the same JSON again should show an additional duplicate-risk confirmation because local-id rows can be inserted again as new rows.
+- If an import references local person IDs that are not present in the current people directory/team roster, the backend import must be blocked until the ID-to-person mapping is fixed. Unknown local IDs must not be auto-created as operational roster rows.
 
 Migration order:
 

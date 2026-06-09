@@ -2,6 +2,8 @@
 
 This plan turns the current React/Vite localStorage prototype into a usable shared dashboard with real login and shared data.
 
+Current approved backend route: **FastAPI + PostgreSQL without Docker**. Read `docs/fastapi-postgres-backend-spec.md` before implementation. Supabase remains design history and schema reference only because the company backend condition cannot run Supabase Docker.
+
 ## Recommended Sequence
 
 ### 1. Keep the Current Prototype as the UI Source
@@ -123,42 +125,37 @@ Rules are defined in `docs/ai-agent-readiness.md`. AI-generated reports must inc
 
 ## Backend Options
 
-The approved first implementation path is Supabase:
+The approved first implementation path is now:
 
-- localStorage adapter for prototype/development
-- Supabase/Postgres schema in `supabase/migrations/001_initial_dashboard_schema.sql`
-- setup guide in `docs/supabase-start-guide.md`
-- API/table contract in `docs/backend-api-spec.md`
-- future internal SSO support through the same `public.users` profile model
+- FastAPI backend in a new `backend/` folder
+- Direct PostgreSQL install on the company Linux server
+- API-backed frontend store selected by `VITE_API_BASE_URL`
+- SQLAlchemy or SQLModel models
+- Alembic migrations
+- FastAPI service-layer permissions instead of Supabase RLS
+- future internal SSO support through the same `users` profile model
 
-### Approved Option. Supabase BaaS
+### Approved Option. FastAPI + PostgreSQL
 
-Best when the team wants a working shared dashboard quickly.
-
-Pros:
-
-- faster auth and tables
-- less infrastructure work
-- easier prototype-to-production transition
-
-Cons:
-
-- service choice and account setup required
-- row-level permissions must be configured carefully
-
-### Future Option. Custom API
-
-Best when the dashboard must live inside an existing internal system.
+Best when the dashboard must run inside a company internal network where Docker/Supabase self-hosting is not available.
 
 Pros:
 
+- no Supabase Docker dependency
 - full control over authentication and permissions
-- easier integration with internal SSO later
+- easier to operate inside an internal Linux server policy
+- PostgreSQL still supports reporting, joins, audit history, and later AI evidence queries
+- future SSO can be integrated at the API session layer
 
 Cons:
 
-- slower first usable version
-- needs deployment, database, and operations decisions
+- more implementation work than Supabase table API
+- auth, permissions, migrations, and deployment must be owned by the project
+- realtime features require a later WebSocket/SSE pass
+
+### Reference Option. Supabase
+
+Supabase remains useful as a design reference because it already shaped the table model, task-posts, briefing items, Canvas storage, and permission thinking. It is not the current operating target while Docker-based self-hosting is blocked.
 
 ## Minimal Production Milestone
 
@@ -184,31 +181,23 @@ After that, add recurring automation and report snapshots.
 
 ## Immediate Next Technical Step
 
-After the first admin login and initial Supabase connection:
+For the FastAPI/PostgreSQL path:
 
-1. Keep actual team-member signup/auth account linking deferred until the team is ready.
-2. Do not run a legacy JSON import for the current launch; the team will start writing fresh data in Supabase. Keep the approved JSON import flow only as an admin backup/future migration path, and use it only after a source file is selected and local 담당자 IDs are mapped to the current team roster.
-3. Use `docs/supabase-security-next-pass.md` for the next approved security hardening pass around SECURITY DEFINER helper functions and shared memo RLS strictness.
-4. Continue small no-approval stabilization through the existing storage boundary and verification scripts.
-5. Keep JSON export/import as an admin backup and migration tool.
+1. Create `backend/` with FastAPI, config, DB session, health check, and Alembic.
+2. Add PostgreSQL migrations for `users` and `team_roster`.
+3. Add first-admin seed flow.
+4. Implement email/password login and `GET /api/v1/me`.
+5. Add `src/apiClient.js` and `src/apiStore.js` selected by `VITE_API_BASE_URL`.
+6. Move shared task CRUD first.
+7. Keep JSON export/import as an admin backup and migration tool.
+8. Keep realtime, Teams push, and AI model calls deferred.
 
 ## Current Integration State
 
-- `@supabase/supabase-js` is installed.
-- `src/supabaseClient.js` reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-- `src/supabaseStore.js` contains auth/read/preference/memo/tag/task/calendar adapters.
-- Live project URL is configured locally in ignored `.env.local`.
-- Initial Supabase schema, RLS policies, manual Data API grants, and first admin promotion have been applied.
-- Login/session restore hydrates profile/preferences/memos/tags/events/tasks from Supabase.
-- Empty Supabase task/calendar tables preserve prototype data during migration so the UI remains usable.
-- First write paths exist for shared tags, page-scoped memos, profile name/title/emoji, UUID-backed tasks, task status, due-date change history, task change-history note correction/delete, update logs, update-log body correction/delete, links, archive/delete, subtask progress, and calendar event create/edit/delete.
-- Admin user-management UI exists for permission role, team-list visibility, and active-state changes.
-- Live migration `admin_user_management_grants` has been applied. The matching local file is `supabase/migrations/002_admin_user_management.sql`, which grants the additional `users` update columns required by admin user-management.
-- Live migration `task_recurring_columns` has been applied. The matching local file is `supabase/migrations/003_task_recurring_columns.sql`, which stores the visible recurring task rule directly on `tasks` so the existing board/timeline/recurring UI can round-trip rules without a separate worker.
-- Live migration `team_roster_pre_auth` has been applied. The matching local file is `supabase/migrations/004_team_roster_pre_auth.sql`, which lets admins create assignee roster rows with expected signup emails before teammates have accounts.
-- Live migration `roster_task_permissions` has been applied. The matching local file is `supabase/migrations/005_roster_task_permissions.sql`, which lets a linked teammate manage pre-created tasks assigned to their roster row.
-- The UI now shows a short in-app sync notice when a Supabase write fails or when a prototype-only sample item is kept local.
-- Prototype JSON import now has a signed-in Supabase summary guard, administrator confirmation, live merge/upsert execution, and local same-JSON fingerprint warning before duplicate-risk reruns.
-- Prototype JSON import now blocks unknown local 담당자 IDs before live Supabase writes, so stale local IDs are mapped before they can become operational roster rows.
-- Supabase advisor preflight produced `supabase/migrations/013_advisor_preflight_hardening.sql` for `touch_updated_at` search path and FK covering indexes. It passed `BEGIN ... ROLLBACK` syntax verification and was applied live through `execute_sql`.
-- Transition note: tasks can now save against roster assignees before signup. When a teammate signs up with the expected email, the roster row links to the real auth user automatically.
+- Frontend UI and local fallback are complete enough to keep as the product surface.
+- `src/storage.js` is the local persistence boundary and should remain the fallback.
+- `src/supabaseClient.js` and `src/supabaseStore.js` still exist from the earlier Supabase path and can be used as adapter-shape references.
+- No FastAPI backend has been implemented yet.
+- No `backend/` folder exists yet.
+- No PostgreSQL Alembic migrations exist yet.
+- The current first implementation task is to add a FastAPI skeleton and PostgreSQL schema based on `docs/fastapi-postgres-backend-spec.md`.

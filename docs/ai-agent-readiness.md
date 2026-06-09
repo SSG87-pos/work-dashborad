@@ -100,7 +100,7 @@ Recommended shape:
 }
 ```
 
-This projection can be produced from Supabase using role-filtered queries, database views, or a small server/API layer. The important rule is that the projection is already permission-filtered before it reaches the AI model.
+This projection should be produced from the FastAPI/PostgreSQL backend using role-filtered service queries, SQL views, or dedicated read endpoints. The important rule is that the projection is already permission-filtered before it reaches the AI model.
 
 ## Suggested Query Tools
 
@@ -114,7 +114,7 @@ Start with a small number of tools that map to real user questions.
 | `getRecentUpdates(filters)` | 기간/담당자/태그/상태 기준 최근 업데이트 조회. |
 | `getReportEvidence(reportType, period, filters)` | 주간/월간/임원 보고서 생성을 위한 근거 묶음 조회. |
 
-These are conceptual tool names. The implementation can be Supabase RPC, PostgREST filtered views, an internal REST API, or an MCP tool.
+These are conceptual tool names. The implementation can be FastAPI read endpoints first, then an MCP tool wrapper later.
 
 ## Issue Signals
 
@@ -172,7 +172,7 @@ AI read access must follow the same server-side permission rules as human users.
 
 ## Implementation Phases
 
-1. `AI 읽기용 스냅샷`: generate JSON/Markdown from the current dashboard state or Supabase reads for manual AI use.
+1. `AI 읽기용 스냅샷`: generate JSON/Markdown from the current dashboard state or FastAPI/PostgreSQL reads for manual AI use.
 2. `Read-only API`: expose permission-filtered task/update/workstream/report-evidence endpoints.
 3. `Agent tools`: wrap the read-only API as HERmes/MCP/internal tools with grounded citations.
 4. `Draft reports`: add controlled templates for weekly/monthly/workstream/executive report drafts.

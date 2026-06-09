@@ -1,6 +1,10 @@
 # Backend Data Model Draft
 
-This note describes the first backend-ready model for the research strategy work dashboard. It is intentionally implementation-neutral so it can map to a BaaS table model, REST API, or a relational database later.
+This note describes the first backend-ready model for the research strategy work dashboard.
+
+Current approved implementation route: **FastAPI + PostgreSQL without Docker**.
+
+Use `docs/fastapi-postgres-backend-spec.md` as the concrete PostgreSQL schema and FastAPI implementation guide. This document explains the domain model and business rules that the backend must preserve. Supabase migrations remain useful schema references, but they are no longer the operating target while the company environment cannot run Supabase Docker.
 
 ## Users and Roles
 
@@ -193,7 +197,7 @@ LLM rule: `briefing_items` are useful as raw evidence for future AI briefing, se
 
 ### notifications
 
-Future personal notification inbox used by the top bell icon. Implement after self-hosted Supabase auth, roster, tasks, update logs, and 업무 노트 persistence are stable. See `docs/personal-notification-inbox-plan.md`.
+Future personal notification inbox used by the top bell icon. Implement after FastAPI/PostgreSQL auth, roster, tasks, update logs, and 업무 노트 persistence are stable. See `docs/personal-notification-inbox-plan.md`.
 
 | Field | Type | Notes |
 | --- | --- | --- |

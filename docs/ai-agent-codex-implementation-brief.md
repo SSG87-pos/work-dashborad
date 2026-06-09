@@ -12,7 +12,7 @@ docs/ai-agent-codex-implementation-brief.md 읽고 AI 에이전트 연동 작업
 
 Implement AI-agent support in the safest useful order:
 
-1. Build a read-only evidence layer from dashboard/Supabase data.
+1. Build a read-only evidence layer from dashboard/FastAPI/PostgreSQL data.
 2. Expose that evidence through `/ai/read/...` query APIs or equivalent local adapters.
 3. Validate OpenAI tool/function calling against that evidence.
 4. Wrap the same read-only operations as MCP tools for HERmes.
@@ -25,14 +25,15 @@ Read these files before editing code:
 
 1. `AGENTS.md`
 2. `src/AGENTS.md`
-3. `docs/ai-agent-implementation-guide.md`
-4. `docs/ai-agent-readiness.md`
-5. `docs/backend-api-spec.md`
-6. `docs/data-model.md`
-7. `docs/permission-rules.md`
-8. `docs/performance-report-rules.md`
-9. `HANDOFF.md`
-10. `TODO.md`
+3. `docs/fastapi-postgres-backend-spec.md`
+4. `docs/ai-agent-implementation-guide.md`
+5. `docs/ai-agent-readiness.md`
+6. `docs/backend-api-spec.md`
+7. `docs/data-model.md`
+8. `docs/permission-rules.md`
+9. `docs/performance-report-rules.md`
+10. `HANDOFF.md`
+11. `TODO.md`
 
 ## Current Recommended Architecture
 
@@ -40,7 +41,7 @@ Read these files before editing code:
 HERmes Agent / OpenAI model
 -> MCP tool or OpenAI function tool
 -> dashboard read-only API
--> permission-filtered Supabase query
+-> permission-filtered FastAPI/PostgreSQL query
 -> evidence bundle
 -> grounded answer or draft report
 ```
@@ -49,7 +50,7 @@ Implementation rule:
 
 - REST/read-only API is the durable company boundary.
 - MCP is the agent-friendly wrapper.
-- Supabase remains the system of record.
+- PostgreSQL behind FastAPI is the planned system of record.
 - The model writes prose, not database rows.
 
 ## First Implementation Target

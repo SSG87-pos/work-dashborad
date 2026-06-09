@@ -50,14 +50,15 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 - **[Frontend source and interaction rules](./src/AGENTS.md)** — React state, task behavior, CSS layering, and browser QA rules.
 - **[Design system and product UI rules](./DESIGN.md)** — Approved visual direction, layout behavior, typography, chips, and component-specific design contracts.
 - **[Backend planning docs](./docs/backend-api-spec.md)** — Future API/storage/auth contract reference.
+- **[FastAPI/PostgreSQL backend spec](./docs/fastapi-postgres-backend-spec.md)** — Current Docker-free company backend implementation target, PostgreSQL schema, FastAPI endpoints, and rollout sequence.
 - **[Permission rules](./docs/permission-rules.md)** — Role and permission model reference.
 - **[AI agent readiness](./docs/ai-agent-readiness.md)** — Future read-only HERmes/AI answer and report-generation contract.
 - **[AI implementation guide](./docs/ai-agent-implementation-guide.md)** — Beginner-friendly starting point for future OpenAI/HERmes/MCP integration.
 - **[AI Codex implementation brief](./docs/ai-agent-codex-implementation-brief.md)** — Developer execution checklist for future Codex implementation sessions.
 - **[Multi-workspace expansion plan](./docs/multi-workspace-expansion-plan.md)** — Future group/workspace/unit expansion and RLS separation plan.
-- **[Personal notification inbox plan](./docs/personal-notification-inbox-plan.md)** — Future Supabase-backed per-user notification inbox, bell badge, RLS, and Teams-notification boundary.
+- **[Personal notification inbox plan](./docs/personal-notification-inbox-plan.md)** — Future per-user notification inbox, bell badge, backend permission rules, and Teams-notification boundary.
 
 ## Maintenance Policy
 
 - If implementation and these rules drift, update the rules or note the drift in `TODO.md`.
-- If a future backend is selected, add backend-specific commands and security rules here.
+- Current backend implementation target is FastAPI + PostgreSQL without Docker. Add concrete backend commands here after the `backend/` app is created.
