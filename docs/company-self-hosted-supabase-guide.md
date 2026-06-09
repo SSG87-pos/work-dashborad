@@ -4,6 +4,13 @@
 
 작성 기준일: 2026-06-09
 
+2026-06-10 업데이트:
+
+- 회사 C3 Docker 이미지/멀티 컨테이너 운영은 `release/company-supabase-c3` 브랜치와 `docs/company-c3-supabase-docker-runbook.md`를 우선 기준으로 사용합니다.
+- `release/company-self-hosted`에는 업무 인박스/팀 체크 업데이트가 이미 포함되어 있으며, C3 브랜치는 이 기준에서 분기했습니다.
+- C3/Supabase DB에는 `supabase/migrations/001_initial_dashboard_schema.sql`부터 `022_briefing_items.sql`까지 순서대로 적용해야 합니다.
+- 회사 환경에서 `sudo`가 동작하지 않을 수 있으므로 C3 runbook의 `$ADMIN=gksudo`/`gsudo`/`pkexec` 안내를 따릅니다.
+
 ## 먼저 결론
 
 내일 데모만 다시 보여줄 때는 `main`을 새로 클론할 필요가 없습니다.
@@ -30,7 +37,7 @@ pnpm run dev -- --host 0.0.0.0 --port 10097
 
 `main`을 새로 클론한다고 해서 랜딩페이지, Canvas, 업무 노트, Highlights 게시글 모음, Supabase 연결 작업이 모두 따라온다고 보장할 수는 없습니다. 그 기능들이 `main`에 merge되어 있어야만 기본 clone으로 따라옵니다.
 
-현재 기준으로는 최종 기능이 들어 있는 기준 브랜치는 `release/company-self-hosted`입니다. 이 브랜치는 `codex/poslab-entry-landing`에서 운영 후보 기준점으로 만든 브랜치입니다.
+기존 self-hosted 기준 브랜치는 `release/company-self-hosted`입니다. C3 Docker 이미지/멀티 컨테이너 방식으로 다시 진행할 때는 `release/company-supabase-c3`를 사용합니다.
 
 ## 큰 그림
 
@@ -50,7 +57,7 @@ https://github.com/SSG87-pos/work-dashborad.git
 - POSLAB 랜딩페이지
 - Canvas, 마인드맵, Highlights, 업무 노트, 관리자 화면
 - Supabase 연결 코드
-- `supabase/migrations/001...021` DB 스키마
+- `supabase/migrations/001...022` DB 스키마
 
 ### 2. Supabase 공식 self-hosted Docker 구성
 
@@ -315,7 +322,7 @@ main
 - Canvas
 - 관리자
 - 업무 노트/게시글
-- Supabase migrations `001`부터 `020`
+- Supabase migrations `001`부터 `022`
 - self-hosted 운영 문서
 - 내부 Git 운영 전환 안내
 
@@ -637,7 +644,7 @@ Supabase 공식 Docker Compose 구성으로 설치합니다.
 - 방화벽/포트 정책
 - reverse proxy/HTTPS 여부
 
-### 필수 3. migration 001부터 021까지 적용
+### 필수 3. migration 001부터 022까지 적용
 
 테이블이 생겨야 실제 공유 저장이 됩니다.
 
@@ -978,7 +985,7 @@ where email = '관리자_이메일';
 - `release/company-self-hosted`를 GitHub 또는 회사 내부 Git의 운영 기준으로 확정
 - 회사 내부 Git을 쓰는 경우 내부 Git `main`을 실제 운영 메인으로 설정
 - self-hosted Supabase 설치
-- `001`부터 `021` migration 적용
+- `001`부터 `022` migration 적용
 - self-hosted URL/key를 앱 환경변수에 연결
 - 첫 admin 계정 생성
 - 실제 팀 roster 입력
@@ -1003,4 +1010,4 @@ where email = '관리자_이메일';
 
 ## 한 줄 정리
 
-내일 데모는 지금 브랜치만 pull해서 보여주면 됩니다. self-hosted Supabase 운영으로 넘어갈 때는 `release/company-self-hosted`를 GitHub 또는 회사 내부 Git의 운영 기준으로 삼고, 내부망 때문에 GitHub로 다시 push할 수 없다면 회사 내부 Git의 `main`을 실제 운영 메인으로 사용하면 됩니다. 그 뒤 별도의 Supabase 공식 Docker 구성을 회사 서버에 설치하고, 우리 repo의 `supabase/migrations/001...021`을 그 DB에 적용한 다음, 앱의 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_ANON_KEY`를 회사 내부 Supabase 주소/key로 연결하면 됩니다.
+내일 데모는 지금 브랜치만 pull해서 보여주면 됩니다. C3 Docker 이미지/멀티 컨테이너 방식으로 self-hosted Supabase 운영을 진행할 때는 `release/company-supabase-c3`와 `docs/company-c3-supabase-docker-runbook.md`를 우선 기준으로 삼습니다. 그 뒤 별도의 Supabase 공식 Docker 구성을 C3에 설치하고, 우리 repo의 `supabase/migrations/001...022`를 그 DB에 적용한 다음, 앱의 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_ANON_KEY`를 회사 내부 Supabase 주소/key로 연결하면 됩니다.

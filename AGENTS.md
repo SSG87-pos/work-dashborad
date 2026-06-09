@@ -50,6 +50,7 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 - **[Frontend source and interaction rules](./src/AGENTS.md)** — React state, task behavior, CSS layering, and browser QA rules.
 - **[Design system and product UI rules](./DESIGN.md)** — Approved visual direction, layout behavior, typography, chips, and component-specific design contracts.
 - **[Backend planning docs](./docs/backend-api-spec.md)** — Future API/storage/auth contract reference.
+- **[C3 Supabase Docker runbook](./docs/company-c3-supabase-docker-runbook.md)** — Current company C3 Docker/multi-container Supabase operating guide, migration sequence, and no-sudo admin-command notes.
 - **[Permission rules](./docs/permission-rules.md)** — Role and permission model reference.
 - **[AI agent readiness](./docs/ai-agent-readiness.md)** — Future read-only HERmes/AI answer and report-generation contract.
 - **[AI implementation guide](./docs/ai-agent-implementation-guide.md)** — Beginner-friendly starting point for future OpenAI/HERmes/MCP integration.
@@ -60,4 +61,5 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 ## Maintenance Policy
 
 - If implementation and these rules drift, update the rules or note the drift in `TODO.md`.
+- Current Supabase/C3 operating branch is `release/company-supabase-c3`. Use `docs/company-c3-supabase-docker-runbook.md` before company C3 Docker image/stack work.
 - If a future backend is selected, add backend-specific commands and security rules here.

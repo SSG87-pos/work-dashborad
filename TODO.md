@@ -2,6 +2,19 @@
 
 ## Now
 
+- [x] Create C3 Supabase Docker operating branch and runbook.
+  - Files: `docs/company-c3-supabase-docker-runbook.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`, `docs/company-self-hosted-supabase-guide.md`, `docs/supabase-start-guide.md`.
+  - Done: created `release/company-supabase-c3` from `release/company-self-hosted`, so 업무 인박스/팀 체크 and migration `022_briefing_items.sql` are included.
+  - Done: documented that C3 must support Docker Compose or multi-container stack because self-hosted Supabase is not a single image.
+  - Done: added no-sudo guidance through `$ADMIN=gksudo`, `gsudo`, `pkexec`, or the company-approved administrator command.
+  - Done: added C3 deployment checklist for persistent volumes, secrets, registry/image pull, ports, URLs, frontend env, and migration application.
+  - Done: added migration instructions to apply `supabase/migrations/001...022` in order and smoke checks for `briefing_items`, `task_posts`, and Canvas tables.
+  - Guardrail: do not put service role/secret keys in frontend `.env.local`; use only browser-safe publishable/anon key.
+
+- [ ] Apply and verify C3 Supabase stack in the company environment.
+  - Scope: confirm C3 multi-container/Compose support, create Supabase stack, configure `.env`, set persistent volumes, expose approved URLs/ports, apply migrations `001` through `022`, create first admin, connect dashboard `.env.local`, and run smoke tests.
+  - Verification: stack health, migration table existence, admin login, 업무 인박스 personal scope, 팀 체크 shared scope, 업무 노트 CRUD, Canvas persistence, `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
+
 - [x] Replace Today Briefing memo with structured My Desk inbox and Team checklist.
   - Files: `src/App.jsx`, `src/storage.js`, `src/supabaseStore.js`, `src/styles.css`, `supabase/migrations/022_briefing_items.sql`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/local-linux-supabase-runbook.md`, `HANDOFF.md`, `TODO.md`.
   - Done: My Desk now shows `업무 인박스` instead of a plain memo textarea, with type, title, body, URL, and status fields for mail/meeting/idea/risk/reference/todo/note capture.
@@ -79,7 +92,7 @@
 
 - [x] Document company Linux local Supabase setup.
   - Files: `docs/local-linux-supabase-runbook.md`, `docs/supabase-start-guide.md`, `HANDOFF.md`, `TODO.md`.
-  - Done: reviewed the current Supabase boundary (`src/supabaseClient.js`, `src/supabaseStore.js`, `.env.example`) and migrations `001` through `020`.
+  - Done: reviewed the current Supabase boundary (`src/supabaseClient.js`, `src/supabaseStore.js`, `.env.example`) and migrations `001` through `022`.
   - Done: added a Korean runbook for a company Linux computer covering prerequisites, clone/pull, pnpm install, Supabase CLI init/start/status, local migrations, `.env.local`, app port `10097`, first-admin promotion, same-machine vs LAN Supabase URL behavior, verification, and troubleshooting.
   - Follow-up: migration `020_task_posts.sql` now covers `업무 노트` posts and post-category management. The runbook now marks only real attachment files and confirmed `tasks.workstream` persistence as future shared-data gaps.
 

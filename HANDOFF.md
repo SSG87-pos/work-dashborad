@@ -26,7 +26,11 @@ Last updated: 2026-06-09
 - Package manager: `/Users/seulgi/Library/pnpm/bin/pnpm`.
 - Build command: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
 - GitHub remote: `https://github.com/SSG87-pos/work-dashborad.git`.
-- Current backend branch: `codex/supabase-integration`.
+- Current C3/Supabase operating branch: `release/company-supabase-c3`.
+- Previous backend branches:
+  - `release/company-self-hosted`: Supabase self-hosted baseline that already includes 업무 인박스/팀 체크.
+  - `release/company-fastapi-postgres`: FastAPI/PostgreSQL alternative documentation branch.
+  - `codex/supabase-integration`: earlier Supabase integration branch.
 - Persistence is hybrid during the transition:
   - localStorage key `research-strategy-dashboard:v1` remains the prototype fallback.
   - Supabase is active when `.env.local` contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
@@ -188,6 +192,8 @@ Key product decisions now in the prototype:
   - team composition order is `그룹장 -> 팀장 -> 가나다순`.
 - Backend direction is now approved at the architecture level:
   - first backend route: Supabase/Postgres
+  - current company C3 route: self-hosted Supabase through C3 Docker Compose or C3 multi-container stack
+  - current C3 guide: `docs/company-c3-supabase-docker-runbook.md`
   - first login route: email/password signup/login
   - new signups default to `member`
   - `admin` permission is assigned separately after signup
@@ -196,6 +202,7 @@ Key product decisions now in the prototype:
   - setup guide: `docs/supabase-start-guide.md`
   - company Linux local setup runbook: `docs/local-linux-supabase-runbook.md`
   - company self-hosted operating guide: `docs/company-self-hosted-supabase-guide.md`
+  - C3 Docker/multi-container operating guide: `docs/company-c3-supabase-docker-runbook.md`
   - future multi-group expansion plan: `docs/multi-workspace-expansion-plan.md`
   - future personal notification inbox plan: `docs/personal-notification-inbox-plan.md`
 - Live Supabase project:
@@ -205,12 +212,13 @@ Key product decisions now in the prototype:
   - Data API table grants are applied manually because automatic table exposure was disabled.
 
 - Local/company Supabase setup note:
+  - `docs/company-c3-supabase-docker-runbook.md` is the current C3 route: use `release/company-supabase-c3`, confirm C3 supports Docker Compose/multi-container apps plus persistent volumes/secrets, configure self-hosted Supabase `.env`, connect the dashboard with `VITE_SUPABASE_URL` and browser-safe `VITE_SUPABASE_ANON_KEY`, and apply migrations `001` through `022`.
   - `docs/local-linux-supabase-runbook.md` documents the practical route for running this dashboard against a local Supabase CLI stack on a company Linux computer.
   - `docs/company-self-hosted-supabase-guide.md` documents the later internal self-hosted path: the app repo and Supabase official Docker repo are separate clone targets; `release/company-self-hosted` is the current GitHub operating baseline; if company network policy blocks pushing later self-hosted work back to GitHub, the company internal Git repository can become the real operating repository and its `main` can become the production main.
   - `docs/multi-workspace-expansion-plan.md` documents the future expansion path after our-team stabilization: 30-person groups and 10+ groups should use `workspace_id` RLS separation, optional `unit_id`, visibility scopes, and workspace-admin-managed tags/workstreams/post categories.
   - The current app switches into Supabase mode from `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; empty values keep the local fallback/demo store.
   - The runbook separates same-machine testing (`http://127.0.0.1:54321`) from LAN demos where other browsers need a reachable Supabase URL such as `http://<linux-ip>:54321`.
-  - Current shared Supabase coverage includes core task/calendar/tag/memo/update/history, Canvas storage, and migration `020_task_posts.sql` for task-detail `업무 노트`/post-category persistence. Real attachment files and confirmed `tasks.workstream` persistence still need future migrations before they are true multi-PC shared data.
+  - Current shared Supabase coverage includes core task/calendar/tag/memo/update/history, Canvas storage, migration `020_task_posts.sql` for task-detail `업무 노트`/post-category persistence, migration `021_task_work_kind.sql` for `스팟 업무`, and migration `022_briefing_items.sql` for `업무 인박스`/`팀 체크`. Real attachment files and confirmed `tasks.workstream` persistence still need future migrations before they are true multi-PC shared data.
   - `docs/personal-notification-inbox-plan.md` documents the later per-user notification inbox: a `notifications` table with recipient-only RLS, unread/read state, top bell badge behavior, click-through to task detail, dedupe rules, and Teams integration as a later high-signal-only option. The current app has alert-like signals and a bell icon, but no DB-backed notification inbox yet.
 
 Recent UI/UX refinements from the latest session:
