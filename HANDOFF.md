@@ -190,9 +190,11 @@ Key product decisions now in the prototype:
   - current company backend route: FastAPI + PostgreSQL without Docker
   - current operating branch for this route: `release/company-fastapi-postgres`
   - implementation spec: `docs/fastapi-postgres-backend-spec.md`
+  - beginner company setup/runbook: `docs/company-fastapi-postgres-beginner-runbook.md`
   - Supabase/self-hosted Supabase is no longer the active operating target because the company backend environment cannot install the Supabase Docker stack.
   - previous Supabase migrations and docs remain schema/permission reference material only.
   - first implementation milestone: create `backend/` with FastAPI health check, PostgreSQL connection, Alembic, `users`/`team_roster`, and first-admin seed.
+  - current important boundary: `backend/` has not been implemented yet. The beginner runbook separates commands that work now from commands that should be run after backend Phase 1 exists.
   - frontend integration route: keep `src/storage.js` as fallback, add `VITE_API_BASE_URL` API store, and avoid spreading network calls through view components.
   - first backend route before the Docker constraint changed: Supabase/Postgres
   - first login route: email/password signup/login

@@ -51,6 +51,7 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 - **[Design system and product UI rules](./DESIGN.md)** — Approved visual direction, layout behavior, typography, chips, and component-specific design contracts.
 - **[Backend planning docs](./docs/backend-api-spec.md)** — Future API/storage/auth contract reference.
 - **[FastAPI/PostgreSQL backend spec](./docs/fastapi-postgres-backend-spec.md)** — Current Docker-free company backend implementation target, PostgreSQL schema, FastAPI endpoints, and rollout sequence.
+- **[Beginner FastAPI/PostgreSQL runbook](./docs/company-fastapi-postgres-beginner-runbook.md)** — Step-by-step company Linux manual for cloning the branch, preparing PostgreSQL/FastAPI prerequisites, and connecting the app after backend implementation.
 - **[Permission rules](./docs/permission-rules.md)** — Role and permission model reference.
 - **[AI agent readiness](./docs/ai-agent-readiness.md)** — Future read-only HERmes/AI answer and report-generation contract.
 - **[AI implementation guide](./docs/ai-agent-implementation-guide.md)** — Beginner-friendly starting point for future OpenAI/HERmes/MCP integration.
