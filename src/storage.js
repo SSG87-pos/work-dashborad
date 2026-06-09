@@ -9,7 +9,9 @@ export const defaultDashboardPreferences = {
   activePage: "my",
   activeView: "board",
   category: "전체",
+  ownerFilter: "전체",
   priorityFilter: "전체",
+  workKindFilter: "전체",
   timelineMode: "month",
   timelineMonth: "",
   timelineYear: "",
@@ -57,13 +59,16 @@ export function createDashboardSnapshot(state) {
     activePage: state.activePage ?? defaultDashboardPreferences.activePage,
     activeView: state.activeView ?? defaultDashboardPreferences.activeView,
     category: state.category ?? defaultDashboardPreferences.category,
+    ownerFilter: state.ownerFilter ?? defaultDashboardPreferences.ownerFilter,
     priorityFilter: state.priorityFilter ?? defaultDashboardPreferences.priorityFilter,
+    workKindFilter: state.workKindFilter ?? defaultDashboardPreferences.workKindFilter,
     timelineMode: state.timelineMode ?? defaultDashboardPreferences.timelineMode,
     timelineMonth: state.timelineMonth ?? defaultDashboardPreferences.timelineMonth,
     timelineYear: state.timelineYear ?? defaultDashboardPreferences.timelineYear,
     selectedTaskId: state.selectedTaskId ?? defaultDashboardPreferences.selectedTaskId,
     displayDensity: state.displayDensity ?? defaultDashboardPreferences.displayDensity,
     memoByPage: state.memoByPage ?? { my: "", team: "" },
+    briefingItems: state.briefingItems ?? [],
     profileOverrides: state.profileOverrides ?? {}
   };
 }

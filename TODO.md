@@ -2,6 +2,53 @@
 
 ## Now
 
+- [x] Replace Today Briefing memo with structured My Desk inbox and Team checklist.
+  - Files: `src/App.jsx`, `src/storage.js`, `src/supabaseStore.js`, `src/styles.css`, `supabase/migrations/022_briefing_items.sql`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/local-linux-supabase-runbook.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: My Desk now shows `업무 인박스` instead of a plain memo textarea, with type, title, body, URL, and status fields for mail/meeting/idea/risk/reference/todo/note capture.
+  - Done: `업무 인박스` is personal per selected person. My Desk filters by the item's owner, while `팀 체크` remains shared for Team Flow.
+  - Done: Team Flow now shows `팀 체크` as compact todo rows; items can be added and checked done. Checked items stay completed until they are edited or deleted from the larger detail dialog.
+  - Done: the small briefing area is now title-first and height-aware. It uses the available `오늘 브리핑` side-panel height to show as many recent rows as fit. Writing, long-form reading, editing, and deletion happen in a larger dialog; older rows open through a compact header `전체` list dialog instead of expanding or scrolling inside the side panel.
+  - Done: moved the overflow `전체` control beside `추가/기록` in the capture header, so the row list keeps its vertical space. The preview threshold is based on the briefing-side height instead of a fixed 3/4 row count; in very short briefings it can show only two rows before the `전체` dialog.
+  - Done: Team checklist rows no longer show a separate `보기` button or inline edit/delete icons. Clicking the title/text box opens the larger detail dialog; both inbox and checklist titles expose native hover tooltips.
+  - Done: added local/export/import persistence through `briefingItems`, Supabase read/write support through `briefing_items`, and self-hosted migration `022_briefing_items.sql`. The migration now treats `scope = 'my'` rows as personal owner/author-visible records, while `scope = 'team'` rows remain shared.
+  - Verified: `git diff --check`, `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`, and Browser QA on `http://localhost:5174/` passed. My Desk and Team Flow write dialogs both showed the large form and visible `저장` button; no page-level horizontal overflow; console only showed the existing Three/deprecated-parameter warnings. Follow-up browser check confirmed the capture area no longer clips overflow and no inline edit/delete icons remain in the small list. The current browser state had no saved briefing capture rows, so 5+ row rendering and per-person inbox filtering were verified from the code path/build rather than live seeded rows.
+
+- [x] Unify workflow filters across workflow views.
+  - Files: `src/App.jsx`, `src/storage.js`, `src/supabaseStore.js`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: `보드`, `리스트`, `타임라인`, `반복 업무`, `보관함`, and `마인드맵` now share tag, owner, priority, and spot filters.
+  - Done: added compact owner filtering, including `미지정`, and reduced toolbar filter control widths.
+  - Verified: `git diff --check`, `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`, and Browser QA on `http://localhost:5174/` passed. All six workflow tabs showed the same four filters with compact widths; `사람: 미지정` was available; `사람: 소슬기` plus `스팟만` reduced the list to the one matching spot task; `마인드맵` spot filtering reduced task nodes from 11 to 1.
+
+- [x] Add compact table-style task list view.
+  - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added `리스트` between `보드` and `타임라인`, with status sections ordered `검토/대기`, `계획`, `진행중`, `완료`, `보류`.
+  - Done: status sections start collapsed by default and expand into a compact, low-color table with task title, owner, tags, period, and progress.
+  - Done: removed duplicate row-level status chips, moved priority/spot/repeat/schedule markers beside the task title, changed owner cells to name-only lighter text, and lowered tag-chip contrast.
+  - Done: aligned all list-row stickers to the same 20px height, center alignment, and line-height so priority, spot, repeat, and schedule chips no longer look uneven. Sticker groups now start from a fixed left edge inside the task column instead of shifting by title length.
+  - Done: clicking a list row opens the same workflow-side task detail, and narrow areas keep any overflow inside the table instead of pushing the page.
+  - Verified: `git diff --check`, `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`, and Browser QA on `http://localhost:5174/` passed. `리스트` appears between `보드` and `타임라인`; all five status sections start collapsed; `진행` expands to 6 compact rows; rows show no duplicated `진행` chip; owner avatars are removed; `오늘 마감`, `마감 임박`, and `오늘 시작` markers render beside the title; sticker heights measured consistently at 20px; sticker x positions measured consistently at 455px on desktop; no page-level horizontal overflow.
+
+- [x] Show spot work in the mindmap priority position.
+  - Files: `src/MindmapView.jsx`, `src/mindmapData.js`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: card-style mindmap task nodes now replace the priority sticker with the same compact `스팟` chip for spot work, while preserving the task's actual priority data.
+  - Verified: `git diff --check`, `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`, and Browser QA on `http://localhost:5174/` passed. The spot sample task `회의 직후 공유자료 빠른 정리` rendered with `priorityText: "스팟"` and `.spot-work-chip` in the mindmap node.
+
+- [x] Make board status lanes collapsible by default.
+  - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: `검토/대기`, `계획`, `진행중`, `완료`, `보류` lanes now start collapsed and expand/collapse from the lane header.
+  - Done: lanes with more than four visible cards expand across the full board width with a responsive card grid, so busy statuses do not stay trapped in a narrow column.
+  - Verified: `git diff --check`, `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`, and Browser QA on `http://localhost:5174/` passed. At 1366px, `진행` 6건 expanded across the full board width with a 4-column card grid and collapsed back to 0 visible cards.
+
+- [x] Add spot-work classification and long-period reporting rule.
+  - Files: `src/App.jsx`, `src/storage.js`, `src/supabaseStore.js`, `src/styles.css`, `supabase/migrations/021_task_work_kind.sql`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added `업무 성격` with `일반 업무`/`스팟 업무`, persisted it locally and through Supabase `tasks.work_kind`, showed spot cards with a calm teal edge, and added a board-level `스팟만 보기` filter.
+  - Done: added local fallback sample task `회의 직후 공유자료 빠른 정리` so the spot card, chip, and filter can be checked immediately in demo data.
+  - Done: spot tasks keep their real category/tag data for filtering. Board cards show `스팟` only once in the top chip row and do not duplicate it in the card tag row.
+  - Done: timeline renders spot tasks differently by replacing the first visible category/tag slot with `⚡ 스팟`; Highlights renders a compact lightning sticker immediately after the task/workstream title and includes `⚡` in Markdown copy/save.
+  - Done: weekly/monthly performance reports keep spot work included; quarterly/yearly summaries exclude spot work by default while `이슈/설명 포함 상세실적 보기` includes spot work again for detailed review.
+  - Done: fixed modal layering so opening 업무 추가/edit while a timeline overlay is visible brings the modal above the overlay, and removed the small task-count helper line from `오늘 브리핑` rows.
+  - Verified: build passed and browser QA on `http://localhost:5174/` confirmed the spot sample card, teal spot styling, `스팟` top chip, and `스팟만 보기` filter.
+
 - [x] Document future personal notification inbox path.
   - Files: `docs/personal-notification-inbox-plan.md`, `docs/supabase-start-guide.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
   - Done: documented the recommended post-Supabase path for per-user notifications: event types, `notifications` table, RLS, least-privilege grants, unread/read state, top bell badge behavior, click-through task navigation, dedupe, validation, and the Teams integration boundary.

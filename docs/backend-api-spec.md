@@ -104,6 +104,7 @@ Backend integration should not store view-only fields as team data. Treat these 
 | creator_id | text fk users.id | yes | User who entered the task. |
 | status | enum | yes | `검토/대기`, `계획`, `진행중`, `완료`, `보류`. |
 | priority | enum | yes | `높음`, `보통`, `낮음`. |
+| work_kind | enum | yes | `standard` or `spot`. Spot means short/one-time work; weekly/monthly reports include it, quarterly/yearly summaries exclude it unless detailed results are enabled. |
 | start_date | date | yes | Planned start. |
 | due_date | date | yes | Planned deadline. Changes must be appended to task change history. |
 | completed_at | date | no | Actual completion date. Set when status first enters `완료`; clear when completion is cancelled. |
@@ -208,6 +209,28 @@ Only admin users can insert, rename, recolor, hide, or delete post categories.
 | updated_at | timestamp | yes | Audit. |
 
 `업무 노트` reads only posts attached to the selected task. Highlights `업무흐름별 게시글 모음` derives its grouped view from `task_posts` joined to the parent task and grouped by `상위 업무흐름`. Authors or task managers may edit/delete task posts.
+
+### briefing_items
+
+| Column | Type | Required | Notes |
+| --- | --- | --- | --- |
+| id | text pk | yes | Stable local/Supabase id. |
+| scope | text | yes | `my` or `team`. |
+| kind | text | yes | `inbox` or `todo`. |
+| item_type | text | yes | `mail`, `meeting`, `idea`, `risk`, `reference`, `todo`, `note`. |
+| title | text | yes | Compact item title. |
+| body | text | no | Remembered context body. |
+| url | text | no | Optional source/reference URL. |
+| status | text | yes | My Desk: `new`, `reviewing`, `converted`, `archived`; Team: `open`, `done`. |
+| done | boolean | yes | Checklist completion flag for Team Flow. |
+| owner_id / owner_roster_id | user/roster fk | no | My Desk inbox owner. Required for personal inbox behavior; team checks may leave it empty. |
+| task_id | task fk | no | Optional link after the item becomes related to an actual task. |
+| author_id / author_roster_id | user/roster fk | yes/no | Writer and optional prototype roster identity. |
+| created_on | date | yes | Reader-facing capture date. |
+| created_at | timestamp | yes | Audit. |
+| updated_at | timestamp | yes | Audit. |
+
+`오늘 브리핑` reads `briefing_items` directly. My Desk shows only the selected person's own inbox items and lets that person change status; Team Flow shows shared todo-style rows that can be checked or deleted after confirmation. These records are the future LLM evidence layer for mail snippets, meeting reminders, ideas, risks, and team checks that are not yet full task records.
 
 ### notifications
 

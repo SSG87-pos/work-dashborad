@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  CircleAlert,
   ClipboardList,
   Clock3,
   Database,
@@ -59,8 +60,28 @@ const PoslabLanyard = lazy(() => import("./PoslabLanyard.jsx"));
 const dayMs = 24 * 60 * 60 * 1000;
 const boardStatuses = ["검토/대기", "계획", "진행중", "완료", "보류"];
 const priorityFilters = ["전체", "높음", "보통", "낮음"];
+const workKindFilters = ["전체", "스팟"];
+const workKindOptions = [
+  { value: "standard", label: "일반 업무" },
+  { value: "spot", label: "스팟 업무" }
+];
 const displayDensityOptions = ["standard", "comfortable"];
 const taskPostToneOptions = ["blue", "green", "amber", "red", "violet", "slate"];
+const briefingItemTypes = [
+  { value: "mail", label: "메일" },
+  { value: "meeting", label: "회의" },
+  { value: "idea", label: "아이디어" },
+  { value: "risk", label: "리스크" },
+  { value: "reference", label: "참고" },
+  { value: "todo", label: "할일" },
+  { value: "note", label: "메모" }
+];
+const briefingItemStatuses = [
+  { value: "new", label: "미처리" },
+  { value: "reviewing", label: "확인중" },
+  { value: "converted", label: "업무화" },
+  { value: "archived", label: "보관" }
+];
 const defaultTaskPostCategories = [
   { id: "decision", label: "결정사항", tone: "blue", active: true },
   { id: "memory", label: "기억할 점", tone: "green", active: true },
@@ -103,8 +124,9 @@ const defaultTagFilterPresets = [
   { id: "preset:research", label: "조사/근거", tags: ["자료조사", "외부자료", "정책"], tone: "research" },
   { id: "preset:operations", label: "운영/KPI", tags: ["월간보고", "회의체", "운영", "KPI"], tone: "operations" }
 ];
-const viewOptions = ["board", "timeline", "calendar", "recurring", "archive", "mindmap", "updates", "performance", "canvas", "admin"];
+const viewOptions = ["board", "list", "timeline", "calendar", "recurring", "archive", "mindmap", "updates", "performance", "canvas", "admin"];
 const fullPageViews = ["calendar", "updates", "performance", "canvas", "admin"];
+const workflowFilterViews = ["board", "list", "timeline", "recurring", "archive", "mindmap"];
 const pageOptions = ["my", "team"];
 const timelineModeOptions = ["month", "year"];
 const performanceModes = ["week", "month", "quarter", "year"];
@@ -163,6 +185,19 @@ function adminBadge(person) {
 
 function persistedArray(value, fallback) {
   return Array.isArray(value) ? value : fallback;
+}
+
+function withSpotDemoTask(value) {
+  const tasks = Array.isArray(value) ? value : [];
+  if (tasks.some((task) => task?.workKind === "spot" || task?.id === "t-spot-001")) {
+    return tasks.map((task) =>
+      task?.id === "t-spot-001" && task.title === "회의 직후 공유자료 스팟 정리"
+        ? { ...task, title: "회의 직후 공유자료 빠른 정리" }
+        : task
+    );
+  }
+  const spotDemoTask = initialTasks.find((task) => task.id === "t-spot-001");
+  return spotDemoTask ? [...tasks, cloneList([spotDemoTask])[0]] : tasks;
 }
 
 function cloneList(value) {
@@ -239,6 +274,80 @@ function initialMemoByPageFrom(persistedState) {
     my: legacyMemo,
     team: ""
   };
+}
+
+function normalizeBriefingItemType(value) {
+  return briefingItemTypes.some((type) => type.value === value) ? value : "note";
+}
+
+function normalizeBriefingItemStatus(value, kind = "inbox") {
+  if (kind === "todo") return value === "done" ? "done" : "open";
+  return briefingItemStatuses.some((status) => status.value === value) ? value : "new";
+}
+
+function briefingItemTypeLabel(value) {
+  return briefingItemTypes.find((type) => type.value === value)?.label ?? "메모";
+}
+
+function briefingItemStatusLabel(value) {
+  return briefingItemStatuses.find((status) => status.value === value)?.label ?? "미처리";
+}
+
+function cleanBriefingItem(item, index) {
+  const scope = item?.scope === "team" ? "team" : "my";
+  const kind = item?.kind === "todo" || scope === "team" ? "todo" : "inbox";
+  const body = persistedString(item?.body);
+  const fallbackTitle = body.split("\n").find(Boolean)?.slice(0, 48) || (kind === "todo" ? "팀 체크 항목" : "업무 인박스 항목");
+  const title = persistedString(item?.title, fallbackTitle).trim() || fallbackTitle;
+  const done = Boolean(item?.done || item?.status === "done");
+  return {
+    id: persistedString(item?.id, `briefing-item-${index}-${Date.now().toString(36)}`),
+    scope,
+    kind,
+    type: normalizeBriefingItemType(item?.type),
+    title,
+    body,
+    url: persistedString(item?.url).trim(),
+    status: kind === "todo" ? (done ? "done" : "open") : normalizeBriefingItemStatus(item?.status, kind),
+    done,
+    ownerId: persistedString(item?.ownerId),
+    taskId: persistedString(item?.taskId),
+    authorId: persistedString(item?.authorId, "admin"),
+    createdAt: persistedString(item?.createdAt, TODAY),
+    updatedAt: persistedString(item?.updatedAt),
+    deletedAt: persistedString(item?.deletedAt)
+  };
+}
+
+function initialBriefingItemsFrom(persistedState) {
+  if (Array.isArray(persistedState.briefingItems)) {
+    return uniqueById(persistedState.briefingItems.map(cleanBriefingItem)).filter((item) => !item.deletedAt);
+  }
+  const memoByPage = initialMemoByPageFrom(persistedState);
+  const migrated = [];
+  if (memoByPage.my.trim()) {
+    migrated.push(cleanBriefingItem({
+      id: "migrated-my-briefing-memo",
+      scope: "my",
+      kind: "inbox",
+      type: "note",
+      title: "이전 메모",
+      body: memoByPage.my,
+      authorId: persistedPerson(persistedState.selectedPersonId)
+    }, 0));
+  }
+  if (memoByPage.team.trim()) {
+    migrated.push(cleanBriefingItem({
+      id: "migrated-team-briefing-memo",
+      scope: "team",
+      kind: "todo",
+      type: "todo",
+      title: memoByPage.team.split("\n").find(Boolean)?.slice(0, 48) || "이전 팀 메모",
+      body: memoByPage.team,
+      authorId: persistedPerson(persistedState.selectedPersonId)
+    }, 1));
+  }
+  return migrated;
 }
 
 function persistedTaskId(value, taskList) {
@@ -322,6 +431,7 @@ function cleanImportedTask(task, index, options = {}) {
     creatorId: task.creatorId || ownerId,
     status,
     priority: ["낮음", "보통", "높음"].includes(task.priority) ? task.priority : "보통",
+    workKind: task.workKind === "spot" ? "spot" : "standard",
     category: tags[0] ?? "운영",
     tags: tags.length ? tags : ["운영"],
     workstream: taskWorkstreamLabel(task),
@@ -444,6 +554,7 @@ function normalizeImportedDashboard(payload) {
     tagGroups: Array.isArray(payload.tagGroups) ? payload.tagGroups : defaultTagFilterPresets,
     calendarEvents: uniqueById((Array.isArray(payload.calendarEvents) ? payload.calendarEvents : []).map((event, index) => cleanImportedEvent(event, index, { knownPersonIds }))),
     memoByPage: initialMemoByPageFrom(payload),
+    briefingItems: initialBriefingItemsFrom(payload),
     profileOverrides
   };
 }
@@ -947,6 +1058,16 @@ function primaryTag(task) {
   return taskTags(task)[0] ?? "태그 없음";
 }
 
+function timelineTaskTags(task) {
+  const tags = taskTags(task);
+  if (!isSpotTask(task)) return tags;
+  return normalizeTags(["⚡ 스팟", ...tags.filter((tag) => tag !== task.category)]);
+}
+
+function primaryTimelineTag(task) {
+  return timelineTaskTags(task)[0] ?? "태그 없음";
+}
+
 function matchesTagFilter(taskTagList, filterValue, presets = defaultTagFilterPresets) {
   const selectedTags = readTagFilterValues(filterValue, presets);
   if (!selectedTags.length) return true;
@@ -969,6 +1090,14 @@ function taskProgress(task) {
   const subtasks = task.subtasks?.filter((subtask) => subtask.title?.trim()) ?? [];
   if (!subtasks.length) return task.status === "완료" ? 100 : 0;
   return Math.round((subtasks.filter((subtask) => subtask.done).length / subtasks.length) * 100);
+}
+
+function taskWorkKind(task) {
+  return task?.workKind === "spot" ? "spot" : "standard";
+}
+
+function isSpotTask(task) {
+  return taskWorkKind(task) === "spot";
 }
 
 function completionDate(task) {
@@ -1343,6 +1472,10 @@ function workstreamTaskSummary(item) {
   return hiddenCount ? `${preview} 외 ${hiddenCount}건` : preview;
 }
 
+function performanceItemHasSpot(item) {
+  return item?.tasks?.some((task) => isSpotTask(task)) || isSpotTask(item?.task);
+}
+
 function performanceItemsForTasks(tasks, mode, range, options = {}) {
   if (mode === "week") return tasks.map((task) => ({ id: task.id, task, tasks: [task], title: task.title, status: task.status }));
   const workstreamGroups = groupTasksByWorkstream(tasks, collectWorkstreams(tasks));
@@ -1444,6 +1577,7 @@ function performanceItemMarkdown(item, mode, range, options = {}) {
     `[${statusMeta.label}]`,
     reportDate,
     item.title,
+    performanceItemHasSpot(item) ? "⚡" : "",
     item.workstreamTaskCount > 1 ? `(묶인 업무: ${item.workstreamTaskCount}건)` : "",
     item.recurringLabel ? `(반복: ${item.recurringLabel})` : ""
   ].filter(Boolean);
@@ -1475,6 +1609,11 @@ function taskInPerformanceRange(task, range) {
     inPeriod(task.dueDate, range) ||
     (diffDays(task.startDate, range.start) < 0 && diffDays(task.dueDate, range.end) > 0)
   );
+}
+
+function taskIncludedInPerformanceMode(task, mode, showLongDetails) {
+  if (["quarter", "year"].includes(mode) && isSpotTask(task) && !showLongDetails) return false;
+  return true;
 }
 
 function performanceReportMarkdown(activePeople, mode, range, reportTitle, options = {}) {
@@ -1762,6 +1901,7 @@ function createBlankTask(ownerId, creatorId = ownerId) {
     creatorId,
     status: "계획",
     priority: "보통",
+    workKind: "standard",
     category: "",
     tags: ["기획보고"],
     workstream: "",
@@ -1988,7 +2128,7 @@ function App() {
   const isSupabaseReady = supabaseConfig.isConfigured;
   const importInputRef = useRef(null);
   const detailColumnRef = useRef(null);
-  const initialPersistedTasks = useMemo(() => persistedArray(persisted.tasks, initialTasks), [persisted]);
+  const initialPersistedTasks = useMemo(() => withSpotDemoTask(persistedArray(persisted.tasks, initialTasks)), [persisted]);
   const initialPersistedTags = useMemo(
     () => normalizeTags(persistedArray(persisted.availableTags, defaultAvailableTags)),
     [persisted]
@@ -1998,6 +2138,7 @@ function App() {
     [persisted]
   );
   const initialMemoByPage = useMemo(() => initialMemoByPageFrom(persisted), [persisted]);
+  const initialBriefingItems = useMemo(() => initialBriefingItemsFrom(persisted), [persisted]);
   const initialProfileOverrides = useMemo(() => persistedObject(persisted.profileOverrides), [persisted]);
   const initialTagGroups = useMemo(
     () => Array.isArray(persisted.tagGroups) && persisted.tagGroups.length ? persisted.tagGroups : defaultTagFilterPresets,
@@ -2015,6 +2156,8 @@ function App() {
   const [authMessage, setAuthMessage] = useState("");
   const [category, setCategory] = useState(() => persistedTag(persisted.category, initialPersistedTags, initialTagGroups));
   const [priorityFilter, setPriorityFilter] = useState(() => persistedOption(persisted.priorityFilter, priorityFilters, "전체"));
+  const [workKindFilter, setWorkKindFilter] = useState(() => persistedOption(persisted.workKindFilter, workKindFilters, "전체"));
+  const [ownerFilter, setOwnerFilter] = useState(() => persistedString(persisted.ownerFilter, "전체"));
   const [summaryFilter, setSummaryFilter] = useState("");
   const [query, setQuery] = useState("");
   const [activeView, setActiveView] = useState(() => persistedOption(persisted.activeView, viewOptions, "board"));
@@ -2043,6 +2186,7 @@ function App() {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isTagLibraryOpen, setIsTagLibraryOpen] = useState(false);
   const [memoByPage, setMemoByPage] = useState(initialMemoByPage);
+  const [briefingItems, setBriefingItems] = useState(initialBriefingItems);
   const [profileOverrides, setProfileOverrides] = useState(initialProfileOverrides);
   const briefingFeedbackTimerRef = useRef(null);
   const teamMemberPulseTimerRef = useRef(null);
@@ -2088,6 +2232,10 @@ function App() {
   const canManageTags = canManageTagsFor(selectedPersonId);
   const teamMembers = useMemo(() => displayTeamMembers(directory, selectedPersonId), [directory, selectedPersonId]);
   const selectedTagFilters = useMemo(() => readTagFilterValues(category, tagGroups), [category, tagGroups]);
+  const ownerFilterOptions = useMemo(
+    () => directory.filter((person) => person.id === UNASSIGNED_OWNER_ID || (person.isActive !== false && person.isTeamMember !== false)),
+    [directory]
+  );
   const workstreamOptions = useMemo(
     () => groupTasksByWorkstream(tasks, collectWorkstreams(tasks)).map((group) => ({ label: group.label })),
     [tasks]
@@ -2121,6 +2269,9 @@ function App() {
     if (snapshot.memoByPage) {
       setMemoByPage((current) => ({ ...current, ...snapshot.memoByPage }));
     }
+    if (Array.isArray(snapshot.briefingItems)) {
+      setBriefingItems(snapshot.briefingItems.map(cleanBriefingItem).filter((item) => !item.deletedAt));
+    }
     if (snapshot.profileOverrides) {
       setProfileOverrides((current) => ({ ...current, ...snapshot.profileOverrides }));
     }
@@ -2135,6 +2286,8 @@ function App() {
     if (snapshot.activeView && viewOptions.includes(snapshot.activeView)) setActiveView(snapshot.activeView);
     if (snapshot.displayDensity && displayDensityOptions.includes(snapshot.displayDensity)) setDisplayDensity(snapshot.displayDensity);
     if (snapshot.category) setCategory(snapshot.category);
+    if (snapshot.ownerFilter) setOwnerFilter(snapshot.ownerFilter);
+    if (snapshot.workKindFilter && workKindFilters.includes(snapshot.workKindFilter)) setWorkKindFilter(snapshot.workKindFilter);
     if (snapshot.timelineMode && timelineModeOptions.includes(snapshot.timelineMode)) setTimelineMode(snapshot.timelineMode);
     if (snapshot.timelineMonth) setTimelineMonth(snapshot.timelineMonth);
     if (snapshot.timelineYear) setTimelineYear(snapshot.timelineYear);
@@ -2332,6 +2485,74 @@ function App() {
     showSyncNotice("게시글 유형을 비활성화했습니다.");
   }
 
+  function addBriefingItem(scope, draft) {
+    const cleanScope = scope === "team" ? "team" : "my";
+    const kind = cleanScope === "team" ? "todo" : "inbox";
+    const title = String(draft?.title ?? "").trim();
+    const body = String(draft?.body ?? "").trim();
+    if (!title && !body) {
+      showSyncNotice(cleanScope === "team" ? "팀 체크 항목을 입력해 주세요." : "업무 인박스 제목이나 내용을 입력해 주세요.");
+      return false;
+    }
+    const nextItem = cleanBriefingItem({
+      id: `briefing-${cleanScope}-${Date.now().toString(36)}`,
+      scope: cleanScope,
+      kind,
+      type: kind === "todo" ? "todo" : draft?.type,
+      title: title || body.split("\n").find(Boolean)?.slice(0, 48),
+      body,
+      url: draft?.url,
+      status: kind === "todo" ? "open" : draft?.status,
+      done: false,
+      ownerId: cleanScope === "my" ? selectedPersonId : "",
+      authorId: selectedPersonId,
+      createdAt: TODAY
+    }, briefingItems.length);
+    setBriefingItems((current) => [nextItem, ...current]);
+    showSyncNotice(cleanScope === "team" ? "팀 체크 항목을 추가했습니다." : "업무 인박스에 저장했습니다.");
+    return true;
+  }
+
+  function updateBriefingItem(itemId, patch) {
+    if (!itemId) return;
+    setBriefingItems((current) =>
+      current.map((item) =>
+        item.id === itemId
+          ? cleanBriefingItem({
+              ...item,
+              ...patch,
+              updatedAt: TODAY
+            }, 0)
+          : item
+      )
+    );
+  }
+
+  function toggleBriefingTodo(itemId) {
+    setBriefingItems((current) =>
+      current.map((item) => {
+        if (item.id !== itemId) return item;
+        const done = !item.done;
+        return {
+          ...item,
+          done,
+          status: done ? "done" : "open",
+          updatedAt: TODAY
+        };
+      })
+    );
+  }
+
+  function deleteBriefingItem(itemId) {
+    const target = briefingItems.find((item) => item.id === itemId);
+    if (!target) return false;
+    const confirmed = window.confirm(target.kind === "todo" ? "이 팀 체크 항목을 삭제할까요?" : "이 업무 인박스 항목을 삭제할까요?");
+    if (!confirmed) return false;
+    setBriefingItems((current) => current.filter((item) => item.id !== itemId));
+    showSyncNotice(target.kind === "todo" ? "팀 체크 항목을 삭제했습니다." : "업무 인박스 항목을 삭제했습니다.");
+    return true;
+  }
+
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
       if (isDeletedTask(task)) return false;
@@ -2340,11 +2561,13 @@ function App() {
       const text = `${task.title} ${task.description} ${tags.join(" ")}`.toLowerCase();
       const byScope = activePage === "team" || task.ownerId === selectedPersonId;
       const byArchive = activeView === "archive" ? task.archived : !task.archived;
-      const byPriority = !["board", "timeline", "recurring", "archive", "mindmap"].includes(activeView) || priorityFilter === "전체" || task.priority === priorityFilter;
+      const byPriority = !workflowFilterViews.includes(activeView) || priorityFilter === "전체" || task.priority === priorityFilter;
+      const byWorkKind = !workflowFilterViews.includes(activeView) || workKindFilter === "전체" || isSpotTask(task);
+      const byOwner = !workflowFilterViews.includes(activeView) || ownerFilter === "전체" || task.ownerId === ownerFilter;
       const bySummary = activeView !== "board" || summaryFilterMatches(task, summaryFilter, TODAY);
-      return byScope && byCategory && byArchive && byPriority && bySummary && text.includes(query.trim().toLowerCase());
+      return byScope && byCategory && byArchive && byPriority && byWorkKind && byOwner && bySummary && text.includes(query.trim().toLowerCase());
     });
-  }, [activePage, activeView, category, priorityFilter, query, selectedPersonId, summaryFilter, tagGroups, tasks]);
+  }, [activePage, activeView, category, ownerFilter, priorityFilter, query, selectedPersonId, summaryFilter, tagGroups, tasks, workKindFilter]);
 
   const mindmapTasks = useMemo(() => {
     return tasks.filter((task) => {
@@ -2354,9 +2577,11 @@ function App() {
       const text = `${task.title} ${task.description} ${tags.join(" ")}`.toLowerCase();
       const byScope = activePage === "team" || task.ownerId === selectedPersonId;
       const byPriority = priorityFilter === "전체" || task.priority === priorityFilter;
-      return byScope && byCategory && byPriority && text.includes(query.trim().toLowerCase());
+      const byWorkKind = workKindFilter === "전체" || isSpotTask(task);
+      const byOwner = ownerFilter === "전체" || task.ownerId === ownerFilter;
+      return byScope && byCategory && byPriority && byWorkKind && byOwner && text.includes(query.trim().toLowerCase());
     });
-  }, [activePage, category, priorityFilter, query, selectedPersonId, tagGroups, tasks]);
+  }, [activePage, category, ownerFilter, priorityFilter, query, selectedPersonId, tagGroups, tasks, workKindFilter]);
 
   const briefing = useMemo(
     () => briefingFor(tasks, activePage === "my" ? selectedPersonId : null),
@@ -2384,6 +2609,12 @@ function App() {
   }, [displayDensity]);
 
   useEffect(() => {
+    if (ownerFilter === "전체") return;
+    if (ownerFilterOptions.some((person) => person.id === ownerFilter)) return;
+    setOwnerFilter("전체");
+  }, [ownerFilter, ownerFilterOptions]);
+
+  useEffect(() => {
     if (isSupabaseReady) return;
     const nextState = {
       version: 1,
@@ -2397,13 +2628,16 @@ function App() {
       activePage,
       activeView,
       category,
+      ownerFilter,
       priorityFilter,
+      workKindFilter,
       displayDensity,
       timelineMode,
       timelineMonth,
       timelineYear,
       selectedTaskId,
       memoByPage,
+      briefingItems,
       profileOverrides
     };
     localDashboardStore.write(nextState);
@@ -2420,8 +2654,11 @@ function App() {
     selectedPersonId,
     selectedTaskId,
     profileOverrides,
+    ownerFilter,
     priorityFilter,
+    workKindFilter,
     memoByPage,
+    briefingItems,
     tasks,
     isSupabaseReady,
     timelineMode,
@@ -2488,7 +2725,8 @@ function App() {
       timelineMonth,
       timelineYear,
       selectedTaskId,
-      memoByPage
+      memoByPage,
+      briefingItems
     };
     supabaseWriteTimerRef.current = window.setTimeout(() => {
       supabaseDashboardStore.write(nextState).catch((error) => {
@@ -2508,6 +2746,7 @@ function App() {
     displayDensity,
     isAuthenticated,
     isSupabaseReady,
+    briefingItems,
     memoByPage,
     selectedTaskId,
     timelineMode,
@@ -3592,6 +3831,7 @@ function App() {
       tagGroups,
       calendarEvents,
       memoByPage,
+      briefingItems,
       profileOverrides
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -3693,6 +3933,7 @@ function App() {
       setTagGroups(imported.tagGroups);
       setCalendarEvents(imported.calendarEvents);
       setMemoByPage(imported.memoByPage);
+      setBriefingItems(imported.briefingItems);
       setProfileOverrides(imported.profileOverrides);
       setCategory("전체");
       setSelectedBriefingKey("");
@@ -3728,6 +3969,7 @@ function App() {
     setSelectedTaskId(resetTasks[0]?.id ?? "");
     closeTaskEditor();
     setMemoByPage({ my: "", team: "" });
+    setBriefingItems([]);
     setProfileOverrides({});
     localDashboardStore.clear();
     setIsDataMenuOpen(false);
@@ -4037,10 +4279,13 @@ function App() {
               <BriefingPanel
                 briefing={briefing}
                 briefingFeedbackKey={briefingFeedbackKey}
+                briefingItems={briefingItems}
                 isTeam={activePage === "team"}
-                note={memoByPage[activePage] ?? ""}
-                onNoteChange={(note) => setMemoByPage((current) => ({ ...current, [activePage]: note }))}
+                onAddBriefingItem={addBriefingItem}
+                onDeleteBriefingItem={deleteBriefingItem}
                 onSelectGroup={selectBriefingGroup}
+                onToggleBriefingTodo={toggleBriefingTodo}
+                onUpdateBriefingItem={updateBriefingItem}
                 selectedPerson={selectedPerson}
                 selectedBriefingKey={selectedBriefingKey}
                 selectedTaskId={selectedTaskId}
@@ -4053,6 +4298,7 @@ function App() {
                 <div className="segmented" role="tablist" aria-label="보기 전환">
                   {[
                     ["board", "보드", ListChecks],
+                    ["list", "리스트", ClipboardList],
                     ["timeline", "타임라인", CalendarDays],
                     ["recurring", recurringCount ? `반복 업무 ${recurringCount}` : "반복 업무", Clock3],
                     ["archive", `보관함 ${archiveCount}`, Archive],
@@ -4088,12 +4334,35 @@ function App() {
                     태그: {tagFilterLabel}
                   </button>
                 </div>
-                {["board", "timeline", "recurring", "archive", "mindmap"].includes(activeView) && (
+                {workflowFilterViews.includes(activeView) && (
+                  <label className={`filter-select owner-filter ${ownerFilter !== "전체" ? "is-filtered" : ""}`}>
+                    <select aria-label="담당자 필터" onChange={(event) => setOwnerFilter(event.target.value)} value={ownerFilter}>
+                      <option value="전체">사람: 전체</option>
+                      {ownerFilterOptions.map((person) => (
+                        <option key={person.id} value={person.id}>
+                          {person.id === UNASSIGNED_OWNER_ID ? "사람: 미지정" : `사람: ${person.name}`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {workflowFilterViews.includes(activeView) && (
                   <label className={`filter-select priority-filter ${priorityFilter !== "전체" ? "is-filtered" : ""}`}>
                     <select aria-label="중요도 필터" onChange={(event) => setPriorityFilter(event.target.value)} value={priorityFilter}>
                       {priorityFilters.map((priority) => (
                         <option key={priority} value={priority}>
-                          중요도: {priority}
+                          중요: {priority}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {workflowFilterViews.includes(activeView) && (
+                  <label className={`filter-select work-kind-filter ${workKindFilter !== "전체" ? "is-filtered" : ""}`}>
+                    <select aria-label="스팟 업무 필터" onChange={(event) => setWorkKindFilter(event.target.value)} value={workKindFilter}>
+                      {workKindFilters.map((filter) => (
+                        <option key={filter} value={filter}>
+                          {filter === "전체" ? "스팟: 전체" : "스팟만"}
                         </option>
                       ))}
                     </select>
@@ -4134,6 +4403,21 @@ function App() {
                   selectedTaskId={isWorkflowDetailContext ? selectedTaskId : ""}
                   showOwner={activePage === "team"}
                   statusPulseTaskId={statusPulseTaskId}
+                  tasks={filteredTasks}
+                />
+                {isWorkflowDetailContext && (
+                  <aside className="workflow-detail-column" ref={workflowDetailColumnRef}>
+                    {detailPanel}
+                  </aside>
+                )}
+              </section>
+            )}
+            {activeView === "list" && (
+              <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`} ref={workflowSurfaceRef}>
+                <TaskListView
+                  onSelect={(taskId) => selectTask(taskId, "workflow")}
+                  selectedTaskId={isWorkflowDetailContext ? selectedTaskId : ""}
+                  showOwner={activePage === "team"}
                   tasks={filteredTasks}
                 />
                 {isWorkflowDetailContext && (
@@ -5654,12 +5938,110 @@ function InsightStrip({ activeFilter, onSelect, summary }) {
   );
 }
 
-function BriefingPanel({ briefing, briefingFeedbackKey, isTeam, note, onNoteChange, onSelectGroup, selectedBriefingKey, selectedPerson, todayAgenda }) {
-  const noteRef = useRef(null);
+function BriefingPanel({
+  briefing,
+  briefingFeedbackKey,
+  briefingItems,
+  isTeam,
+  onAddBriefingItem,
+  onDeleteBriefingItem,
+  onSelectGroup,
+  onToggleBriefingTodo,
+  onUpdateBriefingItem,
+  selectedBriefingKey,
+  selectedPerson,
+  todayAgenda
+}) {
+  const inboxBodyRef = useRef(null);
+  const [draft, setDraft] = useState({ type: "mail", title: "", body: "", url: "", status: "new" });
+  const [activeItemDialog, setActiveItemDialog] = useState(null);
   const itemCount = briefing.reduce((sum, group) => sum + group.tasks.length, 0);
   const briefingUnits = briefing.reduce((sum, group) => sum + Math.max(1, group.tasks.length), 0);
   const briefingSideMaxHeight = Math.min(360, Math.max(172, 58 + briefingUnits * 38));
   const greeting = personalBriefingGreeting(briefing);
+  const pageScope = isTeam ? "team" : "my";
+  const scopedItems = briefingItems
+    .filter((item) => {
+      if (item.scope !== pageScope) return false;
+      if (isTeam) return true;
+      return item.ownerId === selectedPerson.id || (!item.ownerId && item.authorId === selectedPerson.id);
+    })
+    .sort((a, b) => {
+      if (a.done !== b.done) return a.done ? 1 : -1;
+      return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+    });
+  const activeInboxItems = scopedItems.filter((item) => item.status !== "archived");
+  const listItems = isTeam ? scopedItems : activeInboxItems;
+  const previewRowHeight = isTeam ? 44 : 58;
+  const previewLimit = Math.max(2, Math.floor((briefingSideMaxHeight - 30) / previewRowHeight));
+  const recentItems = listItems.slice(0, previewLimit);
+  const olderItems = listItems.slice(previewLimit);
+  const visibleItems = recentItems;
+  const activeItem = ["read", "edit"].includes(activeItemDialog?.mode)
+    ? scopedItems.find((item) => item.id === activeItemDialog.itemId)
+    : null;
+
+  function updateDraft(patch) {
+    setDraft((current) => ({ ...current, ...patch }));
+  }
+
+  function openWriteDialog() {
+    setDraft(isTeam
+      ? { type: "todo", title: "", body: "", url: "", status: "open" }
+      : { type: "mail", title: "", body: "", url: "", status: "new" }
+    );
+    setActiveItemDialog({ mode: "write" });
+  }
+
+  function openReadDialog(itemId) {
+    setActiveItemDialog({ mode: "read", itemId });
+  }
+
+  function openListDialog() {
+    setActiveItemDialog({ mode: "list" });
+  }
+
+  function openEditDialog(item) {
+    setDraft({
+      id: item.id,
+      type: item.type || (item.kind === "todo" ? "todo" : "note"),
+      title: item.title || "",
+      body: item.body || "",
+      url: item.url || "",
+      status: item.status || (item.kind === "todo" ? "open" : "new")
+    });
+    setActiveItemDialog({ mode: "edit", itemId: item.id });
+  }
+
+  function closeItemDialog() {
+    setActiveItemDialog(null);
+  }
+
+  function submitCapture(event) {
+    event.preventDefault();
+    if (activeItemDialog?.mode === "edit" && draft.id) {
+      onUpdateBriefingItem(draft.id, {
+        type: isTeam ? "todo" : draft.type,
+        title: draft.title,
+        body: draft.body,
+        url: isTeam ? "" : draft.url,
+        status: isTeam ? draft.status : draft.status
+      });
+      closeItemDialog();
+      return;
+    }
+    const didSave = onAddBriefingItem(pageScope, draft);
+    if (!didSave) return;
+    setDraft({ type: "mail", title: "", body: "", url: "", status: "new" });
+    closeItemDialog();
+  }
+
+  function deleteActiveItem() {
+    if (!activeItem) return;
+    const didDelete = onDeleteBriefingItem(activeItem.id);
+    if (didDelete) closeItemDialog();
+  }
+
   return (
     <motion.section
       animate={{ opacity: 1, y: 0 }}
@@ -5689,9 +6071,6 @@ function BriefingPanel({ briefing, briefingFeedbackKey, isTeam, note, onNoteChan
               <span className={`briefing-symbol ${group.tone}`}>{group.icon}</span>
               <span className="briefing-kind">
                 <strong>{group.title}</strong>
-                <small>
-                  {group.caption} · {group.tasks.length}건
-                </small>
               </span>
               <span className={`briefing-copy ${group.tasks.length > 1 ? "has-task-dues" : ""}`}>
                 {group.tasks.map((task) => (
@@ -5709,7 +6088,7 @@ function BriefingPanel({ briefing, briefingFeedbackKey, isTeam, note, onNoteChan
             </button>
           ))}
         </div>
-        <aside className="briefing-side" aria-label="오늘 일정과 메모">
+        <aside className="briefing-side" aria-label="오늘 일정과 업무 인박스">
           <div className={`briefing-side-section today-agenda ${todayAgenda.length ? "" : "is-empty"}`}>
             <span className="panel-label">오늘 일정</span>
             {todayAgenda.length ? (
@@ -5728,29 +6107,213 @@ function BriefingPanel({ briefing, briefingFeedbackKey, isTeam, note, onNoteChan
               <p className="agenda-empty-note">오늘 등록된 일정 없음</p>
             )}
           </div>
-          <label className="briefing-side-section personal-note">
-            <span className="panel-label">
-              <NotebookPen size={14} />
-              메모
-            </span>
-            <div className="emoji-textarea-frame">
-              <textarea
-                aria-label="공유 메모"
-                onChange={(event) => onNoteChange(event.target.value)}
-                placeholder="함께 챙길 생각이나 짧은 메모"
-                ref={noteRef}
-                rows={4}
-                value={note}
-              />
-              <EmojiPopover
-                onSelect={(emoji) => insertEmojiAtCursor(noteRef, note, emoji, onNoteChange)}
-                triggerLabel="메모에 이모지 넣기"
-                triggerClassName="textarea-emoji-trigger"
-              />
+          <div className={`briefing-side-section briefing-capture ${isTeam ? "team-check" : "work-inbox"}`}>
+            <div className="briefing-capture-head">
+              <span className="panel-label">
+                {isTeam ? <ListChecks size={14} /> : <NotebookPen size={14} />}
+                {isTeam ? "팀 체크" : "업무 인박스"}
+              </span>
+              <span className="briefing-capture-actions">
+                {olderItems.length > 0 && (
+                  <button
+                    className="briefing-capture-more"
+                    onClick={openListDialog}
+                    type="button"
+                  >
+                    <ChevronRight size={13} />
+                    <span>전체</span>
+                    <em>{listItems.length}</em>
+                  </button>
+                )}
+                <button className="briefing-capture-add" onClick={openWriteDialog} type="button">
+                  <Plus size={13} />
+                  {isTeam ? "추가" : "기록"}
+                </button>
+              </span>
             </div>
-          </label>
+            <div className="briefing-capture-list">
+              {visibleItems.length ? (
+                visibleItems.map((item) => (
+                  isTeam ? (
+                    <div className={`team-check-item ${item.done ? "is-done" : ""}`} key={item.id}>
+                      <button
+                        aria-label={`${item.title} 완료 전환`}
+                        className={`team-check-toggle ${item.done ? "is-done" : ""}`}
+                        onClick={() => onToggleBriefingTodo(item.id)}
+                        type="button"
+                      >
+                        {item.done && <Check size={12} />}
+                      </button>
+                      <button className="team-check-title-button" onClick={() => openReadDialog(item.id)} title={item.title} type="button">
+                        <strong>{item.title}</strong>
+                        {item.body && <small title={item.body}>{item.body}</small>}
+                      </button>
+                    </div>
+                  ) : (
+                    <article className="work-inbox-item is-title-only" key={item.id}>
+                      <button className="work-inbox-title-button" onClick={() => openReadDialog(item.id)} title={item.title} type="button">
+                        <span className="work-inbox-title-line">
+                          <span className={`work-inbox-type type-${item.type}`}>{briefingItemTypeLabel(item.type)}</span>
+                          <strong>{item.title}</strong>
+                        </span>
+                        <small>
+                          {briefingItemStatusLabel(item.status)}
+                          {item.body ? ` · ${item.body}` : item.url ? " · URL" : ""}
+                        </small>
+                      </button>
+                    </article>
+                  )
+                ))
+              ) : (
+                <p className="briefing-capture-empty">{isTeam ? "팀 체크 항목 없음" : "아직 남긴 인박스 없음"}</p>
+              )}
+            </div>
+          </div>
         </aside>
       </div>
+      {activeItemDialog && (
+        <div className="briefing-item-dialog-layer" role="dialog" aria-label={activeItemDialog.mode === "read" ? "브리핑 항목 상세" : activeItemDialog.mode === "edit" ? "브리핑 항목 수정" : activeItemDialog.mode === "list" ? "브리핑 항목 전체 보기" : isTeam ? "팀 체크 추가" : "업무 인박스 기록"}>
+          <button className="task-post-dialog-backdrop" onClick={closeItemDialog} type="button" aria-label="브리핑 항목 창 닫기" />
+          <div className="briefing-item-dialog">
+            <div className="task-post-dialog-head">
+              <div>
+                <strong>{activeItemDialog.mode === "read" ? activeItem?.title : activeItemDialog.mode === "edit" ? (isTeam ? "팀 체크 수정" : "업무 인박스 수정") : activeItemDialog.mode === "list" ? (isTeam ? "팀 체크 전체 보기" : "업무 인박스 전체 보기") : isTeam ? "팀 체크 추가" : "업무 인박스 기록"}</strong>
+                <small>
+                  {activeItemDialog.mode === "read"
+                    ? `${activeItem?.createdAt ?? TODAY} · ${personName(activeItem?.authorId)}${activeItem?.kind === "todo" ? ` · ${activeItem.done ? "완료" : "미완료"}` : ` · ${briefingItemStatusLabel(activeItem?.status)}`}`
+                    : activeItemDialog.mode === "list"
+                      ? `${listItems.length}개 항목을 리스트로 봅니다. 제목을 클릭하면 상세로 이동합니다.`
+                    : activeItemDialog.mode === "edit"
+                      ? "제목과 내용을 바로잡습니다."
+                      : isTeam ? "같이 확인할 작은 약속을 남깁니다." : "나중에 찾을 수 있는 근거 정보를 구조화해서 남깁니다."}
+                </small>
+              </div>
+              <button className="icon-button" onClick={closeItemDialog} type="button" title="브리핑 항목 창 닫기">
+                <X size={16} />
+              </button>
+            </div>
+            {activeItemDialog.mode === "list" ? (
+              <div className="briefing-item-list-dialog">
+                {listItems.map((item) => (
+                  <button
+                    className={`briefing-item-list-row ${item.done ? "is-done" : ""}`}
+                    key={`briefing-list-${item.id}`}
+                    onClick={() => openReadDialog(item.id)}
+                    title={item.title}
+                    type="button"
+                  >
+                    <span className={`work-inbox-type type-${item.type}`}>{item.kind === "todo" ? (item.done ? "완료" : "체크") : briefingItemTypeLabel(item.type)}</span>
+                    <strong>{item.title}</strong>
+                    <small>{item.body || (item.kind === "todo" ? "메모 없음" : briefingItemStatusLabel(item.status))}</small>
+                  </button>
+                ))}
+              </div>
+            ) : ["write", "edit"].includes(activeItemDialog.mode) ? (
+              <form className="task-post-write-mockup briefing-item-write" onSubmit={submitCapture}>
+                {!isTeam && (
+                  <label>
+                    <span>구분</span>
+                    <select
+                      aria-label="업무 인박스 분류"
+                      onChange={(event) => updateDraft({ type: event.target.value })}
+                      value={draft.type}
+                    >
+                      {briefingItemTypes.map((type) => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <label>
+                  <span>{isTeam ? "체크 항목" : "제목"}</span>
+                  <input
+                    aria-label={isTeam ? "팀 체크 항목" : "업무 인박스 제목"}
+                    onChange={(event) => updateDraft({ title: event.target.value })}
+                    placeholder={isTeam ? "같이 확인할 항목" : "나중에 찾을 수 있는 제목"}
+                    value={draft.title}
+                  />
+                </label>
+                <label>
+                  <span>{isTeam ? "메모" : "본문"}</span>
+                  <div className="emoji-textarea-frame task-post-body-frame">
+                    <textarea
+                      aria-label={isTeam ? "팀 체크 메모" : "업무 인박스 내용"}
+                      onChange={(event) => updateDraft({ body: event.target.value })}
+                      placeholder={isTeam ? "필요하면 간단한 설명을 남겨두세요." : "중요 메일, 기억할 내용, 판단 근거를 남겨두세요."}
+                      ref={inboxBodyRef}
+                      rows={isTeam ? 5 : 10}
+                      value={draft.body}
+                    />
+                    <EmojiPopover
+                      onSelect={(emoji) => insertEmojiAtCursor(inboxBodyRef, draft.body, emoji, (value) => updateDraft({ body: value }))}
+                      triggerLabel={isTeam ? "팀 체크 메모에 이모지 넣기" : "업무 인박스에 이모지 넣기"}
+                      triggerClassName="textarea-emoji-trigger"
+                    />
+                  </div>
+                </label>
+                {!isTeam && (
+                  <label>
+                    <span>URL</span>
+                    <input
+                      aria-label="업무 인박스 URL"
+                      onChange={(event) => updateDraft({ url: event.target.value })}
+                      placeholder="https:// 또는 공유 문서 주소"
+                      value={draft.url}
+                    />
+                  </label>
+                )}
+                <div className="task-post-write-foot">
+                  <button className="primary-button small" disabled={!draft.title.trim() && !draft.body.trim()} type="submit">
+                    {activeItemDialog.mode === "edit" ? "수정 저장" : "저장"}
+                  </button>
+                </div>
+              </form>
+            ) : activeItem ? (
+              <div className="task-post-read-mockup briefing-item-read">
+                <div className="task-post-read-meta">
+                  <span>{activeItem.kind === "todo" ? "팀 체크" : briefingItemTypeLabel(activeItem.type)}</span>
+                  {!isTeam && (
+                    <select
+                      aria-label={`${activeItem.title} 상태`}
+                      onChange={(event) => onUpdateBriefingItem(activeItem.id, { status: event.target.value })}
+                      value={activeItem.status}
+                    >
+                      {briefingItemStatuses.map((status) => (
+                        <option key={status.value} value={status.value}>{status.label}</option>
+                      ))}
+                    </select>
+                  )}
+                  {isTeam && (
+                    <button className={`team-check-dialog-toggle ${activeItem.done ? "is-done" : ""}`} onClick={() => onToggleBriefingTodo(activeItem.id)} type="button">
+                      <Check size={13} />
+                      {activeItem.done ? "완료됨" : "완료 체크"}
+                    </button>
+                  )}
+                </div>
+                {activeItem.body ? <p>{activeItem.body}</p> : <p className="briefing-item-empty-body">남긴 본문이 없습니다.</p>}
+                {activeItem.url && (
+                  <a className="task-post-url-card" href={activeItem.url} rel="noreferrer" target="_blank">
+                    <Link2 size={16} />
+                    <span>{activeItem.url}</span>
+                  </a>
+                )}
+                <div className="task-post-read-actions">
+                  <button className="secondary-button small" onClick={() => openEditDialog(activeItem)} type="button">
+                    <Edit3 size={14} />
+                    수정
+                  </button>
+                  <button className="danger-outline-button" onClick={deleteActiveItem} type="button">
+                    <Trash2 size={14} />
+                    삭제
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="briefing-capture-empty">항목을 찾을 수 없습니다.</p>
+            )}
+          </div>
+        </div>
+      )}
     </motion.section>
   );
 }
@@ -6131,10 +6694,30 @@ function TagLibrary({ activeTags, canManageTags, isOpen, libraryRef, onAdd, onCl
 function BoardView({ canManageTask, counts, onArchive, onEdit, onSelect, onStatusChange, selectedTaskPulseId, selectedTaskId, showOwner, statusPulseTaskId, tasks }) {
   const [draggingTaskId, setDraggingTaskId] = useState("");
   const [dropStatus, setDropStatus] = useState("");
+  const [expandedStatuses, setExpandedStatuses] = useState({});
+  const tasksByStatus = useMemo(() => (
+    boardStatuses.reduce((acc, status) => {
+      acc[status] = tasks.filter((task) => task.status === status);
+      return acc;
+    }, {})
+  ), [tasks]);
+
+  useEffect(() => {
+    if (!selectedTaskId) return;
+    const selectedTask = tasks.find((task) => task.id === selectedTaskId);
+    if (!selectedTask?.status) return;
+    setExpandedStatuses((current) => (
+      current[selectedTask.status] ? current : { ...current, [selectedTask.status]: true }
+    ));
+  }, [selectedTaskId, tasks]);
 
   function clearDragState() {
     setDraggingTaskId("");
     setDropStatus("");
+  }
+
+  function toggleStatus(status) {
+    setExpandedStatuses((current) => ({ ...current, [status]: !current[status] }));
   }
 
   return (
@@ -6148,56 +6731,190 @@ function BoardView({ canManageTask, counts, onArchive, onEdit, onSelect, onStatu
           </span>
         ))}
       </div>
-      {boardStatuses.map((status) => (
-        <div
-          className={`status-lane status-${status.replace("/", "")} ${dropStatus === status ? "drop-target" : ""}`}
-          key={status}
-          onDragEnter={() => setDropStatus(status)}
-          onDragLeave={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) setDropStatus("");
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            event.dataTransfer.dropEffect = "move";
-            setDropStatus(status);
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            const taskId = event.dataTransfer.getData("text/plain");
-            const task = tasks.find((item) => item.id === taskId);
-            if (taskId && task && canManageTask(task)) onStatusChange(taskId, status);
-            clearDragState();
-          }}
-        >
-          <div className="lane-header">
-            <span className="lane-title">{statusStickerLabels[status] ?? status}</span>
-            <small className="lane-count">{counts[status] ?? 0}건</small>
+      {boardStatuses.map((status) => {
+        const statusTasks = tasksByStatus[status] ?? [];
+        const isExpanded = Boolean(expandedStatuses[status]);
+        const isWideExpanded = isExpanded && statusTasks.length > 4;
+        return (
+          <div
+            className={`status-lane status-${status.replace("/", "")} ${isExpanded ? "is-expanded" : "is-collapsed"} ${isWideExpanded ? "is-wide-expanded" : ""} ${dropStatus === status ? "drop-target" : ""}`}
+            key={status}
+            onDragEnter={() => setDropStatus(status)}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setDropStatus("");
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              setDropStatus(status);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              const taskId = event.dataTransfer.getData("text/plain");
+              const task = tasks.find((item) => item.id === taskId);
+              if (taskId && task && canManageTask(task)) onStatusChange(taskId, status);
+              clearDragState();
+            }}
+          >
+            <button className="lane-header lane-toggle-button" onClick={() => toggleStatus(status)} type="button" aria-expanded={isExpanded}>
+              <span className="lane-heading">
+                {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                <span className="lane-title">{statusStickerLabels[status] ?? status}</span>
+              </span>
+              <small className="lane-count">{counts[status] ?? 0}건</small>
+            </button>
+            {isExpanded && (
+              <div className="lane-stack">
+                {statusTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    canManage={canManageTask(task)}
+                    dragging={draggingTaskId === task.id}
+                    onArchive={() => onArchive(task)}
+                    onDragEnd={clearDragState}
+                    onDragStart={() => setDraggingTaskId(task.id)}
+                    onEdit={() => onEdit(task)}
+                    onSelect={() => onSelect(task.id)}
+                    onStatusChange={(nextStatus) => onStatusChange(task.id, nextStatus)}
+                    pulsing={selectedTaskPulseId === task.id}
+                    selected={selectedTaskId === task.id}
+                    showOwner={showOwner}
+                    statusPulsing={statusPulseTaskId === task.id}
+                    task={task}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-          <div className="lane-stack">
-            {tasks
-              .filter((task) => task.status === status)
-              .map((task) => (
-                <TaskCard
-                  key={task.id}
-                  canManage={canManageTask(task)}
-                  dragging={draggingTaskId === task.id}
-                  onArchive={() => onArchive(task)}
-                  onDragEnd={clearDragState}
-                  onDragStart={() => setDraggingTaskId(task.id)}
-                  onEdit={() => onEdit(task)}
-                  onSelect={() => onSelect(task.id)}
-                  onStatusChange={(nextStatus) => onStatusChange(task.id, nextStatus)}
-                  pulsing={selectedTaskPulseId === task.id}
-                  selected={selectedTaskId === task.id}
-                  showOwner={showOwner}
-                  statusPulsing={statusPulseTaskId === task.id}
-                  task={task}
-                />
-              ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </section>
+  );
+}
+
+function TaskListView({ onSelect, selectedTaskId, showOwner, tasks }) {
+  const [expandedStatuses, setExpandedStatuses] = useState({});
+  const tasksByStatus = useMemo(() => (
+    boardStatuses.reduce((acc, status) => {
+      acc[status] = tasks.filter((task) => task.status === status);
+      return acc;
+    }, {})
+  ), [tasks]);
+
+  useEffect(() => {
+    if (!selectedTaskId) return;
+    const selectedTask = tasks.find((task) => task.id === selectedTaskId);
+    if (!selectedTask?.status) return;
+    setExpandedStatuses((current) => (
+      current[selectedTask.status] ? current : { ...current, [selectedTask.status]: true }
+    ));
+  }, [selectedTaskId, tasks]);
+
+  function toggleStatus(status) {
+    setExpandedStatuses((current) => ({ ...current, [status]: !current[status] }));
+  }
+
+  return (
+    <section className={`task-list-view ${showOwner ? "show-owner" : ""}`} aria-label="업무 리스트">
+      <div className="status-guide" aria-label="업무 상태 의미">
+        {boardStatuses.map((status) => (
+          <span key={status}>
+            <i className={`status-${status.replace("/", "")}`} />
+            <b>{statusStickerLabels[status] ?? status}</b>
+            {statusMeanings[status]}
+          </span>
+        ))}
+      </div>
+      <div className="task-list-sections">
+        {boardStatuses.map((status) => {
+          const statusTasks = tasksByStatus[status] ?? [];
+          const isExpanded = Boolean(expandedStatuses[status]);
+          return (
+            <section className={`task-list-section status-${status.replace("/", "")} ${isExpanded ? "is-expanded" : "is-collapsed"}`} key={status}>
+              <button className="task-list-section-head" onClick={() => toggleStatus(status)} type="button" aria-expanded={isExpanded}>
+                <span className="lane-heading">
+                  {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                  <span className="lane-title">{statusStickerLabels[status] ?? status}</span>
+                </span>
+                <small className="lane-count">{statusTasks.length}건</small>
+              </button>
+              {isExpanded && (
+                <div className="task-list-table" role="table" aria-label={`${statusStickerLabels[status] ?? status} 업무 목록`}>
+                  <div className="task-list-table-head" role="row">
+                    <span role="columnheader">업무</span>
+                    {showOwner && <span role="columnheader">담당</span>}
+                    <span role="columnheader">구분</span>
+                    <span role="columnheader">기간</span>
+                    <span role="columnheader">진행률</span>
+                  </div>
+                  {statusTasks.length ? statusTasks.map((task) => (
+                    <TaskListRow
+                      key={task.id}
+                      onSelect={() => onSelect(task.id)}
+                      selected={selectedTaskId === task.id}
+                      showOwner={showOwner}
+                      task={task}
+                    />
+                  )) : (
+                    <p className="task-list-empty">해당 상태의 업무가 없습니다.</p>
+                  )}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function TaskListRow({ onSelect, selected, showOwner, task }) {
+  const tags = taskTags(task);
+  const title = displayTaskTitle(task);
+  const progress = taskProgress(task);
+  const spot = isSpotTask(task);
+  const visibleTags = tags.slice(0, 3);
+  const scheduleBadges = taskBadges(task).filter((badge) => !["New", "보관됨"].includes(badge.label));
+  return (
+    <button className={`task-list-row ${selected ? "selected" : ""} ${spot ? "spot-task-row" : ""}`} onClick={onSelect} role="row" type="button">
+      <span className="task-list-title-cell" role="cell">
+        <span className="task-list-title-line">
+          <strong>{title}</strong>
+          <span className="task-list-chip-line">
+            {spot ? (
+              <em className="priority-square spot-work-chip" title="스팟 업무">스팟</em>
+            ) : (
+              <em className={`priority-square priority-square-${task.priority}`}>{task.priority}</em>
+            )}
+            {task.recurring && <i className="task-list-repeat" title="반복 업무">🔁</i>}
+            {scheduleBadges.map((badge) => (
+              <i className={`task-list-schedule-chip badge-${badge.tone}`} key={`${task.id}-${badge.label}`}>{badge.label}</i>
+            ))}
+          </span>
+        </span>
+      </span>
+      {showOwner && (
+        <span className="task-list-owner-cell" role="cell">
+          {personName(task.ownerId)}
+        </span>
+      )}
+      <span className="task-list-tags-cell" role="cell">
+        {visibleTags.map((tag) => (
+          <em className={`tag-tone-${tagTone(tag)}`} key={`${task.id}-${tag}`}>{tag}</em>
+        ))}
+        {!visibleTags.length && <small>태그 없음</small>}
+      </span>
+      <span className="task-list-period-cell" role="cell">
+        <CalendarDays size={14} />
+        {task.startDate.slice(5)} - {task.dueDate.slice(5)}
+      </span>
+      <span className="task-list-progress-cell" role="cell">
+        <span className="task-list-progress-bar" aria-hidden="true">
+          <i style={{ width: `${progress}%` }} />
+        </span>
+        <b>{progress}%</b>
+      </span>
+    </button>
   );
 }
 
@@ -6205,9 +6922,10 @@ function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEd
   const tags = taskTags(task);
   const badges = taskBadges(task);
   const title = displayTaskTitle(task);
+  const spot = isSpotTask(task);
   return (
     <article
-      className={`task-card ${selected ? "selected" : ""} ${pulsing ? "is-select-pulsing" : ""} ${dragging ? "dragging" : ""}`}
+      className={`task-card ${spot ? "spot-task-card" : ""} ${selected ? "selected" : ""} ${pulsing ? "is-select-pulsing" : ""} ${dragging ? "dragging" : ""}`}
       draggable={canManage}
       onDragEnd={onDragEnd}
       onDragStart={(event) => {
@@ -6223,7 +6941,13 @@ function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEd
           {task.recurring && <span className="recurring-icon-only" title="반복 업무">🔁</span>}
         </div>
         <div className="card-chip-row">
-          <span className={`priority-square priority-square-${task.priority}`}>{task.priority}</span>
+          {spot ? (
+            <span className="priority-square spot-work-chip" title="스팟 업무: 주간·월간 실적에 포함, 분기·년간 요약에서는 기본 제외">
+              스팟
+            </span>
+          ) : (
+            <span className={`priority-square priority-square-${task.priority}`}>{task.priority}</span>
+          )}
           <span className={`task-status-chip status-${task.status.replace("/", "")} ${statusPulsing ? "is-status-popping" : ""}`}>{statusStickerLabels[task.status] ?? task.status}</span>
           {badges.map((badge) => (
             <span className={`status-chip badge-${badge.tone}`} key={`${task.id}-${badge.label}`}>{badge.label}</span>
@@ -6347,7 +7071,7 @@ function TimelineView({ mode, month, onModeChange, onMonthChange, onSelect, onYe
   }
 
   function tooltipDetails(task, risk, clippedStart, clippedEnd) {
-    const tags = taskTags(task);
+    const tags = timelineTaskTags(task);
     const lines = [
       tags.join(", "),
       `${formatDate(task.startDate)} - ${formatDate(task.dueDate)}`
@@ -6441,7 +7165,7 @@ function TimelineView({ mode, month, onModeChange, onMonthChange, onSelect, onYe
           const { offset, span } = placement(task);
           const clippedStart = mode === "month" ? task.startDate < monthStart : diffDays(task.startDate, yearStart) < 0;
           const clippedEnd = mode === "month" ? task.dueDate > monthEnd : diffDays(task.dueDate, yearEnd) > 0;
-          const tags = taskTags(task);
+          const tags = timelineTaskTags(task);
           const progress = taskProgress(task);
           const risk = timelineRisk(task);
           const title = displayTaskTitle(task);
@@ -6470,7 +7194,7 @@ function TimelineView({ mode, month, onModeChange, onMonthChange, onSelect, onYe
                   style={{ gridColumn: `${offset + 1} / span ${span}` }}
                 >
                   <span className="timeline-bar-copy">
-                    <b>{primaryTag(task)}</b>
+                    <b>{primaryTimelineTag(task)}</b>
                     <strong>{title}</strong>
                   </span>
                   <span className="timeline-bar-meta">
@@ -7661,7 +8385,7 @@ function PerformanceView({ postCategories, tasks }) {
       .map(([label, items]) => ({ label, items, latestDate: items[0]?.date || "" }))
       .sort((a, b) => b.latestDate.localeCompare(a.latestDate) || a.label.localeCompare(b.label, "ko-KR"));
   }, [displayTasks, postCategories]);
-  const periodTasks = displayTasks.filter((task) => taskInPerformanceRange(task, range));
+  const periodTasks = displayTasks.filter((task) => taskInPerformanceRange(task, range) && taskIncludedInPerformanceMode(task, mode, showLongDetails));
   const personRows = teamAssignablePeople().map((person) => {
     const owned = periodTasks.filter((task) => task.ownerId === person.id);
     return {
@@ -7862,6 +8586,11 @@ function PerformanceView({ postCategories, tasks }) {
         </div>
       )}
       {activePeople.length ? (
+        <>
+        <small className="performance-rule-note">
+          <CircleAlert size={12} strokeWidth={2} />
+          <span>스팟 업무는 주간·월간 실적에 포함하고, 분기·년간 요약에서는 기본 제외합니다. 상세실적 보기에서는 함께 표시됩니다.</span>
+        </small>
         <div className="performance-report-list">
           {activePeople.map(({ owned, person }) => (
             <section className="performance-person-section" key={person.id}>
@@ -7892,6 +8621,7 @@ function PerformanceView({ postCategories, tasks }) {
                   const statusMeta = reportStatusMeta({ ...task, status: item.status });
                   const reportDate = performanceItemDateLabel(item, mode);
                   const sourceTaskSummary = workstreamTaskSummary(item);
+                  const spotItem = performanceItemHasSpot(item);
                   return (
                     <article className={`performance-work-card report-${statusMeta.tone}`} key={item.id}>
                       <div className="performance-work-top">
@@ -7902,6 +8632,7 @@ function PerformanceView({ postCategories, tasks }) {
                         <h4>
                           {reportDate && <span className="performance-date-sticker">{reportDate}</span>}
                           {item.title}
+                          {spotItem && <span className="performance-spot-sticker" title="스팟 업무" aria-label="스팟 업무">⚡</span>}
                           {item.workstreamTaskCount > 1 && <span className="performance-recurring-sticker">묶인 업무 {item.workstreamTaskCount}건</span>}
                           {item.recurringLabel && <span className="performance-recurring-sticker">🔁 {item.recurringLabel}</span>}
                         </h4>
@@ -7950,6 +8681,7 @@ function PerformanceView({ postCategories, tasks }) {
             </section>
           ))}
         </div>
+        </>
       ) : (
         <p className="empty-note">선택한 기간에 집계할 업무가 없습니다.</p>
       )}
@@ -9041,6 +9773,14 @@ function TaskModal({ availableTags, mode = "task", onClose, onSave, task, workst
             <select value={draft.priority} onChange={(event) => update("priority", event.target.value)}>
               {["낮음", "보통", "높음"].map((priority) => (
                 <option key={priority}>{priority}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field task-modal-full-field">
+            <span>업무 성격</span>
+            <select value={taskWorkKind(draft)} onChange={(event) => update("workKind", event.target.value)}>
+              {workKindOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
           </label>

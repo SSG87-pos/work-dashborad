@@ -127,6 +127,7 @@ function createMindmapTask(task, locations) {
     title: task.title,
     status: task.status,
     priority: task.priority,
+    workKind: task.workKind === "spot" ? "spot" : "standard",
     ownerId: task.ownerId,
     dueDate: task.dueDate,
     recurring: task.recurring,

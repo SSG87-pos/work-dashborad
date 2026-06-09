@@ -28,6 +28,10 @@ function personLabel(people, personId) {
   return people.find((person) => person.id === personId)?.name ?? "미지정";
 }
 
+function isSpotMindmapTask(task) {
+  return task?.workKind === "spot";
+}
+
 function nodeClass(type, tone = "") {
   return ["mindmap-node-card", `mindmap-node-${type}`, tone ? `mindmap-tone-${tone}` : ""].filter(Boolean).join(" ");
 }
@@ -61,7 +65,13 @@ function MindmapNode({ data }) {
       {!isRoot && <Handle className="mindmap-handle" position={Position.Left} type="target" />}
       <span className="mindmap-node-topline">
         <strong>{data.label}</strong>
-        {isTask && !data.compact && data.priority && <span className={`priority-square priority-square-${data.priority}`}>{data.priority}</span>}
+        {isTask && !data.compact && data.isSpot ? (
+          <span className="priority-square spot-work-chip" title="스팟 업무">
+            스팟
+          </span>
+        ) : (
+          isTask && !data.compact && data.priority && <span className={`priority-square priority-square-${data.priority}`}>{data.priority}</span>
+        )}
         {data.countLabel && <em>{data.countLabel}</em>}
       </span>
       {data.description && !data.compact && <small>{data.description}</small>}
@@ -217,6 +227,7 @@ function buildFlowElements(structure, people, density = "card") {
           taskId: task.id,
           status: task.status,
           priority: task.priority,
+          isSpot: isSpotMindmapTask(task),
           progress: task.progress,
           dueDate: task.dueDate,
           ownerName: personLabel(people, task.ownerId),

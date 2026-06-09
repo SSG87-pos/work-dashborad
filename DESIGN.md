@@ -80,10 +80,12 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Team mode summarizes the public team flow.
 - The left briefing list owns most of the width; side widgets must not squeeze task titles.
 - The current approved split is approximately 56 percent briefing list and 44 percent side panel on standard desktop widths.
-- The side panel contains `오늘 일정` and `메모`, not `오늘 업무 큐`.
-- `오늘 일정` and `메모` are equal-width within the side area.
-- `메모` is page-scoped shared memo: `오늘 브리핑` and `전체 업무흐름` have independent memo values.
-- If the briefing list grows, agenda/memo can grow up to an internal scroll cap.
+- The side panel contains `오늘 일정` and a capture area, not `오늘 업무 큐`.
+- My Desk uses `업무 인박스` for each person's private structured remembered context before it becomes a task: mail, meeting notes, ideas, risks, references, todos, and short notes. Switching the selected person should show that person's own inbox items, not a shared team inbox.
+- Team Flow uses `팀 체크` for small shared todo-style items. Checking an item marks it done; clicking the title/text box opens the larger detail dialog; editing or deleting happens from that dialog, with delete confirmation because deletion removes the shared record.
+- The briefing capture area is title-first and compact: use the available `오늘 브리핑` side-panel height to show as many recent records as comfortably fit, reveal older records through a compact `전체` button beside `추가/기록` in the header, open a larger dialog for writing/reading/editing long content, and expose full long titles through native hover tooltips. The small rows should not show inline edit/delete icons.
+- Capture records should keep title, body, type, status, URL, author, and date as structured data so later AI/LLM features can use them as evidence.
+- If the briefing list grows, agenda can use an internal scroll cap, but capture rows should remain a height-aware preview plus the `전체` list dialog instead of adding a bottom button that consumes row space.
 
 Briefing rows:
 
@@ -104,7 +106,7 @@ Greetings:
 
 ## Emoji Picker Contract
 
-- Emoji selection is a shared interaction for profile settings, memo, calendar notes, update logs, and task `업무 노트` body text.
+- Emoji selection is a shared interaction for profile settings, 업무 인박스 body text, calendar notes, update logs, and task `업무 노트` body text.
 - The shared picker now uses `emoji-picker-react` for the full emoji set, search, categories, and recent emojis.
 - Load the picker only when the popover opens, so the main dashboard bundle stays light.
 - Use native emoji rendering rather than image/CDN emoji styles for company-network reliability.
@@ -117,12 +119,31 @@ Greetings:
 ### Board
 
 - Board order is fixed: `검토/대기`, `계획`, `진행중`, `완료`, `보류`.
+- Status lanes start collapsed by default so busy boards remain scannable. Clicking the lane header expands/collapses that status.
+- When an expanded status lane has more than four visible cards, it should span the board's full available width and lay cards out in a wider responsive grid instead of forcing a long narrow column.
 - Card titles should be readable but not heavy enough to fight the page title.
 - Board cards do not show long description text; description belongs in task detail.
 - Owner initials must remain clear on team workflow cards.
+- `스팟 업무` marks short or one-time work. Board cards should use a subtle teal card edge and show one compact `스팟` chip in the top chip row. Do not duplicate `스팟` again in the card tag row.
+- Board filters may include `스팟만 보기`; this filter is for board scanning only and should not replace status, tag, or owner filters.
 - If the user cannot manage the task, hide unavailable status controls instead of showing disabled gray controls.
 - Archive/edit actions stay grouped tightly.
 - Repeat marker appears on the task-title row, icon-only.
+
+### Workflow Filters
+
+- `보드`, `리스트`, `타임라인`, `반복 업무`, `보관함`, and `마인드맵` should share the same primary filters: tags, owner, priority, and spot-work scope.
+- Owner filtering must include `미지정` because some tasks may intentionally have no owner yet.
+- Filter controls should stay compact and use short labels such as `사람`, `태그`, `중요`, and `스팟`; avoid oversized select boxes that crowd the workflow toolbar.
+
+### List
+
+- `리스트` sits between `보드` and `타임라인` as a compact table-style workflow view.
+- Status sections follow the same order as the board and start collapsed by default: `검토/대기`, `계획`, `진행중`, `완료`, `보류`.
+- Expanded sections should stay denser and quieter than cards: thin separators, compact rows, restrained chips, and no decorative card spacing.
+- Rows should show enough scanning context in one line: task title with compact priority/spot/repeat/schedule markers, owner name only when in team scope, calm tag chips, period, and progress. Do not repeat the row status inside each row because the expanded section header already owns that context.
+- Clicking a row opens the same workflow-side task detail as board/timeline/recurring/archive.
+- If the table cannot fit in a narrow workflow area, the table body may scroll horizontally inside the view rather than causing page-level horizontal overflow.
 
 ### Mindmap
 
@@ -142,6 +163,7 @@ Greetings:
 - Group nodes are filter actions: clicking them applies the workstream's tag context where available and returns the user to the board result.
 - Task nodes open the same right-side workflow task detail as board/timeline/recurring/archive.
 - Mindmap task status chips should use the same calm status color meaning as the timeline (`계획`, `진행중`, `검토/대기`, `완료`, `보류`), and task importance should use the existing square priority sticker grammar.
+- In card-style mindmap task nodes, spot work should replace the priority sticker position with the same compact `스팟` chip used on board cards.
 - In compact mindmap mode, task nodes should stay small but show a clearly visible status-colored dot and the owner name so users can scan state and responsibility without opening the card.
 - In compact mindmap mode, task nodes may grow horizontally by title length and should keep status dot, task title, and owner on one line whenever possible. Keep count/owner metadata right-aligned inside each box, but avoid a large fixed minimum width; short labels should stay compact, and only long labels should widen the box.
 - The mindmap header should include a compact status-color legend when status dots are shown.
@@ -169,6 +191,7 @@ Greetings:
 ### Timeline
 
 - Timeline is a workflow peer of the board.
+- Spot tasks should replace the first visible timeline category/tag slot with `⚡ 스팟`, while board cards keep spot as the top chip only.
 - It should use soft solid status colors matching the legend, not strong saturated gradients.
 - The timeline container, toolbar, legend, grid, and empty state must keep the same rounded-card grammar as the board and other workflow panels.
 - Monthly timeline excludes weekends.
@@ -235,6 +258,7 @@ Main content:
 - Tags sit under the task title and use the same tag chip grammar as the rest of the app.
 - `상위 업무흐름` appears as compact metadata and is used for mindmap/performance grouping, not as a multi-select tag.
 - In the task form, the `상위 업무흐름` label should carry inline help explaining that it is recommended after entering the task name, can be manually edited, and is used to group performance/mindmap work.
+- In the task form, `업무 성격` may distinguish `일반 업무` from `스팟 업무`. Keep this separate from priority because spot work is a reporting/scope rule, not an importance score.
 - Progress bar is important and must remain visible.
 - `상세 업무 내용` is the main checklist and should feel more important than metadata.
 - Progress is calculated from completed detail checklist items.
@@ -295,6 +319,8 @@ Metadata and history:
 - Highlights has an additional `업무흐름별 게시글 모음` tab for remembered-context posts. It should group posts by `상위 업무흐름`, keep each workstream collapsed by default, show 게시날짜, 해당 업무, 담당자, and 게시자 when expanded, and support short sort controls: `날짜`, `사람`, `구분`, and `업무`.
 - Weekly view shows issue, description/content, completed, and planned lines.
 - Weekly view remains task-oriented.
+- `스팟 업무` is included in weekly and monthly performance reports. Quarterly and yearly summary reports exclude it by default to keep longer-period results focused, but `이슈/설명 포함 상세실적 보기` includes spot work again for detailed review.
+- In Highlights performance cards, spot work should be marked after the visible task/workstream title with a compact lightning sticker, not a text `스팟` label.
 - Monthly, quarterly, and yearly views summarize by `상위 업무흐름` inside the period grouping, with source tasks retained for copy/export evidence.
 - Monthly groups by week or week-range 흐름 labels.
 - Quarterly groups by month or month-range 흐름 labels.

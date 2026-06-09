@@ -47,6 +47,7 @@ function toTaskRow(task, currentUserId) {
     creator_roster_id: creatorIsUser ? null : task.creatorId || task.ownerId,
     status: task.status || "계획",
     priority: task.priority || "보통",
+    work_kind: task.workKind === "spot" ? "spot" : "standard",
     start_date: task.startDate || TODAY,
     due_date: task.dueDate || task.startDate || TODAY,
     completed_at: task.completedAt || null,
@@ -89,6 +90,7 @@ function fromTaskRow(row, relations = {}) {
     creatorId: row.creator_roster_id ?? row.creator_id,
     status: row.status,
     priority: row.priority,
+    workKind: row.work_kind === "spot" ? "spot" : "standard",
     category: tags[0] ?? "운영",
     tags: tags.length ? tags : ["운영"],
     startDate: row.start_date,
@@ -189,6 +191,26 @@ function fromTaskPostRow(row) {
   };
 }
 
+function fromBriefingItemRow(row) {
+  const done = Boolean(row.done || row.status === "done");
+  return {
+    id: row.id,
+    scope: row.scope === "team" ? "team" : "my",
+    kind: row.kind === "todo" ? "todo" : "inbox",
+    type: row.item_type ?? "note",
+    title: row.title,
+    body: row.body ?? "",
+    url: row.url ?? "",
+    status: row.kind === "todo" ? (done ? "done" : "open") : row.status ?? "new",
+    done,
+    ownerId: row.owner_roster_id ?? row.owner_id ?? "",
+    taskId: row.task_id ?? "",
+    authorId: row.author_roster_id ?? row.author_id,
+    createdAt: row.created_on ?? row.created_at?.slice(0, 10) ?? TODAY,
+    updatedAt: row.updated_at?.slice(0, 10) ?? ""
+  };
+}
+
 function rosterIdFor(personId) {
   return isUuid(personId) ? null : personId;
 }
@@ -263,7 +285,8 @@ async function readDashboardState() {
     memosResult,
     preferencesResult,
     postCategoriesResult,
-    postsResult
+    postsResult,
+    briefingItemsResult
   ] = await Promise.all([
     (currentUser.permissionRole === "admin"
       ? client.from("users").select("*").order("name", { ascending: true })
@@ -283,7 +306,8 @@ async function readDashboardState() {
     client.from("dashboard_memos").select("*"),
     client.from("user_preferences").select("*").eq("user_id", currentUser.id).maybeSingle(),
     client.from("task_post_categories").select("*").order("sort_order", { ascending: true }),
-    client.from("task_posts").select("*").order("created_at", { ascending: false })
+    client.from("task_posts").select("*").order("created_at", { ascending: false }),
+    client.from("briefing_items").select("*").order("created_at", { ascending: false })
   ]);
 
   [usersResult, rosterResult, tagsResult, tasksResult, subtasksResult, updatesResult, linksResult, historyResult, taskTagsResult, eventsResult, memosResult].forEach((result) => {
@@ -293,6 +317,7 @@ async function readDashboardState() {
   if (preferencesResult.error) throw preferencesResult.error;
   if (postCategoriesResult.error && !isMissingTableError(postCategoriesResult.error)) throw postCategoriesResult.error;
   if (postsResult.error && !isMissingTableError(postsResult.error)) throw postsResult.error;
+  if (briefingItemsResult.error && !isMissingTableError(briefingItemsResult.error)) throw briefingItemsResult.error;
 
   const relationMap = new Map();
   const ensureRelations = (taskId) => {
@@ -377,12 +402,15 @@ async function readDashboardState() {
     activePage: preferences.active_page ?? "my",
     activeView: preferences.active_view ?? "board",
     category: preferences.selected_tag ?? "전체",
+    ownerFilter: "전체",
     priorityFilter: "전체",
+    workKindFilter: "전체",
     timelineMode: preferences.timeline_mode ?? "month",
     timelineMonth: preferences.timeline_month ?? TODAY.slice(0, 7),
     timelineYear: preferences.timeline_year ?? TODAY.slice(0, 4),
     selectedTaskId: preferences.selected_task_id ?? "",
     memoByPage: Object.fromEntries(memosResult.data.map((memo) => [memo.page_key, memo.body])),
+    briefingItems: (briefingItemsResult.data ?? []).map(fromBriefingItemRow),
     profileOverrides: toProfileOverrides(mergedProfiles)
   });
 }
@@ -522,6 +550,44 @@ async function writeUserPreferences(state) {
   results.forEach((result) => {
     if (result.error) throw result.error;
   });
+  if (Array.isArray(state.briefingItems)) {
+    const existing = await client.from("briefing_items").select("id");
+    if (existing.error && !isMissingTableError(existing.error)) throw existing.error;
+    if (!existing.error) {
+      const rows = state.briefingItems.map((item) => {
+        const ownerIsUser = isUuid(item.ownerId);
+        const taskId = isUuid(item.taskId) ? item.taskId : null;
+        return {
+          id: item.id,
+          scope: item.scope === "team" ? "team" : "my",
+          kind: item.kind === "todo" ? "todo" : "inbox",
+          item_type: item.type || "note",
+          title: item.title,
+          body: item.body || null,
+          url: item.url || null,
+          status: item.kind === "todo" ? (item.done ? "done" : "open") : item.status || "new",
+          done: Boolean(item.done),
+          owner_id: ownerIsUser ? item.ownerId : null,
+          owner_roster_id: ownerIsUser ? null : item.ownerId || null,
+          task_id: taskId,
+          author_id: currentUser.id,
+          author_roster_id: isUuid(item.authorId) ? null : item.authorId || null,
+          created_on: item.createdAt || TODAY,
+          updated_at: now
+        };
+      });
+      if (rows.length) {
+        const upsertResult = await client.from("briefing_items").upsert(rows, { onConflict: "id" });
+        if (upsertResult.error && !isMissingTableError(upsertResult.error)) throw upsertResult.error;
+      }
+      const nextIds = new Set(rows.map((row) => row.id));
+      const staleIds = (existing.data ?? []).map((row) => row.id).filter((id) => !nextIds.has(id));
+      if (staleIds.length) {
+        const deleteResult = await client.from("briefing_items").delete().in("id", staleIds);
+        if (deleteResult.error && !isMissingTableError(deleteResult.error)) throw deleteResult.error;
+      }
+    }
+  }
   return true;
 }
 
@@ -709,9 +775,21 @@ async function saveTask(task) {
     .upsert(row)
     .select("id")
     .single();
-  if (taskError) throw taskError;
+  let savedTaskData = savedTask;
+  if (taskError) {
+    if (!isMissingColumnError(taskError, "work_kind")) throw taskError;
+    const fallbackRow = { ...row };
+    delete fallbackRow.work_kind;
+    const fallbackSave = await client
+      .from("tasks")
+      .upsert(fallbackRow)
+      .select("id")
+      .single();
+    if (fallbackSave.error) throw fallbackSave.error;
+    savedTaskData = fallbackSave.data;
+  }
 
-  const taskId = savedTask.id;
+  const taskId = savedTaskData.id;
   const subtasks = (task.subtasks ?? []).filter((subtask) => subtask.title?.trim());
   await client.from("subtasks").delete().eq("task_id", taskId);
   if (subtasks.length) {
@@ -813,10 +891,12 @@ async function importDashboardData(imported, options = {}) {
   const calendarEvents = Array.isArray(imported?.calendarEvents) ? imported.calendarEvents : [];
   const availableTags = Array.isArray(imported?.availableTags) ? imported.availableTags : [];
   const tagGroups = Array.isArray(imported?.tagGroups) ? imported.tagGroups : [];
+  const briefingItems = Array.isArray(imported?.briefingItems) ? imported.briefingItems : [];
 
   const rosterIds = Array.from(new Set([
     ...tasks.flatMap((task) => [rosterIdFor(task.ownerId), rosterIdFor(task.creatorId), rosterIdFor(task.assignerId)]),
     ...calendarEvents.map((event) => rosterIdFor(event.ownerId)),
+    ...briefingItems.flatMap((item) => [rosterIdFor(item.ownerId), rosterIdFor(item.authorId)]),
     ...Object.keys(profileOverrides).map(rosterIdFor)
   ].filter(Boolean)));
   const knownDirectoryIds = new Set(directory.map((person) => person.id));
@@ -869,7 +949,7 @@ async function importDashboardData(imported, options = {}) {
     await addCalendarEvent({ ...event, peopleDirectory: directory });
   }
 
-  if (imported?.memoByPage) {
+  if (imported?.memoByPage || briefingItems.length) {
     await writeUserPreferences({
       activePage: options.activePage ?? "team",
       activeView: options.activeView ?? "board",
@@ -878,13 +958,18 @@ async function importDashboardData(imported, options = {}) {
       timelineMonth: options.timelineMonth ?? TODAY.slice(0, 7),
       timelineYear: options.timelineYear ?? TODAY.slice(0, 4),
       selectedTaskId: "",
-      memoByPage: imported.memoByPage
+      memoByPage: imported.memoByPage,
+      briefingItems: briefingItems.map((item) => ({
+        ...item,
+        taskId: taskIdMap.get(item.taskId) ?? item.taskId
+      }))
     });
   }
 
   return {
     taskCount: tasks.length,
     calendarEventCount: calendarEvents.length,
+    briefingItemCount: briefingItems.length,
     tagCount: tagNames.length,
     tagGroupCount: tagGroups.length,
     rosterCount: rosterIds.length

@@ -68,6 +68,7 @@ One row is one accountable unit of work. When two or more people share work, cre
 | creator_id | user id | User who registered the task. |
 | status | enum | 검토/대기, 계획, 진행중, 완료, 보류. |
 | priority | enum | 높음, 보통, 낮음. |
+| work_kind | enum | `standard` or `spot`. `spot` marks short/one-time work; weekly/monthly reports include it, quarterly/yearly summaries exclude it unless detailed results are enabled. |
 | start_date | date | Planned start. |
 | due_date | date | Planned deadline. |
 | completed_at | date nullable | Actual completion date. Set when status enters 완료; cleared when completion is cancelled. |
@@ -166,6 +167,29 @@ Task-level remembered-context posts used by `업무 노트` and the Highlights `
 | updated_at | datetime | Last body/title/category correction timestamp. |
 
 Post rule: visible task posts are readable by authenticated users who can see the parent task. Authors or task managers can edit/delete a post. Attachments are metadata-only until Supabase Storage policies are added.
+
+### briefing_items
+
+Structured Today Briefing capture records. My Desk renders inbox-style records for mail, meeting notes, ideas, risks, references, todos, and short notes. Team Flow renders todo-style records for small shared checks.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| id | string | Stable local/Supabase id. |
+| scope | string | `my` or `team`. |
+| kind | string | `inbox` for My Desk, `todo` for Team Flow. |
+| item_type | string | mail, meeting, idea, risk, reference, todo, note. |
+| title | string | Compact list title. |
+| body | text nullable | Remembered context body. |
+| url | string nullable | Optional mail/document/Teams/reference URL. |
+| status | string | My Desk: new, reviewing, converted, archived. Team: open, done. |
+| done | boolean | Team checklist completion flag. |
+| owner_id / owner_roster_id | user/roster id nullable | My Desk inbox owner. Required for personal inbox behavior; team checks may leave it empty. |
+| task_id | task id nullable | Optional link once the item becomes related to a task. |
+| author_id / author_roster_id | user/roster id | Writer. |
+| created_on | date | Reader-facing capture date. |
+| created_at / updated_at | datetime | Audit. |
+
+LLM rule: `briefing_items` are useful as raw evidence for future AI briefing, search, and next-action suggestions. Personal My Desk inbox items are scoped to their owner and should not be included in team reports unless the user explicitly promotes or links them. Team Check items are shared team records.
 
 ### notifications
 

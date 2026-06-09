@@ -225,6 +225,33 @@ export const initialTasks = [
     updates: []
   },
   {
+    id: "t-spot-001",
+    title: "회의 직후 공유자료 빠른 정리",
+    description: "오늘 회의에서 나온 참고 링크와 다음 확인 포인트만 빠르게 묶어 팀에 공유합니다.",
+    ownerId: "admin",
+    assignerId: "lead",
+    assignerType: "팀장님",
+    creatorId: "admin",
+    status: "진행중",
+    priority: "보통",
+    workKind: "spot",
+    category: "운영",
+    tags: ["회의체", "외부자료"],
+    workstream: "팀 운영 리듬 관리",
+    startDate: "2026-06-04",
+    dueDate: "2026-06-05",
+    progress: 50,
+    subtasks: [
+      { id: "st-spot-001-1", title: "회의 중 언급된 자료 링크 모으기", done: true },
+      { id: "st-spot-001-2", title: "팀 공유용 짧은 요약 작성", done: false }
+    ],
+    archived: false,
+    isNewAssignment: true,
+    recurring: null,
+    links: [{ title: "회의 공유자료 폴더", url: "https://intra.research-strategy.local/drive/meeting-share", type: "드라이브" }],
+    updates: [{ authorId: "admin", date: "2026-06-04", text: "스팟 업무 예시입니다. 주간/월간에는 포함되고 분기/년간 요약에서는 기본 제외됩니다." }]
+  },
+  {
     id: "t-004",
     title: "탄소중립 기술 포트폴리오 업데이트",
     description: "주요 기술군의 투자 우선순위와 리스크를 최신 자료 기준으로 갱신합니다.",

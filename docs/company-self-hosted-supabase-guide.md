@@ -50,7 +50,7 @@ https://github.com/SSG87-pos/work-dashborad.git
 - POSLAB 랜딩페이지
 - Canvas, 마인드맵, Highlights, 업무 노트, 관리자 화면
 - Supabase 연결 코드
-- `supabase/migrations/001...020` DB 스키마
+- `supabase/migrations/001...021` DB 스키마
 
 ### 2. Supabase 공식 self-hosted Docker 구성
 
@@ -637,7 +637,7 @@ Supabase 공식 Docker Compose 구성으로 설치합니다.
 - 방화벽/포트 정책
 - reverse proxy/HTTPS 여부
 
-### 필수 3. migration 001부터 020까지 적용
+### 필수 3. migration 001부터 021까지 적용
 
 테이블이 생겨야 실제 공유 저장이 됩니다.
 
@@ -659,6 +659,7 @@ Supabase 공식 Docker Compose 구성으로 설치합니다.
 - `canvas_links`
 - `task_posts`
 - `task_post_categories`
+- `briefing_items`
 
 ### 필수 4. 첫 관리자 계정 생성
 
@@ -977,7 +978,7 @@ where email = '관리자_이메일';
 - `release/company-self-hosted`를 GitHub 또는 회사 내부 Git의 운영 기준으로 확정
 - 회사 내부 Git을 쓰는 경우 내부 Git `main`을 실제 운영 메인으로 설정
 - self-hosted Supabase 설치
-- `001`부터 `020` migration 적용
+- `001`부터 `021` migration 적용
 - self-hosted URL/key를 앱 환경변수에 연결
 - 첫 admin 계정 생성
 - 실제 팀 roster 입력
@@ -1002,4 +1003,4 @@ where email = '관리자_이메일';
 
 ## 한 줄 정리
 
-내일 데모는 지금 브랜치만 pull해서 보여주면 됩니다. self-hosted Supabase 운영으로 넘어갈 때는 `release/company-self-hosted`를 GitHub 또는 회사 내부 Git의 운영 기준으로 삼고, 내부망 때문에 GitHub로 다시 push할 수 없다면 회사 내부 Git의 `main`을 실제 운영 메인으로 사용하면 됩니다. 그 뒤 별도의 Supabase 공식 Docker 구성을 회사 서버에 설치하고, 우리 repo의 `supabase/migrations/001...020`을 그 DB에 적용한 다음, 앱의 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_ANON_KEY`를 회사 내부 Supabase 주소/key로 연결하면 됩니다.
+내일 데모는 지금 브랜치만 pull해서 보여주면 됩니다. self-hosted Supabase 운영으로 넘어갈 때는 `release/company-self-hosted`를 GitHub 또는 회사 내부 Git의 운영 기준으로 삼고, 내부망 때문에 GitHub로 다시 push할 수 없다면 회사 내부 Git의 `main`을 실제 운영 메인으로 사용하면 됩니다. 그 뒤 별도의 Supabase 공식 Docker 구성을 회사 서버에 설치하고, 우리 repo의 `supabase/migrations/001...021`을 그 DB에 적용한 다음, 앱의 `VITE_SUPABASE_URL`과 `VITE_SUPABASE_ANON_KEY`를 회사 내부 Supabase 주소/key로 연결하면 됩니다.

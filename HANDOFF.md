@@ -6,7 +6,7 @@ Mainline handoff for `/Users/seulgi/Documents/work-dashboard`.
 
 Project goal: build a clickable React/Vite prototype and evolve it into a usable shared work dashboard for `연구기획그룹-전략`. The dashboard is centered on personal daily briefing, public team workflow, task assignment, task detail/update logs, tag filtering, timeline/calendar, recurring work, archive, personal notes, performance reporting, and later real login/admin/backend support.
 
-Last updated: 2026-06-08
+Last updated: 2026-06-09
 
 ## Current State
 
@@ -76,7 +76,11 @@ Key product decisions now in the prototype:
   - Todo data smoke testing under the authenticated role passed inside a rolled-back transaction: inserted a `todo` Canvas node with two checklist items, updated a checked state inside `data.todoItems`, selected the updated JSON value, and confirmed rollback cleanup returned QA row counts to zero.
   - Signed-in Canvas can now persist across PCs after the first edit/save cycle. Browser-rendered Canvas QA should still be run when a browser automation tool is available.
   - Later collaboration scope remains separate: live cursors, simultaneous-edit conflict handling, per-node locking, task-linking, and visible change history.
-- `오늘 브리핑` is personal-first: briefing task flow, today agenda, and a page-scoped shared memo.
+- `오늘 브리핑` is personal-first: briefing task flow, today agenda, and structured capture.
+- My Desk now uses `업무 인박스` instead of the old plain memo textarea. It stores type, title, body, URL, status, owner, author, and date as structured `briefingItems`, so future LLM/evidence builders can use mail snippets, meeting reminders, ideas, risks, references, todos, and notes without scraping free text. 업무 인박스 is personal per selected person: each My Desk view shows only that person's own inbox items, while Team Flow `팀 체크` remains shared. The small briefing area shows title-first rows only and uses the available `오늘 브리핑` side-panel height to show as many recent rows as fit; `기록` opens a larger write dialog, clicking a title opens a larger read dialog for long body text and URL, and `수정` reuses the larger dialog with existing values filled in. Older rows open through a compact header `전체` list dialog instead of expanding or scrolling inside the side panel, and long titles expose a native hover tooltip.
+- Team Flow now uses `팀 체크`, a compact todo-style shared checklist in the same side area. Items can be added from a larger dialog, checked done, opened for detail by clicking the title/text box, edited from the larger detail dialog, and deleted there after a confirmation. Checked items remain completed until someone changes or deletes them. The preview uses the available briefing height first, and only overflow rows move behind the header `전체` button beside `추가`.
+- `src/storage.js` includes `briefingItems` in local JSON snapshots/export/import. `src/supabaseStore.js` can read/write `briefing_items`, and `supabase/migrations/022_briefing_items.sql` defines the self-hosted Supabase table, RLS policies, and authenticated Data API grants. This migration is local repo/self-hosted scope unless explicitly applied to a live Supabase project.
+- `오늘 브리핑` rows no longer show the small helper count line such as `오늘이 시작일인 업무 · 2건`, keeping the screen less crowded.
 - The common top header keeps only the `Strategy Work Hub` title; repeated explanatory subtitles are intentionally removed across tabs.
 - The top header now includes a compact `넓게/기본` viewing-density toggle for real demo/desktop readability. The toggle preserves the approved UI direction while widening workflow/calendar task detail panels and improving key text sizes; the preference is stored locally through `src/storage.js` so it survives refresh without requiring a Supabase schema change.
 - Task detail now has a real `업무 노트` surface below `다음 액션 추천`. It is positioned as a general remembered-context/posting tool, not meeting-note-only: decisions, remembered context, reference URLs, risks, meeting notes, and lookup material can all fit. The narrow detail panel shows the selected task's latest three title-first rows plus a nearby `노트 작성` action, and additional posts from that same task remain available behind a compact more/less control. The previous explanatory card above the list was removed so the panel stays compact. Because the panel is narrow, reading opens a larger dialog; writing and editing also open a larger dialog with `노트 구분` selection chips, URL input, body textarea, and emoji insertion at the body cursor. It does not show posts from other tasks just because they share the same `상위 업무흐름`; that cross-task rollup belongs in Highlights. Users can write, read, edit, and delete posts. Local fallback stores posts as task-level `postItems`; Supabase mode now has live-applied migration `20260608140147 020_task_posts` for shared `task_posts` and `task_post_categories` persistence. Authenticated-role rollback smoke verified post create/read/update/delete with URL and attachment metadata, leaving 0 QA rows. Browser UI smoke on `http://127.0.0.1:5188/` verified create/read/update/delete/reload persistence for a Supabase-connected task note and DB cleanup confirmed 0 leftover UI QA rows. Real file attachments still need future Supabase Storage bucket/RLS, and optional post change history remains later scope.
@@ -106,6 +110,20 @@ Key product decisions now in the prototype:
   - task detail space is not reserved before selection; workflow views use their full width until a task is clicked.
   - default workflow/calendar detail width is wider than the older compact prototype width, and `넓게 보기` expands detail to 410px around 1280-1366px desktop widths while avoiding page-level horizontal overflow.
 - Board columns are ordered `검토/대기 -> 계획 -> 진행중 -> 완료 -> 보류`.
+- Board status lanes start collapsed by default. Clicking a lane header expands/collapses that status; if the expanded lane has more than four visible cards, it spans the full board width and uses a responsive card grid so heavy statuses are not trapped in one narrow column.
+- `리스트` is now a workflow view between `보드` and `타임라인`. It groups tasks by the same status order, starts every status section collapsed, expands into a compact table, and opens the common workflow-side task detail when a row is clicked. Row-level status chips are intentionally omitted because the section header already owns status context; priority/spot/repeat/schedule markers sit beside the task title, owner shows name only, and tag chips stay low-contrast.
+- `보드`, `리스트`, `타임라인`, `반복 업무`, `보관함`, and `마인드맵` now share compact filters for tags, owner, priority, and spot work. Owner filtering includes `미지정` so unassigned tasks can be found intentionally.
+- `스팟 업무` is implemented for short/one-time work:
+  - Task edit/create modal has `업무 성격` with `일반 업무` and `스팟 업무`.
+  - Board cards for spot work use a subtle teal edge and show one compact `스팟` chip in the top chip row. The card tag row stays as the real tags/categories so `스팟` is not duplicated inside the card.
+  - Timeline displays spot tasks differently from board cards: the first visible category/tag slot is replaced with `⚡ 스팟`.
+  - Mindmap card-style task nodes show `스팟` in the priority-sticker position for spot work, matching the board card meaning while preserving the task's actual priority data.
+  - Highlights performance cards show a compact lightning sticker immediately after the visible task/workstream title; Markdown copy/save also includes `⚡`.
+  - Spot tasks keep their real category/tag values for filtering and reporting even when timeline/highlights use spot-specific display labels.
+  - Board controls include `스팟만 보기` for quick filtering.
+  - Local fallback demo data includes `회의 직후 공유자료 빠른 정리`, and existing local fallback sessions without any spot task receive that sample once so the UI can be checked without resetting storage.
+  - Local fallback persists `workKind`; Supabase mode maps it to `tasks.work_kind` through migration `021_task_work_kind.sql`.
+  - Weekly/monthly performance reports include spot work. Quarterly/yearly summaries exclude spot work by default, but `이슈/설명 포함 상세실적 보기` includes spot work again for detailed review.
 - New tasks start as `계획` unless the user explicitly chooses another status.
 - Task progress is automatically calculated from `상세 업무 내용` checklist items. At least one detail item is required when saving a task.
 - `completedAt`/`completedBy` are set when a task first enters `완료`; moving it out of `완료` clears completion metadata and keeps status history.

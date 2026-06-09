@@ -2,18 +2,18 @@
 
 이 문서는 회사 리눅스 컴퓨터에서 이 대시보드를 로컬 Supabase에 연결해 실행하기 위한 절차입니다.
 
-작성 기준일: 2026-06-08
+작성 기준일: 2026-06-09
 
 ## 결론
 
 가능합니다. 현재 프로젝트는 이미 Supabase 연결을 위한 기본 구조가 준비되어 있습니다.
 
 - 프론트엔드는 `.env.local`의 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`가 채워지면 Supabase 모드로 전환됩니다.
-- DB 스키마는 `supabase/migrations/001_initial_dashboard_schema.sql`부터 `020_task_posts.sql`까지 준비되어 있습니다.
+- DB 스키마는 `supabase/migrations/001_initial_dashboard_schema.sql`부터 `022_briefing_items.sql`까지 준비되어 있습니다.
 - Canvas 공유 저장 테이블(`canvas_tabs`, `canvas_nodes`, `canvas_links`)과 업무/캘린더/로그/변경이력 주요 테이블의 RLS, Data API 권한이 마이그레이션에 포함되어 있습니다.
 - 값이 없거나 Supabase 연결이 없으면 기존처럼 로컬 fallback 데모 데이터로 동작합니다.
 
-`020_task_posts.sql`부터는 `업무 노트`와 `업무흐름별 게시글 모음`도 `task_posts`, `task_post_categories` 테이블로 분리됩니다. 회사 리눅스에서 `supabase db reset` 또는 migration 적용을 하면 게시글 본문/URL/분류도 Supabase 공유 저장 대상이 됩니다. 다만 실제 이미지/파일 첨부는 아직 metadata placeholder만 있고, Supabase Storage bucket/RLS는 별도 후속 작업이 필요합니다.
+`020_task_posts.sql`부터는 `업무 노트`와 `업무흐름별 게시글 모음`도 `task_posts`, `task_post_categories` 테이블로 분리됩니다. `021_task_work_kind.sql`은 단기/일회성 `스팟 업무` 구분을 `tasks.work_kind`로 저장합니다. `022_briefing_items.sql`은 오늘 브리핑의 `업무 인박스`와 `팀 체크`를 구조화된 레코드로 저장합니다. 회사 리눅스에서 `supabase db reset` 또는 migration 적용을 하면 게시글 본문/URL/분류, 스팟 업무 구분, 브리핑 인박스/팀 체크도 Supabase 공유 저장 대상이 됩니다. 다만 실제 이미지/파일 첨부는 아직 metadata placeholder만 있고, Supabase Storage bucket/RLS는 별도 후속 작업이 필요합니다.
 
 ## Supabase를 로컬에 설치한다는 뜻
 
@@ -28,6 +28,8 @@ work-dashborad/
       ...
       019_task_updates_manage.sql
       020_task_posts.sql
+      021_task_work_kind.sql
+      022_briefing_items.sql
 ```
 
 `supabase init`은 `supabase/config.toml`을 만들고, `supabase start`는 Docker 컨테이너로 로컬 Supabase 스택을 띄웁니다. 공식 문서 기준으로 로컬 Supabase CLI는 `supabase init`, `supabase start` 흐름을 사용하며, 로컬 스택은 Docker 컨테이너로 실행됩니다.
@@ -108,6 +110,8 @@ docs/supabase-start-guide.md
 - `018`: 변경 이력 수정/삭제 권한
 - `019`: 업데이트 로그 수정/삭제 권한
 - `020`: 업무 노트 게시글과 게시글 유형 관리
+- `021`: 스팟 업무 구분(`tasks.work_kind`) 저장
+- `022`: 오늘 브리핑 `업무 인박스`/`팀 체크` 구조화 저장(`briefing_items`)
 
 아직 Supabase 공유 저장이 아닌 것:
 

@@ -100,6 +100,8 @@ Latest live verification:
 - Authenticated-role rollback smoke verified `task_posts` create, read, update, and delete with URL and attachment metadata; the rollback left 0 QA rows.
 - `task_posts` and `task_post_categories` both have RLS enabled. Default active post categories count is 7.
 - Browser UI smoke on `http://127.0.0.1:5188/` verified Supabase-connected `업무 노트` flow: open task detail, create note, read note, update title/body/URL, delete note, reload, and confirm the deleted note stays gone. DB cleanup check found 0 leftover UI QA rows.
+- Local repo migration `021_task_work_kind.sql` adds `tasks.work_kind` for `스팟 업무`. Apply it before using spot work in a new self-hosted Supabase environment; the public live project note above only reflects migrations already applied there.
+- Local repo migration `022_briefing_items.sql` adds Today Briefing `업무 인박스`/`팀 체크` storage through `briefing_items`. Apply it before expecting those capture records to persist in a new self-hosted Supabase environment; the public live project note above only reflects migrations already applied there.
 
 ## Permission Notes
 
