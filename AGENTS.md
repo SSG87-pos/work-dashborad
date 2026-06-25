@@ -49,6 +49,7 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 
 - **[Frontend source and interaction rules](./src/AGENTS.md)** — React state, task behavior, CSS layering, and browser QA rules.
 - **[Design system and product UI rules](./DESIGN.md)** — Approved visual direction, layout behavior, typography, chips, and component-specific design contracts.
+- **[Next thread continuation guide](./docs/next-thread-continuation-guide.md)** — Short current-state bridge for starting another Codex thread from the right branch, docs, and next action.
 - **[Backend planning docs](./docs/backend-api-spec.md)** — Future API/storage/auth contract reference.
 - **[FastAPI/PostgreSQL backend spec](./docs/fastapi-postgres-backend-spec.md)** — Current Docker-free company backend implementation target, PostgreSQL schema, FastAPI endpoints, and rollout sequence.
 - **[Beginner FastAPI/PostgreSQL runbook](./docs/company-fastapi-postgres-beginner-runbook.md)** — Step-by-step company Linux manual for cloning the branch, preparing PostgreSQL/FastAPI prerequisites, and connecting the app after backend implementation.

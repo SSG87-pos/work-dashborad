@@ -1,6 +1,6 @@
 # FastAPI + PostgreSQL Backend Spec
 
-작성 기준일: 2026-06-09
+작성 기준일: 2026-06-25
 
 이 문서는 `연구기획그룹-전략` 대시보드를 Docker 없는 회사 내부망에서 운영하기 위한 실제 구현 기준입니다. 기존 Supabase 설계와 마이그레이션은 데이터 모델 참고 자료로 유지하되, 새 운영 목표는 `FastAPI + PostgreSQL`입니다.
 
@@ -94,15 +94,33 @@ FastAPI/PostgreSQL 운영 작업 기준 브랜치:
 release/company-fastapi-postgres
 ```
 
-회사 PC에서 새로 받을 때:
+최신 업무 채널/게시글 공개범위 기능까지 포함해서 이어갈 작업 브랜치:
+
+```text
+codex/task-channel-feed-fastapi
+```
+
+다음 Codex 쓰레드에서 바로 backend 구현까지 이어갈 때는 `codex/task-channel-feed-fastapi`를 추천합니다. 이 브랜치에는 My Desk `내 글`, Team Flow `업무 채널`, `task_posts.visibility`, `/posts/mine`, `/posts/team-channel` 문서 계약이 포함되어 있습니다.
+
+회사 PC에서 최신 채널 기능까지 포함해 새로 받을 때:
 
 ```bash
-git clone -b release/company-fastapi-postgres https://github.com/SSG87-pos/work-dashborad.git
-cd work-dashborad
+git clone -b codex/task-channel-feed-fastapi https://github.com/SSG87-pos/work-dashborad.git work-dashboard-task-channel
+cd work-dashboard-task-channel
+pnpm install
+```
+
+회사 PC에서 안정적인 FastAPI/PostgreSQL 기준 브랜치만 받을 때:
+
+```bash
+git clone -b release/company-fastapi-postgres https://github.com/SSG87-pos/work-dashborad.git work-dashboard-fastapi
+cd work-dashboard-fastapi
 pnpm install
 ```
 
 기존 `release/company-self-hosted` 브랜치는 Supabase/self-hosted 검토 이력으로 남깁니다. Docker 기반 Supabase 설치가 다시 가능해지는 경우가 아니라면 새 backend 구현은 `release/company-fastapi-postgres`에서 이어갑니다.
+
+단, 최신 업무 채널 기능까지 같이 운영 확정할 계획이면 `codex/task-channel-feed-fastapi`에서 Phase 1 backend를 시작한 뒤 검증 후 `release/company-fastapi-postgres`로 병합하는 흐름이 좋습니다.
 
 ## 4. 인증과 권한
 
@@ -991,7 +1009,10 @@ WantedBy=multi-user.target
 FastAPI 백엔드 구현을 시작할 때 Codex에게 이렇게 요청하면 됩니다.
 
 ```text
+AGENTS.md, HANDOFF.md, TODO.md, docs/next-thread-continuation-guide.md,
 docs/fastapi-postgres-backend-spec.md를 기준으로 Docker 없는 회사 내부망용 FastAPI + PostgreSQL 백엔드 skeleton을 만들어줘.
+현재 최신 기능 포함 브랜치는 codex/task-channel-feed-fastapi야.
 프론트 UI는 유지하고, src/storage.js 경계를 보존하면서 VITE_API_BASE_URL 기반 apiStore를 추가해줘.
 우선 Phase 1: health check, DB 연결, Alembic, users/team_roster, 첫 admin seed까지만 구현하고 빌드/기본 API 검증까지 진행해줘.
+업무 노트/게시글 visibility 계약도 유지해줘. private 글은 팀 채널, Highlights rollup, export, AI 요약에 기본 노출되면 안 돼.
 ```

@@ -1,6 +1,6 @@
 # Company FastAPI + PostgreSQL Beginner Runbook
 
-작성 기준일: 2026-06-09
+작성 기준일: 2026-06-25
 
 이 문서는 FastAPI와 PostgreSQL을 한 번도 써본 적 없는 사람이 회사 리눅스 PC/서버에서 `연구기획그룹-전략` 대시보드를 backend 연결 방식으로 준비할 수 있도록 만든 단계별 매뉴얼입니다.
 
@@ -13,6 +13,20 @@
 - 업무, 업무 노트, 업무 인박스, 팀 체크, Canvas, Highlights 등 프론트 기능
 - FastAPI + PostgreSQL 구현 명세 문서
 
+최신 업무 채널/게시글 공개범위 기능까지 포함하려면 아래 작업 브랜치를 사용합니다.
+
+```text
+codex/task-channel-feed-fastapi
+```
+
+이 브랜치에는 `release/company-fastapi-postgres` 내용에 더해 다음이 포함됩니다.
+
+- My Desk `내 글`
+- Team Flow `업무 채널`
+- 업무 노트 `팀 공개` / `나만 보기`
+- Highlights 업무흐름별 게시글 모음에서 private 글 제외
+- FastAPI/PostgreSQL 문서의 `task_posts.visibility`, `/posts/mine`, `/posts/team-channel` 계약
+
 아직 들어 있지 않은 것:
 
 - 실제 `backend/` FastAPI 코드
@@ -21,7 +35,7 @@
 
 따라서 회사 PC에서 바로 할 일은 두 단계입니다.
 
-1. 먼저 `release/company-fastapi-postgres` 브랜치를 받는다.
+1. 먼저 `codex/task-channel-feed-fastapi` 또는 `release/company-fastapi-postgres` 브랜치를 받는다.
 2. 그 다음 Codex에게 `backend/` FastAPI 구현을 시킨다.
 
 이 문서는 두 과정을 모두 설명합니다.
@@ -35,7 +49,7 @@
 | FastAPI | Python으로 API 서버를 만드는 도구입니다. 브라우저 화면과 DB 사이에서 중간 역할을 합니다. |
 | PostgreSQL | 실제 업무 데이터가 저장되는 데이터베이스입니다. |
 | API | 프론트가 백엔드에게 요청하는 주소 묶음입니다. 예: `/api/v1/tasks`. |
-| Branch | Git에서 작업 기준선을 나눠둔 것입니다. 이번 backend 기준은 `release/company-fastapi-postgres`입니다. |
+| Branch | Git에서 작업 기준선을 나눠둔 것입니다. backend 기준은 `release/company-fastapi-postgres`, 최신 채널 기능 포함 작업 기준은 `codex/task-channel-feed-fastapi`입니다. |
 | `.env` | 비밀번호, DB 주소, API 주소처럼 환경마다 달라지는 값을 적는 파일입니다. Git에 올리면 안 됩니다. |
 
 최종 구조:
@@ -67,7 +81,16 @@ git status
 
 출력에 `nothing to commit, working tree clean` 같은 문장이 있으면 안전합니다.
 
-그 다음 새 브랜치를 받습니다.
+최신 채널 기능까지 같이 이어갈 경우 아래 브랜치를 받습니다.
+
+```bash
+git fetch origin
+git checkout codex/task-channel-feed-fastapi
+git pull
+pnpm install
+```
+
+backend 기준선만 받을 경우 아래 브랜치를 받습니다.
 
 ```bash
 git fetch origin
@@ -81,6 +104,16 @@ pnpm install
 ### 2.2 새 폴더로 안전하게 받을 경우
 
 기존 데모 폴더를 남겨두고 새 폴더에 받는 방법입니다. 가장 안전합니다.
+
+최신 채널 기능까지 포함할 경우:
+
+```bash
+git clone -b codex/task-channel-feed-fastapi https://github.com/SSG87-pos/work-dashborad.git work-dashboard-task-channel
+cd work-dashboard-task-channel
+pnpm install
+```
+
+backend 기준선만 받을 경우:
 
 ```bash
 git clone -b release/company-fastapi-postgres https://github.com/SSG87-pos/work-dashborad.git work-dashboard-fastapi
@@ -337,11 +370,13 @@ uvicorn app.main:app --host 0.0.0.0 --port 18080
 
 ```text
 이 폴더의 AGENTS.md, HANDOFF.md, TODO.md,
+docs/next-thread-continuation-guide.md,
 docs/company-fastapi-postgres-beginner-runbook.md,
 docs/fastapi-postgres-backend-spec.md를 먼저 읽고 진행해줘.
 
 목표는 이 대시보드를 회사 내부 FastAPI + PostgreSQL backend로 연결하는 거야.
-아직 backend/ 폴더는 없으니 release/company-fastapi-postgres 브랜치 기준으로 Phase 1부터 구현해줘.
+아직 backend/ 폴더는 없으니 현재 브랜치 기준으로 Phase 1부터 구현해줘.
+최신 업무 채널/게시글 공개범위 기능을 포함하려면 codex/task-channel-feed-fastapi 브랜치를 기준으로 해줘.
 
 범위:
 - backend/ 폴더 생성
@@ -352,6 +387,7 @@ docs/fastapi-postgres-backend-spec.md를 먼저 읽고 진행해줘.
 - 첫 관리자 seed 방식
 - /api/v1/health 확인
 - 프론트는 기존 UI를 유지하고 VITE_API_BASE_URL 기반 apiStore 연결 준비
+- 업무 노트/게시글 visibility 계약 유지: private 글은 팀 채널, Highlights rollup, export, AI 요약에 기본 노출 금지
 
 아직 하지 말 것:
 - 실시간 기능
@@ -645,9 +681,17 @@ git fetch origin
 git branch -r
 ```
 
-`origin/release/company-fastapi-postgres`가 보이는지 확인합니다.
+최신 채널 기능까지 포함하려면 `origin/codex/task-channel-feed-fastapi`가 보이는지 확인합니다.
+
+backend 기준선만 필요하면 `origin/release/company-fastapi-postgres`가 보이는지 확인합니다.
 
 그 다음:
+
+```bash
+git checkout codex/task-channel-feed-fastapi
+```
+
+또는 backend 기준선만 쓸 경우:
 
 ```bash
 git checkout release/company-fastapi-postgres
@@ -764,6 +808,14 @@ $ADMIN journalctl -u work-dashboard-api -n 100
 ## 15. 가장 짧은 전체 순서
 
 새 폴더로 받기:
+
+```bash
+git clone -b codex/task-channel-feed-fastapi https://github.com/SSG87-pos/work-dashborad.git work-dashboard-task-channel
+cd work-dashboard-task-channel
+pnpm install
+```
+
+backend 기준선만 받을 경우:
 
 ```bash
 git clone -b release/company-fastapi-postgres https://github.com/SSG87-pos/work-dashborad.git work-dashboard-fastapi

@@ -2,11 +2,70 @@
 
 ## Scope
 
-Mainline handoff for `/Users/seulgi/Documents/work-dashboard`.
+Mainline handoff for `/Users/seulgi/Documents/Codex/work-dashboard`.
 
 Project goal: build a clickable React/Vite prototype and evolve it into a usable shared work dashboard for `연구기획그룹-전략`. The dashboard is centered on personal daily briefing, public team workflow, task assignment, task detail/update logs, tag filtering, timeline/calendar, recurring work, archive, personal notes, performance reporting, and later real login/admin/backend support.
 
-Last updated: 2026-06-09
+Last updated: 2026-06-25
+
+## Next Thread Quick Start
+
+Use this section first when continuing from another Codex thread.
+
+Current branch:
+
+```text
+codex/task-channel-feed-fastapi
+```
+
+Latest pushed commit:
+
+```text
+f7d3196 Add task channel feeds with post visibility
+```
+
+Recommended continuation baseline:
+
+- If continuing the latest channel/post feature and backend planning together, stay on `codex/task-channel-feed-fastapi`.
+- If starting only from the company FastAPI/PostgreSQL release baseline, use `release/company-fastapi-postgres`, then merge or cherry-pick the task-channel work after review.
+- Do not use `release/company-self-hosted` or `release/company-supabase-c3` unless the company returns to the Supabase/Docker route.
+
+Read first, in order:
+
+1. `AGENTS.md`
+2. `src/AGENTS.md`
+3. `DESIGN.md`
+4. `docs/next-thread-continuation-guide.md`
+5. `TODO.md`
+6. `docs/fastapi-postgres-backend-spec.md`
+7. `docs/company-fastapi-postgres-beginner-runbook.md`
+8. `docs/backend-api-spec.md`
+9. `docs/data-model.md`
+10. `docs/permission-rules.md`
+
+Current implementation boundary:
+
+- Frontend task-channel UX is implemented and pushed.
+- `업무 노트` posts now support `팀 공개` and `나만 보기`.
+- My Desk has a compact `내 글` channel surface.
+- Team Flow has a compact `업무 채널` surface grouped by workstream.
+- Highlights workstream post rollups include only team-visible posts.
+- FastAPI/PostgreSQL docs include `task_posts.visibility`, `/posts/mine`, and `/posts/team-channel`.
+- Actual `backend/` FastAPI code still does not exist.
+- The next real implementation task is FastAPI/PostgreSQL backend Phase 1.
+
+Known working verification from the latest feature branch:
+
+- `git diff --check`
+- `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` with bundled Node on PATH when local shell cannot find `node`
+- Headless Chrome QA for My Desk channel, Team Flow channel, and task-detail visibility controls
+
+Untracked local files intentionally left out of the last commit:
+
+- `docs/mockups/clickup-list-tab-workflow.html`
+- `docs/mockups/clickup-simple-work-views.html`
+
+These were ClickUp reference mockups from an exploration that 슬기님 paused. Keep them uncommitted unless 슬기님 explicitly asks to keep, revise, or delete them.
 
 ## Current State
 
@@ -26,7 +85,8 @@ Last updated: 2026-06-09
 - Package manager: `/Users/seulgi/Library/pnpm/bin/pnpm`.
 - Build command: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
 - GitHub remote: `https://github.com/SSG87-pos/work-dashborad.git`.
-- Current backend branch: `codex/supabase-integration`.
+- Current continuation branch: `codex/task-channel-feed-fastapi`.
+- Current FastAPI/PostgreSQL release baseline: `release/company-fastapi-postgres`.
 - Persistence is hybrid during the transition:
   - localStorage key `research-strategy-dashboard:v1` remains the prototype fallback.
   - Supabase is active when `.env.local` contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
@@ -846,7 +906,8 @@ Validation notes:
 
 ## Risks and Notes
 
-- Git baseline exists on `main`; current Supabase work is on `codex/supabase-integration`.
+- Git baseline exists on `main`; current latest feature work is on `codex/task-channel-feed-fastapi`.
+- Older Supabase risk notes in this document are historical/reference only unless the company returns to a Supabase/Docker route.
 - `src/styles.css` is large and still contains layered overrides. A small cleanup pass has started, but production hardening should continue by moving feature sections into clearer layers or CSS modules.
 - Supabase schema/RLS is applied, `014_private_rls_helpers_and_memo_policy` and `015_split_read_manage_rls_policies` are live-applied, and signed-in browser CRUD smoke QA has passed.
 - `015_split_read_manage_rls_policies` is live-applied; remaining performance advisor items are unused-index INFOs until real traffic accumulates.
@@ -866,9 +927,34 @@ Validation notes:
 ## Next Prompt
 
 ```text
-AGENTS.md, HANDOFF.md, TODO.md에서 계속 진행에 필요한 부분만 확인하고 현재 프로젝트를 이어서 진행해줘. HANDOFF.md의 Next Prompt 또는 TODO.md의 최상단 작업부터 바로 처리하고, 변경 후 검증 결과와 남은 리스크를 다시 HANDOFF.md/TODO.md에 업데이트해줘.
+이 프로젝트는 /Users/seulgi/Documents/Codex/work-dashboard의 연구기획그룹-전략 업무 대시보드야.
+현재 이어받을 기준은 codex/task-channel-feed-fastapi 브랜치야.
 
-프로젝트는 `/Users/seulgi/Documents/work-dashboard`의 `연구기획그룹-전략` 업무 대시보드 React/Vite 프로토타입이다. 대표 구현은 `src/App.jsx`, `src/data.js`, `src/styles.css`, `src/storage.js`이며, `legacy/prototype.html`은 레거시 참고용이다.
+먼저 AGENTS.md, src/AGENTS.md, DESIGN.md, HANDOFF.md, TODO.md,
+docs/next-thread-continuation-guide.md,
+docs/fastapi-postgres-backend-spec.md,
+docs/company-fastapi-postgres-beginner-runbook.md,
+docs/backend-api-spec.md,
+docs/data-model.md,
+docs/permission-rules.md를 필요한 만큼 읽고 현재 상태를 파악해줘.
 
-현재 Supabase auth/session, 주요 task/tag/calendar/memo CRUD, roster, recurring rule 저장, import summary/executor, 중복 JSON fingerprint guard, unknown-roster import 차단까지 구현되어 있다. `supabase/migrations/013_advisor_preflight_hardening.sql`은 live DB에 적용되어 `touch_updated_at` search_path와 FK 인덱스 preflight가 처리됐고, `supabase/migrations/014_private_rls_helpers_and_memo_policy.sql`도 live DB에 적용되어 RLS helper private schema 이동, public helper/trigger function 직접 execute revoke, `dashboard_memos` active-user select/insert/update 정책이 반영됐다. `supabase/migrations/015_split_read_manage_rls_policies.sql`도 live DB에 적용되어 `personal_notes`, `subtasks`, `task_links`, `task_tags`의 broad `FOR ALL` manage policies가 write-specific insert/update/delete policies로 분리됐다. signed-in browser CRUD smoke QA도 통과했다: QA 임시 업무 생성, 상태 변경, 상세 열기, 업데이트 로그 추가, 삭제 후 원래 live 1건 상태 복귀까지 확인했고 콘솔 오류/경고는 0이었다. 현재 security advisor는 leaked password protection disabled만 남고, performance advisor는 unused-index INFO만 남는다. leaked password protection은 Supabase Pro Plan 이상 dashboard 설정이므로 개인/free-plan Supabase 데모 단계에서는 보류하고, 회사가 Supabase를 실제 운영 백엔드로 승인할 때 다시 결정한다. `docs/company-demo-readiness-checklist.md`, `docs/company-supabase-review-brief.md`, `docs/internal-port-demo-runbook.md`, `docs/company-clone-runbook.md`, `docs/team-onboarding-checklist.md`, `docs/team-roster-template.csv`, `docs/role-rls-validation-checklist.md`도 추가되어 회사 검토용 데모 기준, Supabase 검토 브리프, 포트/로컬 네트워크 시연 절차, Windows/Linux 회사 PC clone 실행 절차, 실제 사용자 정보 수집, 권한 검증 양식이 준비됐다. `package.json`에는 `packageManager: pnpm@11.5.1`이 명시됐고 `pnpm run check:demo-readiness`가 clone/demo 준비 상태를 secret 출력 없이 점검한다. visible team roster는 소슬기/박경수/류강묵/장형민/박관욱/조원태 기준으로 live DB와 로컬 fallback 표시가 맞춰졌다. 실제 팀원 가입/auth 계정 연결은 현재 제외한다. 슬기님은 예전 로컬 JSON 데이터 이관이 필요 없고 Supabase에 새로 쓰기 시작하면 된다고 결정했다. JSON export/import는 백업/미래 이관 도구로만 유지한다. 임시 URL은 현재 제외하고 회사에서 포트/로컬 네트워크를 활용해 먼저 확인한다. 현재 dev script는 `vite --host 0.0.0.0`이므로 회사망/방화벽이 허용하면 `pnpm run dev`로 Network URL을 노출할 수 있다. 다음 우선순위는 포트 기반 내부 시연 준비, 회사 Supabase 사용 가능성 확인, 또는 실제 lead/member signup/auth 연결 시점 결정이다. 변경 후 `/Users/seulgi/Library/pnpm/bin/pnpm run check:demo-readiness`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:import-plan`, `/Users/seulgi/Library/pnpm/bin/pnpm run check:summary-filter`, `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`, 가능한 브라우저 QA 결과를 `HANDOFF.md`/`TODO.md`에 반영해줘.
+목표는 회사 C3/Linux/Ubuntu 환경에서 Docker 없이 FastAPI + PostgreSQL backend로 연결할 수 있게 Phase 1 backend skeleton을 구현하는 거야.
+
+우선 범위:
+- backend/ 폴더 생성
+- FastAPI health check
+- PostgreSQL 연결
+- Alembic 설정
+- users, team_roster 모델과 migration
+- 첫 관리자 seed 방식
+- /api/v1/health 검증
+- 프론트 UI는 유지하고 VITE_API_BASE_URL 기반 apiStore 연결 준비
+
+중요:
+- Supabase Docker/self-hosted Supabase는 현재 운영 목표가 아니고 참고 자료야.
+- 업무 노트/게시글에는 팀 공개/나만 보기 visibility가 있어야 해.
+- private 게시글은 팀 채널, Highlights rollup, export, AI 요약에 기본 노출되면 안 돼.
+- src/storage.js 저장 경계를 유지하고 화면 컴포넌트에 fetch를 흩뿌리지 마.
+- 구현 후 git diff --check, backend 기본 API 검증, CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build까지 확인해줘.
+- 변경 후 HANDOFF.md와 TODO.md를 다시 업데이트해줘.
 ```

@@ -2,6 +2,21 @@
 
 ## Now
 
+- [ ] Implement FastAPI/PostgreSQL backend Phase 1.
+  - Start branch: `codex/task-channel-feed-fastapi` if the task-channel/post-visibility feature should be included from the beginning.
+  - Release baseline: `release/company-fastapi-postgres` if the team wants a cleaner backend-only branch first.
+  - Read first: `AGENTS.md`, `src/AGENTS.md`, `DESIGN.md`, `docs/next-thread-continuation-guide.md`, `HANDOFF.md`, `TODO.md`, `docs/fastapi-postgres-backend-spec.md`, `docs/company-fastapi-postgres-beginner-runbook.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`.
+  - Scope: create `backend/`, install FastAPI dependencies, add PostgreSQL connection, Alembic setup, `users` and `team_roster` models/migration, first-admin seed, `/api/v1/health`, and initial auth scaffolding if time allows.
+  - Frontend boundary: add an API store behind `VITE_API_BASE_URL` while keeping `localDashboardStore` as fallback.
+  - Preserve: task post `visibility` contract. Private posts must not appear in Team Flow channels, Highlights rollups, exports, or AI summaries by default.
+  - Defer: realtime, Teams push, AI model calls, Canvas simultaneous editing, and multi-workspace separation.
+
+- [x] Refresh next-thread handoff docs.
+  - Files: `HANDOFF.md`, `TODO.md`, `AGENTS.md`, `docs/next-thread-continuation-guide.md`, `docs/fastapi-postgres-backend-spec.md`, `docs/company-fastapi-postgres-beginner-runbook.md`.
+  - Done: added a short current-state bridge for another Codex thread, including branch, read order, next prompt, verification commands, and the current backend boundary.
+  - Done: clarified that `codex/task-channel-feed-fastapi` is the easiest continuation branch when the task-channel/post-visibility work should continue into backend implementation.
+  - Note: ClickUp mockup files remain untracked by design unless 슬기님 explicitly asks to keep, revise, or remove them.
+
 - [x] Add task-linked channel feed with public/private task posts.
   - Branch: `codex/task-channel-feed-fastapi`.
   - Files: `src/App.jsx`, `src/styles.css`, `src/supabaseStore.js`, `DESIGN.md`, `docs/fastapi-postgres-backend-spec.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`, `HANDOFF.md`, `TODO.md`.
@@ -20,12 +35,6 @@
   - Done: added `docs/company-fastapi-postgres-beginner-runbook.md`, a step-by-step company Linux manual for someone new to FastAPI/PostgreSQL. It covers existing-folder vs new-folder branch checkout, tool installation, frontend check, PostgreSQL setup, backend-after-implementation commands, env files, systemd, troubleshooting, and the next Codex implementation prompt.
   - Done: changed existing backend docs so Supabase is reference/design history only, while FastAPI/PostgreSQL is the active operating target.
   - Next: implement Phase 1 backend skeleton: `backend/`, health check, DB config, Alembic, `users`/`team_roster`, first-admin seed, and frontend `VITE_API_BASE_URL` store boundary.
-
-- [ ] Implement FastAPI/PostgreSQL backend Phase 1.
-  - Target docs: `docs/fastapi-postgres-backend-spec.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`.
-  - Scope: create `backend/`, install FastAPI dependencies, add PostgreSQL connection, Alembic setup, `users` and `team_roster` models/migration, first-admin seed, `/api/v1/health`, and initial auth scaffolding if time allows.
-  - Frontend boundary: add an API store behind `VITE_API_BASE_URL` while keeping `localDashboardStore` as fallback.
-  - Defer: realtime, Teams push, AI model calls, Canvas simultaneous editing, and multi-workspace separation.
 
 - [x] Replace Today Briefing memo with structured My Desk inbox and Team checklist.
   - Files: `src/App.jsx`, `src/storage.js`, `src/supabaseStore.js`, `src/styles.css`, `supabase/migrations/022_briefing_items.sql`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/local-linux-supabase-runbook.md`, `HANDOFF.md`, `TODO.md`.
