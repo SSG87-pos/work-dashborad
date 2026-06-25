@@ -193,9 +193,12 @@ Key product decisions now in the prototype:
   - beginner company setup/runbook: `docs/company-fastapi-postgres-beginner-runbook.md`
   - Supabase/self-hosted Supabase is no longer the active operating target because the company backend environment cannot install the Supabase Docker stack.
   - previous Supabase migrations and docs remain schema/permission reference material only.
-  - first implementation milestone: create `backend/` with FastAPI health check, PostgreSQL connection, Alembic, `users`/`team_roster`, and first-admin seed.
-  - current important boundary: `backend/` has not been implemented yet. The beginner runbook separates commands that work now from commands that should be run after backend Phase 1 exists.
-  - frontend integration route: keep `src/storage.js` as fallback, add `VITE_API_BASE_URL` API store, and avoid spreading network calls through view components.
+  - current FastAPI implementation milestone is present: `backend/` has FastAPI health/db endpoints, PostgreSQL session config, Alembic migrations through `20260625_0010`, `.env.example`, and first-admin seed CLI.
+  - auth/roster/profile APIs are present: `POST /api/v1/auth/login`, JWT access tokens, `GET/PATCH /api/v1/me`, and admin-only `GET/POST/PATCH /api/v1/admin/roster`.
+  - task APIs are present: `GET/POST/PATCH/DELETE /api/v1/tasks`, task enum types, owner/creator links, progress validation, manager-only update checks, recurring rule persistence, and future recurring instance cleanup.
+  - operating endpoints are present: subtasks add/list/update, update logs add/list/edit/delete, tags add/list/edit/delete, tag groups save/list/delete, calendar events add/list/update/delete, briefing items add/list/update, preferences, page memos, task history note edit/delete, archive/restore, links add/list/delete, post categories add/list/edit/deactivate, task posts add/list/edit/delete, Highlights workstream post rollups, and Canvas state read/save.
+  - frontend integration is present: `src/apiStore.js` uses FastAPI mode when `VITE_API_BASE_URL` is set and keeps `src/storage.js` as the local fallback boundary.
+  - current important boundary: live company PostgreSQL apply/smoke, browser QA against the company URL, deeper role-specific filtering, and Teams/realtime/AI production integrations remain next.
   - first backend route before the Docker constraint changed: Supabase/Postgres
   - first login route: email/password signup/login
   - new signups default to `member`

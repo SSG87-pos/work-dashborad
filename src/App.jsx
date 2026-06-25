@@ -48,6 +48,7 @@ import {
 import { TODAY, assignerTypes, categories, initialCalendarEvents, initialTasks, mindmapSampleTasks, people, statuses, tagOptions } from "./data.js";
 import { localDashboardStore, localDisplayPreferenceStore, supabaseImportHistoryStore } from "./storage.js";
 import { buildSupabaseImportPlan, formatSupabaseImportPlanMessage } from "./supabaseImportPlan.js";
+import { apiConfig, apiDashboardStore } from "./apiStore.js";
 import { supabaseConfig } from "./supabaseClient.js";
 import { supabaseDashboardStore } from "./supabaseStore.js";
 import { summaryFilterLabels, summaryFilterMatches } from "./summaryFilters.js";
@@ -2125,7 +2126,10 @@ function dashboardSummary(tasks, activePage, selectedPersonId) {
 function App() {
   const persisted = useMemo(localDashboardStore.read, []);
   const persistedDisplayPreferences = useMemo(localDisplayPreferenceStore.read, []);
-  const isSupabaseReady = supabaseConfig.isConfigured;
+  const remoteDashboardStore = apiConfig.isConfigured ? apiDashboardStore : supabaseDashboardStore;
+  const isApiReady = apiConfig.isConfigured;
+  const isSupabaseReady = apiConfig.isConfigured || supabaseConfig.isConfigured;
+  const backendLabel = isApiReady ? "FastAPI" : "Supabase";
   const importInputRef = useRef(null);
   const detailColumnRef = useRef(null);
   const initialPersistedTasks = useMemo(() => withSpotDemoTask(persistedArray(persisted.tasks, initialTasks)), [persisted]);
@@ -2313,7 +2317,7 @@ function App() {
 
   function persistTaskToSupabase(task, previousLocalId = task.id) {
     if (!isSupabaseReady || !isAuthenticated) return;
-    supabaseDashboardStore.tasks.save(task)
+    remoteDashboardStore.tasks.save(task)
       .then((result) => {
         handleSupabaseWriteResult(result, "아직 실제 계정과 연결되지 않은 샘플 업무라 로컬에만 저장됐습니다.");
         if (!result?.id || result.id === previousLocalId) return;
@@ -2369,7 +2373,7 @@ function App() {
       })
     );
     if (isSupabaseReady && isAuthenticated && savedPost) {
-      supabaseDashboardStore.tasks.savePost(taskId, savedPost)
+      remoteDashboardStore.tasks.savePost(taskId, savedPost)
         .then((result) => {
           handleSupabaseWriteResult(result, "업무 노트 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
           if (!result?.id || result.id === savedPost.id) return;
@@ -2406,7 +2410,7 @@ function App() {
       })
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.deletePost(postId)
+      remoteDashboardStore.tasks.deletePost(postId)
         .then((result) => {
           handleSupabaseWriteResult(result, "업무 노트 공유 삭제는 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
         })
@@ -2449,7 +2453,7 @@ function App() {
       );
     }
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.savePostCategory({ ...nextCategory, previousLabel: category.previousLabel })
+      remoteDashboardStore.tasks.savePostCategory({ ...nextCategory, previousLabel: category.previousLabel })
         .then((result) => {
           handleSupabaseWriteResult(result, "게시글 유형 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
         })
@@ -2473,7 +2477,7 @@ function App() {
       )
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.deactivatePostCategory(categoryId)
+      remoteDashboardStore.tasks.deactivatePostCategory(categoryId)
         .then((result) => {
           handleSupabaseWriteResult(result, "게시글 유형 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
         })
@@ -2670,7 +2674,7 @@ function App() {
     if (!isSupabaseReady) return undefined;
     let cancelled = false;
     setAuthStatus("checking");
-    supabaseDashboardStore.read()
+    remoteDashboardStore.read()
       .then((snapshot) => {
         if (cancelled) return;
         if (!snapshot?.isAuthenticated) {
@@ -2729,7 +2733,7 @@ function App() {
       briefingItems
     };
     supabaseWriteTimerRef.current = window.setTimeout(() => {
-      supabaseDashboardStore.write(nextState).catch((error) => {
+      remoteDashboardStore.write(nextState).catch((error) => {
         console.warn("Supabase 선호값 저장에 실패했습니다.", error);
       });
     }, 450);
@@ -2895,7 +2899,7 @@ function App() {
       });
     });
     if (recurringScope === "future" && isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.deleteFutureInstances(nextTask.id, TODAY).catch((error) => {
+      remoteDashboardStore.tasks.deleteFutureInstances(nextTask.id, TODAY).catch((error) => {
         console.warn("Supabase 미래 반복 회차 정리에 실패했습니다.", error);
         showSyncNotice("미래 반복 회차 정리를 Supabase에 반영하지 못했습니다.");
       });
@@ -2936,7 +2940,7 @@ function App() {
       )
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.updateStatus(taskId, nextStatus).then((result) => {
+      remoteDashboardStore.tasks.updateStatus(taskId, nextStatus).then((result) => {
         handleSupabaseWriteResult(result, "샘플 업무 상태는 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 상태 변경 저장에 실패했습니다.", error);
@@ -2959,7 +2963,7 @@ function App() {
       )
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.addUpdate(taskId, cleanText).then((result) => {
+      remoteDashboardStore.tasks.addUpdate(taskId, cleanText).then((result) => {
         handleSupabaseWriteResult(result, "샘플 업무의 업데이트 로그는 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 업데이트 로그 저장에 실패했습니다.", error);
@@ -2983,7 +2987,7 @@ function App() {
       )
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.updateHistory(entry.id, nextNote).then((result) => {
+      remoteDashboardStore.tasks.updateHistory(entry.id, nextNote).then((result) => {
         handleSupabaseWriteResult(result, "샘플 업무 변경 이력은 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 변경 이력 수정에 실패했습니다.", error);
@@ -3004,7 +3008,7 @@ function App() {
       )
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.deleteHistory(entry.id).then((result) => {
+      remoteDashboardStore.tasks.deleteHistory(entry.id).then((result) => {
         handleSupabaseWriteResult(result, "샘플 업무 변경 이력은 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 변경 이력 삭제에 실패했습니다.", error);
@@ -3029,7 +3033,7 @@ function App() {
       )
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.updateLog(update.id, nextText).then((result) => {
+      remoteDashboardStore.tasks.updateLog(update.id, nextText).then((result) => {
         handleSupabaseWriteResult(result, "샘플 업무 업데이트 로그는 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 업데이트 로그 수정에 실패했습니다.", error);
@@ -3050,7 +3054,7 @@ function App() {
       )
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.deleteLog(update.id).then((result) => {
+      remoteDashboardStore.tasks.deleteLog(update.id).then((result) => {
         handleSupabaseWriteResult(result, "샘플 업무 업데이트 로그는 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 업데이트 로그 삭제에 실패했습니다.", error);
@@ -3075,7 +3079,7 @@ function App() {
       )
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.addLink(taskId, { title, url, type }).then((result) => {
+      remoteDashboardStore.tasks.addLink(taskId, { title, url, type }).then((result) => {
         handleSupabaseWriteResult(result, "샘플 업무의 관련 링크는 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 링크 저장에 실패했습니다.", error);
@@ -3102,7 +3106,7 @@ function App() {
       })
     );
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.setSubtaskDone(subtaskId, nextDone, nextProgress).then((result) => {
+      remoteDashboardStore.tasks.setSubtaskDone(subtaskId, nextDone, nextProgress).then((result) => {
         handleSupabaseWriteResult(result, "샘플 업무의 상세 업무 체크는 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 상세 업무 체크 저장에 실패했습니다.", error);
@@ -3115,7 +3119,7 @@ function App() {
     const nextEvent = { ...event, id: event.id || `e-${Date.now()}` };
     setCalendarEvents((current) => [nextEvent, ...current]);
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.events.add({ ...nextEvent, peopleDirectory: directory })
+      remoteDashboardStore.events.add({ ...nextEvent, peopleDirectory: directory })
         .then((result) => {
           handleSupabaseWriteResult(result, "일정은 현재 로컬에만 저장됐습니다.");
           if (!result?.id || result.id === nextEvent.id) return;
@@ -3146,7 +3150,7 @@ function App() {
     if (!nextEvent.title) return;
     setCalendarEvents((current) => current.map((item) => (item.id === nextEvent.id ? nextEvent : item)));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.events.update({ ...nextEvent, peopleDirectory: directory }).then((result) => {
+      remoteDashboardStore.events.update({ ...nextEvent, peopleDirectory: directory }).then((result) => {
         handleSupabaseWriteResult(result, "일정 수정은 현재 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 일정 수정에 실패했습니다.", error);
@@ -3166,7 +3170,7 @@ function App() {
     if (!confirmed) return;
     setCalendarEvents((current) => current.filter((event) => event.id !== eventId));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.events.delete(eventId).then((result) => {
+      remoteDashboardStore.events.delete(eventId).then((result) => {
         handleSupabaseWriteResult(result, "일정 삭제는 현재 로컬에만 반영됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 일정 삭제에 실패했습니다.", error);
@@ -3178,7 +3182,7 @@ function App() {
   function toggleArchive(taskId, archived) {
     setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, archived } : task)));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.setArchived(taskId, archived).then((result) => {
+      remoteDashboardStore.tasks.setArchived(taskId, archived).then((result) => {
         handleSupabaseWriteResult(result, "샘플 업무의 보관 상태는 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 보관 상태 저장에 실패했습니다.", error);
@@ -3325,7 +3329,7 @@ function App() {
     const nextTasks = tasks.filter((item) => item.id !== taskId && item.recurringTemplateId !== taskId);
     setTasks(nextTasks);
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tasks.delete(taskId).then((result) => {
+      remoteDashboardStore.tasks.delete(taskId).then((result) => {
         handleSupabaseWriteResult(result, "샘플 업무 삭제는 로컬에만 반영됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 업무 삭제에 실패했습니다.", error);
@@ -3346,7 +3350,7 @@ function App() {
     if (!nextTag) return;
     setAvailableTags((current) => normalizeTags([...current, nextTag]));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tags.add(nextTag).catch((error) => {
+      remoteDashboardStore.tags.add(nextTag).catch((error) => {
         console.warn("Supabase 태그 추가에 실패했습니다.", error);
         showSyncNotice("태그 추가를 Supabase에 반영하지 못했습니다.");
       });
@@ -3371,14 +3375,14 @@ function App() {
     );
     setCategory((current) => serializeTagFilters(readTagFilterValues(current, tagGroups).map((tag) => (tag === oldTag ? cleanTag : tag))));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tags.rename(oldTag, cleanTag).catch((error) => {
+      remoteDashboardStore.tags.rename(oldTag, cleanTag).catch((error) => {
         console.warn("Supabase 태그 수정에 실패했습니다.", error);
         showSyncNotice("태그 수정을 Supabase에 반영하지 못했습니다.");
       });
       nextGroups
         .filter((group) => group.tags.includes(cleanTag))
         .forEach((group) => {
-          supabaseDashboardStore.tags.saveGroup(group).catch((error) => {
+          remoteDashboardStore.tags.saveGroup(group).catch((error) => {
             console.warn("Supabase 태그 Category 갱신에 실패했습니다.", error);
           });
         });
@@ -3398,14 +3402,14 @@ function App() {
     );
     setCategory((current) => serializeTagFilters(readTagFilterValues(current, tagGroups).filter((tag) => tag !== tagToDelete)));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tags.delete(tagToDelete).catch((error) => {
+      remoteDashboardStore.tags.delete(tagToDelete).catch((error) => {
         console.warn("Supabase 태그 삭제에 실패했습니다.", error);
         showSyncNotice("태그 삭제를 Supabase에 반영하지 못했습니다.");
       });
       nextGroups
         .filter((group) => group.tags.length)
         .forEach((group) => {
-          supabaseDashboardStore.tags.saveGroup(group).catch((error) => {
+          remoteDashboardStore.tags.saveGroup(group).catch((error) => {
             console.warn("Supabase 태그 Category 갱신에 실패했습니다.", error);
           });
         });
@@ -3433,11 +3437,11 @@ function App() {
     });
     if (isSupabaseReady && isAuthenticated) {
       cleanTags.forEach((tag) => {
-        supabaseDashboardStore.tags.add(tag).catch((error) => {
+        remoteDashboardStore.tags.add(tag).catch((error) => {
           console.warn("Supabase 태그 추가에 실패했습니다.", error);
         });
       });
-      supabaseDashboardStore.tags.saveGroup(nextGroup).catch((error) => {
+      remoteDashboardStore.tags.saveGroup(nextGroup).catch((error) => {
         console.warn("Supabase 태그 Category 저장에 실패했습니다.", error);
         showSyncNotice("태그 Category 저장은 마이그레이션 적용 후 Supabase에 반영됩니다.");
       });
@@ -3460,7 +3464,7 @@ function App() {
     setTagGroups(nextGroups);
     if (isSupabaseReady && isAuthenticated) {
       nextGroups.forEach((group) => {
-        supabaseDashboardStore.tags.saveGroup(group).catch((error) => {
+        remoteDashboardStore.tags.saveGroup(group).catch((error) => {
           console.warn("Supabase 태그 Category 이동 저장에 실패했습니다.", error);
         });
       });
@@ -3475,7 +3479,7 @@ function App() {
       setCategory((current) => serializeTagFilters(readTagFilterValues(current, tagGroups).filter((tag) => !groupToDelete.tags.includes(tag))));
     }
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.tags.deleteGroup(groupId).catch((error) => {
+      remoteDashboardStore.tags.deleteGroup(groupId).catch((error) => {
         console.warn("Supabase 태그 Category 삭제에 실패했습니다.", error);
         showSyncNotice("태그 Category 삭제는 마이그레이션 적용 후 Supabase에 반영됩니다.");
       });
@@ -3557,7 +3561,7 @@ function App() {
     setAuthMessage("");
     try {
       if (payload.mode === "signup") {
-        await supabaseDashboardStore.auth.signUpWithPassword({
+        await remoteDashboardStore.auth.signUpWithPassword({
           email: payload.email,
           password: payload.password,
           name: payload.name,
@@ -3565,9 +3569,9 @@ function App() {
         });
         setAuthMessage("회원가입 요청이 완료됐습니다. 이메일 확인이 켜져 있다면 메일 인증 후 로그인해 주세요.");
       } else {
-        await supabaseDashboardStore.auth.signInWithPassword(payload.email, payload.password);
+        await remoteDashboardStore.auth.signInWithPassword(payload.email, payload.password);
       }
-      const snapshot = await supabaseDashboardStore.read();
+      const snapshot = await remoteDashboardStore.read();
       if (snapshot?.isAuthenticated) {
         applySupabaseSnapshot(
           {
@@ -3617,7 +3621,7 @@ function App() {
   async function logout() {
     if (isSupabaseReady) {
       try {
-        await supabaseDashboardStore.auth.signOut();
+        await remoteDashboardStore.auth.signOut();
       } catch (error) {
         console.warn("Supabase 로그아웃에 실패했습니다.", error);
       }
@@ -3637,7 +3641,7 @@ function App() {
       }
     }));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.profiles.updateEmoji(personId, emoji).then((result) => {
+      remoteDashboardStore.profiles.updateEmoji(personId, emoji).then((result) => {
         handleSupabaseWriteResult(result, "샘플 계정 이모지는 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 프로필 이모지 저장에 실패했습니다.", error);
@@ -3662,7 +3666,7 @@ function App() {
       }
     }));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.profiles.update(personId, {
+      remoteDashboardStore.profiles.update(personId, {
         name: cleanProfile.name,
         title: cleanProfile.role,
         profileEmoji: cleanProfile.emoji
@@ -3703,7 +3707,7 @@ function App() {
       }
     }));
     if (isSupabaseReady && isAuthenticated) {
-      supabaseDashboardStore.profiles.updateAdministration(personId, nextPatch).then((result) => {
+      remoteDashboardStore.profiles.updateAdministration(personId, nextPatch).then((result) => {
         handleSupabaseWriteResult(result, "샘플 계정 권한 변경은 로컬에만 저장됐습니다.");
       }).catch((error) => {
         console.warn("Supabase 사용자 권한 저장에 실패했습니다.", error);
@@ -3886,7 +3890,7 @@ function App() {
           setIsDataMenuOpen(false);
           return;
         }
-        const result = await supabaseDashboardStore.importData(imported, {
+        const result = await remoteDashboardStore.importData(imported, {
           directory,
           activePage,
           activeView,
@@ -3904,7 +3908,7 @@ function App() {
           setIsDataMenuOpen(false);
           return;
         }
-        const snapshot = await supabaseDashboardStore.read();
+        const snapshot = await remoteDashboardStore.read();
         applySupabaseSnapshot(snapshot);
         setCategory("전체");
         setSelectedBriefingKey("");
@@ -4209,17 +4213,17 @@ function App() {
               <span>{displayDensity === "comfortable" ? "기본" : "넓게"}</span>
             </button>
             <span
-              className={`backend-status ${supabaseConfig.isConfigured ? "connected" : "local"}`}
+              className={`backend-status ${isSupabaseReady ? "connected" : "local"}`}
               title={
-                supabaseConfig.isConfigured
+                isSupabaseReady
                   ? authStatus === "signed-in"
-                    ? "Supabase에 로그인되어 실데이터를 사용합니다."
-                    : "Supabase 환경변수가 설정되어 있습니다."
-                  : "Supabase URL과 anon key가 없어 로컬 프로토타입 저장소를 사용합니다."
+                    ? `${backendLabel}에 로그인되어 실데이터를 사용합니다.`
+                    : `${backendLabel} 환경변수가 설정되어 있습니다.`
+                  : "백엔드 환경변수가 없어 로컬 프로토타입 저장소를 사용합니다."
               }
             >
               <Database size={14} />
-              {supabaseConfig.isConfigured ? (authStatus === "signed-in" ? "Supabase 연결" : "Supabase 준비") : "로컬 저장"}
+              {isSupabaseReady ? (authStatus === "signed-in" ? `${backendLabel} 연결` : `${backendLabel} 준비`) : "로컬 저장"}
             </span>
             <div className="data-menu-wrap">
               <button
@@ -4543,7 +4547,7 @@ function App() {
             {activeView === "canvas" && (
               <Suspense fallback={<div className="shared-canvas-loading">Canvas를 불러오는 중입니다.</div>}>
                 <SharedCanvasView
-                  canvasStore={supabaseDashboardStore.canvas}
+                  canvasStore={remoteDashboardStore.canvas}
                   isSharedCanvasReady={isSupabaseReady && isAuthenticated && authStatus === "signed-in"}
                 />
               </Suspense>

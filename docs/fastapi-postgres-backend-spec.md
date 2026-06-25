@@ -69,7 +69,7 @@ API_PORT=18080
 
 DATABASE_URL=postgresql+psycopg://work_dashboard_user:CHANGE_ME@127.0.0.1:5432/work_dashboard
 
-JWT_SECRET=CHANGE_TO_LONG_RANDOM_VALUE
+JWT_SECRET=CHANGE_TO_LONG_RANDOM_VALUE_AT_LEAST_32_BYTES
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 REFRESH_TOKEN_EXPIRE_DAYS=14
@@ -591,9 +591,9 @@ create index notifications_unread_idx on notifications (recipient_user_id, read_
 | GET | `/users` | user | 팀원 목록 |
 | POST | `/users` | admin | 계정 생성 |
 | PATCH | `/users/{user_id}` | admin | 역할/직책/활성 상태 수정 |
-| GET | `/roster` | user | 배정 가능한 roster 목록 |
-| POST | `/roster` | admin | signup 전 팀원 row 생성 |
-| PATCH | `/roster/{roster_id}` | admin | 이름/직책/표시/예상 이메일 수정 |
+| GET | `/admin/roster` | admin | signup 전 팀원 row 목록 |
+| POST | `/admin/roster` | admin | signup 전 팀원 row 생성 |
+| PATCH | `/admin/roster/{roster_id}` | admin | 이름/직책/표시/예상 이메일 수정 |
 
 ### 6.4 Tasks
 
@@ -790,6 +790,8 @@ httpx
 - `users`, `team_roster` migration
 - seed first admin
 
+Status 2026-06-25: implemented as the initial `backend/` skeleton. It includes `/api/v1/health`, `/api/v1/health/db`, SQLAlchemy session config, Alembic, `users`/`team_roster`, `.env.example`, and `work-dashboard-api seed-first-admin`.
+
 검증:
 
 ```bash
@@ -803,12 +805,16 @@ curl http://127.0.0.1:18080/api/v1/health
 - admin-only roster/user management
 - frontend login boundary 연결
 
+Status 2026-06-25: backend API foundation implemented for `POST /api/v1/auth/login`, JWT access token issue/verify, `GET /api/v1/me`, and admin-only `GET/POST /api/v1/admin/roster`. Refresh/logout/session persistence and frontend login boundary wiring remain next.
+
 ### Phase 3. Core Tasks
 
 - tasks/subtasks/tags/task_links
 - 업무 생성/수정/상태 변경/보관
 - change history 자동 생성
 - board/list/timeline/calendar/performance가 API 데이터 사용
+
+Status 2026-06-25: task API foundation implemented for `GET/POST/PATCH/DELETE /api/v1/tasks`, recurring rule persistence, future recurring instance cleanup, subtasks add/list/update, update logs add/list/edit/delete, tags add/list/edit/delete, tag groups save/list/delete, calendar events add/list/update/delete, task status history, history note edit/delete, archive/restore, and task related links add/list/delete. It covers task creation, list, status/progress updates, owner/creator links, manager-only update checks, change-history creation for status/archive operations, and task deletion. Live company PostgreSQL apply/smoke and deeper role-specific filtering remain next.
 
 ### Phase 4. Updates, Posts, Briefing
 
@@ -818,11 +824,15 @@ curl http://127.0.0.1:18080/api/v1/health
 - My Desk 개인 인박스 owner filter
 - Team Flow team checklist
 
+Status 2026-06-25: `briefing_items` backend foundation implemented for add/list/update so My Desk and Team Check can be smoke-tested against PostgreSQL. Task post categories add/list/edit/deactivate, task posts add/list/edit/delete, page memos, preferences, and Highlights workstream post rollups are also implemented. Frontend FastAPI data mode is implemented in `src/apiStore.js`.
+
 ### Phase 5. Canvas
 
 - canvas_tabs/nodes/links
 - tab snapshot save/load
 - Markdown export는 프론트 유지
+
+Status 2026-06-25: Canvas backend foundation implemented as `GET/PUT /api/v1/canvas/state` with `canvas_tabs`, `canvas_nodes`, and `canvas_links` tables. This is refresh-based shared state persistence, not realtime collaboration or conflict resolution.
 
 ### Phase 6. Reports and AI Readiness
 
@@ -859,6 +869,8 @@ src/App.jsx
   VITE_API_BASE_URL이 있으면 apiStore 사용
   없으면 localDashboardStore fallback
 ```
+
+Status 2026-06-25: `src/apiStore.js` and `scripts/check-api-store.mjs` are implemented. The UI switches to FastAPI mode when `VITE_API_BASE_URL` is set and keeps local/Supabase fallback behavior when it is empty.
 
 Supabase 관련 파일은 바로 삭제하지 않습니다. 내부망 전환이 안정화될 때까지 다음처럼 둡니다.
 
@@ -934,11 +946,14 @@ WantedBy=multi-user.target
 - 상태 변경 후 변경이력 생성
 - 체크리스트 완료율 반영
 - 보관 업무가 기본 board에서 숨김
+- 업무 관련 링크 작성/조회/삭제
+- 업무 노트 유형과 업무 노트 작성/조회
 - 스팟 업무가 주간/월간 포함, 분기/년간 요약 기본 제외
 
 게시글/브리핑:
 
-- 업무 노트 작성/수정/삭제
+- 업무 노트 작성/조회
+- 업무 노트 수정/삭제
 - Highlights 업무흐름별 게시글 모음 조회
 - My Desk 업무 인박스가 사람별로 분리
 - Team Check는 팀 공유
@@ -979,7 +994,7 @@ WantedBy=multi-user.target
 FastAPI 백엔드 구현을 시작할 때 Codex에게 이렇게 요청하면 됩니다.
 
 ```text
-docs/fastapi-postgres-backend-spec.md를 기준으로 Docker 없는 회사 내부망용 FastAPI + PostgreSQL 백엔드 skeleton을 만들어줘.
-프론트 UI는 유지하고, src/storage.js 경계를 보존하면서 VITE_API_BASE_URL 기반 apiStore를 추가해줘.
-우선 Phase 1: health check, DB 연결, Alembic, users/team_roster, 첫 admin seed까지만 구현하고 빌드/기본 API 검증까지 진행해줘.
+이 폴더의 AGENTS.md, HANDOFF.md, TODO.md, docs/fastapi-postgres-backend-spec.md, docs/company-fastapi-postgres-beginner-runbook.md를 먼저 읽고 진행해줘.
+현재 FastAPI + PostgreSQL backend는 health/auth/roster/profile/tasks/subtasks/updates/tags/tag groups/calendar/preferences/memos/briefing/task lifecycle/posts/post rollup/Canvas state와 VITE_API_BASE_URL 기반 frontend apiStore까지 구현되어 있어.
+다음은 회사 PostgreSQL 실서버에서 alembic upgrade head와 curl smoke를 실행하고, 실제 회사 URL에서 브라우저 QA와 역할별 필터/운영 보안 점검을 우선순위대로 이어가줘.
 ```

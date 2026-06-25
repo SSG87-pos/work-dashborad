@@ -9,12 +9,20 @@
   - Done: added PostgreSQL DDL, FastAPI endpoint contract, auth/permission rules, project structure, deployment outline, validation checklist, and future Codex prompt in `docs/fastapi-postgres-backend-spec.md`.
   - Done: added `docs/company-fastapi-postgres-beginner-runbook.md`, a step-by-step company Linux manual for someone new to FastAPI/PostgreSQL. It covers existing-folder vs new-folder branch checkout, tool installation, frontend check, PostgreSQL setup, backend-after-implementation commands, env files, systemd, troubleshooting, and the next Codex implementation prompt.
   - Done: changed existing backend docs so Supabase is reference/design history only, while FastAPI/PostgreSQL is the active operating target.
-  - Next: implement Phase 1 backend skeleton: `backend/`, health check, DB config, Alembic, `users`/`team_roster`, first-admin seed, and frontend `VITE_API_BASE_URL` store boundary.
+  - Done: implemented the first backend skeleton and expanded it through core operating APIs, then added frontend `VITE_API_BASE_URL` API-store wiring for FastAPI mode.
 
-- [ ] Implement FastAPI/PostgreSQL backend Phase 1.
+- [x] Implement FastAPI/PostgreSQL backend Phase 1.
   - Target docs: `docs/fastapi-postgres-backend-spec.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`.
-  - Scope: create `backend/`, install FastAPI dependencies, add PostgreSQL connection, Alembic setup, `users` and `team_roster` models/migration, first-admin seed, `/api/v1/health`, and initial auth scaffolding if time allows.
-  - Frontend boundary: add an API store behind `VITE_API_BASE_URL` while keeping `localDashboardStore` as fallback.
+  - Done: created `backend/` with FastAPI app factory, CORS config, `/api/v1/health`, `/api/v1/health/db`, SQLAlchemy session setup, Alembic config, `users` and `team_roster` models/migration, `.env.example`, and first-admin seed CLI.
+  - Done: documented backend setup commands in `AGENTS.md` and updated the beginner runbook from "backend not implemented" to "Phase 1 skeleton exists".
+  - Done: implemented initial Phase 2 backend auth/roster surface: `POST /api/v1/auth/login`, JWT access tokens, `GET /api/v1/me`, admin-only `GET/POST /api/v1/admin/roster`, bcrypt password hashing, and pytest coverage for admin/member access.
+  - Done: implemented initial Core Tasks backend surface: `GET/POST/PATCH /api/v1/tasks`, `tasks` Alembic migration, task status/priority/work-kind enums, owner/creator links, progress validation, and manager-only update checks for admin/lead/creator/owner.
+  - Done: implemented additional backend operating-verification endpoints: subtasks add/list/update, task update logs add/list/edit/delete, tags add/list/edit/delete, tag groups save/list/delete, calendar events add/list/update/delete, and briefing items add/list/update with Alembic migrations and pytest coverage.
+  - Done: implemented task lifecycle endpoints for status history, archive/restore, related links, recurring rule persistence, future recurring instance cleanup, post categories, and task posts with Alembic migrations and pytest coverage.
+  - Done: implemented the remaining local-verifiable backend surface for task delete, history note edit/delete, task post edit/delete, Highlights workstream post rollups, and Canvas state read/save with Alembic migration `20260625_0007_canvas_state.py` and pytest coverage.
+  - Done: added `src/apiStore.js` and `check:api-store`; when `VITE_API_BASE_URL` is set, the app uses FastAPI for auth, read/write dashboard state, tasks, subtasks, updates, posts, tags/tag groups, calendar, preferences, memos, Canvas, roster, and profile/admin updates while preserving the local/Supabase fallback boundary.
+  - Verified: backend pytest `30 passed`, `check:api-store` passed, Alembic offline SQL rendered through head, `git diff --check` passed, frontend production build passed, and earlier live `uvicorn` health smoke returned `{"status":"ok","app":"work-dashboard-api","env":"local"}`.
+  - Next: run against a real company PostgreSQL instance and tighten deeper role-specific filtering from real-user feedback.
   - Defer: realtime, Teams push, AI model calls, Canvas simultaneous editing, and multi-workspace separation.
 
 - [x] Replace Today Briefing memo with structured My Desk inbox and Team checklist.

@@ -1,6 +1,6 @@
 # Company FastAPI + PostgreSQL Beginner Runbook
 
-작성 기준일: 2026-06-09
+작성 기준일: 2026-06-25
 
 이 문서는 FastAPI와 PostgreSQL을 한 번도 써본 적 없는 사람이 회사 리눅스 PC/서버에서 `연구기획그룹-전략` 대시보드를 backend 연결 방식으로 준비할 수 있도록 만든 단계별 매뉴얼입니다.
 
@@ -12,17 +12,39 @@
 - POSLAB 랜딩/대시보드 UI
 - 업무, 업무 노트, 업무 인박스, 팀 체크, Canvas, Highlights 등 프론트 기능
 - FastAPI + PostgreSQL 구현 명세 문서
+- FastAPI backend 기본 구조와 핵심 운영 API
+- `/api/v1/health`, `/api/v1/health/db`
+- `users`, `team_roster` Alembic migration
+- 첫 관리자 seed 명령
+- email/password login API
+- JWT 기반 `/api/v1/me`
+- 관리자 전용 roster 조회/생성 API
+- 업무 생성/조회/상태 변경 API
+- 하위업무 생성/조회/완료 API
+- 업데이트 로그 작성/조회 API
+- 태그 생성/조회 API
+- 일정 생성/조회/수정 API
+- 브리핑/팀 체크 생성/조회/완료 API
+- 업무 상태 변경이력 조회 API
+- 업무 보관/복원 API
+- 업무 관련 링크 생성/조회/삭제 API
+- 업무 노트 유형 생성/조회 API
+- 업무 노트 생성/조회 API
+- 업무 삭제 API
+- 업무 노트 수정/삭제 API
+- 변경이력 note 수정/삭제 API
+- Highlights 업무흐름별 게시글 모음 API
+- Canvas 상태 저장/조회 API
 
 아직 들어 있지 않은 것:
 
-- 실제 `backend/` FastAPI 코드
-- 실제 PostgreSQL migration 코드
-- 실제 API 저장 연결 코드
+- Canvas 동시 편집/충돌 처리
+- Teams/실시간/AI 운영 연동
 
-따라서 회사 PC에서 바로 할 일은 두 단계입니다.
+따라서 회사 PC에서 바로 할 일은 실제 PostgreSQL 적용과 운영 검증입니다.
 
 1. 먼저 `release/company-fastapi-postgres` 브랜치를 받는다.
-2. 그 다음 Codex에게 `backend/` FastAPI 구현을 시킨다.
+2. PostgreSQL과 `.env`를 준비한 뒤 backend를 실행/검증한다.
 
 이 문서는 두 과정을 모두 설명합니다.
 
@@ -312,26 +334,36 @@ $ADMIN dnf install -y python3 python3-pip
 python3 --version
 ```
 
-## 7. 중요한 현재 제한: backend 폴더는 아직 없음
+## 7. backend 실행 준비
 
-현재 시점에서는 프로젝트에 `backend/` 폴더가 아직 없습니다.
+현재 시점에서는 프로젝트에 `backend/` FastAPI 앱과 core API가 있습니다.
 
-즉, 아래 명령은 **FastAPI backend 구현이 끝난 뒤** 실행하는 명령입니다.
+PostgreSQL과 `backend/.env`가 준비된 뒤 아래 명령을 실행합니다.
 
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e .[dev]
 alembic upgrade head
 uvicorn app.main:app --host 0.0.0.0 --port 18080
 ```
 
-지금 바로 실행하면 `backend: No such file or directory`가 나올 수 있습니다. 그건 정상입니다. 아직 구현 전이기 때문입니다.
+다른 터미널에서 기본 app health를 확인합니다.
 
-## 8. 다음 Codex 작업 요청 문구
+```bash
+curl http://127.0.0.1:18080/api/v1/health
+```
 
-회사에서 backend 구현을 시작할 때 Codex에게 아래처럼 요청하면 됩니다.
+DB 연결까지 확인하려면 PostgreSQL이 켜져 있고 migration이 끝난 상태에서 아래를 실행합니다.
+
+```bash
+curl http://127.0.0.1:18080/api/v1/health/db
+```
+
+## 8. 회사 검증용 Codex 요청 문구
+
+회사에서 다음 backend 구현을 이어갈 때 Codex에게 아래처럼 요청하면 됩니다.
 
 먼저 회사 PC에서 Codex를 열고 이 프로젝트 폴더를 workspace로 연결합니다. 그 다음 아래 요청문을 그대로 붙여넣습니다.
 
@@ -340,18 +372,15 @@ uvicorn app.main:app --host 0.0.0.0 --port 18080
 docs/company-fastapi-postgres-beginner-runbook.md,
 docs/fastapi-postgres-backend-spec.md를 먼저 읽고 진행해줘.
 
-목표는 이 대시보드를 회사 내부 FastAPI + PostgreSQL backend로 연결하는 거야.
-아직 backend/ 폴더는 없으니 release/company-fastapi-postgres 브랜치 기준으로 Phase 1부터 구현해줘.
+목표는 이 대시보드를 회사 내부 FastAPI + PostgreSQL backend로 실제 검증하는 거야.
+backend에는 auth/roster/profile/task/subtask/update/tag/tag group/calendar/preferences/memo/briefing/task lifecycle/post/post rollup/Canvas state API와 VITE_API_BASE_URL frontend apiStore가 있으니 release/company-fastapi-postgres 브랜치 기준으로 운영 검증을 이어서 진행해줘.
 
 범위:
-- backend/ 폴더 생성
-- FastAPI health check
-- PostgreSQL 연결
-- Alembic 설정
-- users, team_roster 모델과 migration
-- 첫 관리자 seed 방식
-- /api/v1/health 확인
-- 프론트는 기존 UI를 유지하고 VITE_API_BASE_URL 기반 apiStore 연결 준비
+- 회사 PostgreSQL 실서버에서 alembic upgrade head와 curl smoke 검증
+- 프론트 .env.local에 VITE_API_BASE_URL을 설정하고 실제 브라우저 저장/수정/삭제 QA
+- 역할별 필터와 운영 보안 점검
+- 관리자/팀장/팀원 권한 검증 테스트 추가
+- 회사 Linux에서 실행할 curl 검증 명령과 runbook 업데이트
 
 아직 하지 말 것:
 - 실시간 기능
@@ -360,7 +389,7 @@ docs/fastapi-postgres-backend-spec.md를 먼저 읽고 진행해줘.
 - Canvas 동시 편집
 - 다팀 workspace 확장
 
-구현 후 git diff --check, backend 기본 API 검증, CI=true pnpm run build까지 확인해줘.
+구현 후 git diff --check, backend API 검증, CI=true pnpm run build까지 확인해줘.
 ```
 
 ### 8.1 Codex가 해줄 수 있는 일
@@ -368,10 +397,9 @@ docs/fastapi-postgres-backend-spec.md를 먼저 읽고 진행해줘.
 Codex는 프로젝트 폴더 안에서 다음 작업을 할 수 있습니다.
 
 - 현재 폴더 구조와 문서 읽기
-- `backend/` 코드 생성
 - FastAPI route, schema, model, service 코드 작성
 - Alembic migration 파일 작성
-- 프론트 API 연결 준비
+- 프론트 API 연결 상태 점검
 - `VITE_API_BASE_URL` 기준 store 구조 추가
 - build와 기본 검증 명령 실행
 - 오류 로그를 보고 코드 수정
@@ -397,10 +425,10 @@ Codex는 프로젝트 폴더 안에서 다음 작업을 할 수 있습니다.
 1. 이 브랜치를 clone 또는 pull한다.
 2. 이 매뉴얼의 `3.0 관리자 권한 명령 확인`에서 `$ADMIN` 값을 정한다.
 3. PostgreSQL 설치 가능 여부를 확인한다.
-4. Codex에 위 요청문을 전달한다.
-5. Codex가 `backend/` Phase 1을 구현한다.
+4. `backend/` health/db/auth/roster를 검증한다.
+5. Codex에 위 요청문을 전달해 회사 PostgreSQL과 실제 브라우저 CRUD를 검증한다.
 6. 슬기님이 DB 비밀번호, JWT secret, `.env` 값을 입력한다.
-7. Codex가 health check, migration, frontend build를 검증한다.
+7. Codex가 health check, migration, auth API, 업무 CRUD, frontend build를 검증한다.
 8. 최소 2계정으로 권한 검증을 진행한다.
 
 ## 9. FastAPI backend 구현 후 실행 순서
@@ -431,7 +459,7 @@ API_PORT=18080
 
 DATABASE_URL=postgresql+psycopg://work_dashboard_user:여기에_강한_DB_비밀번호@127.0.0.1:5432/work_dashboard
 
-JWT_SECRET=아주_긴_랜덤_문자열
+JWT_SECRET=32바이트_이상의_아주_긴_랜덤_문자열
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 REFRESH_TOKEN_EXPIRE_DAYS=14
@@ -524,6 +552,8 @@ http://서버IP:18080/docs
 
 ## 10. frontend를 FastAPI에 연결하기
 
+현재 프론트에는 `src/apiStore.js`가 구현되어 있습니다. `.env.local`에 `VITE_API_BASE_URL`이 있으면 FastAPI 모드로 실행되고, 비어 있으면 기존 로컬 fallback으로 실행됩니다.
+
 프로젝트 루트로 돌아갑니다.
 
 ```bash
@@ -565,9 +595,177 @@ http://서버IP:10097/
 ### 11.1 backend 확인
 
 - `curl http://127.0.0.1:18080/api/v1/health` 성공
+- `curl http://127.0.0.1:18080/api/v1/health/db` 성공
 - `http://서버IP:18080/docs` 접속 가능
 - PostgreSQL에 테이블 생성 확인
 - 첫 관리자 계정 생성 또는 seed 확인
+- `POST /api/v1/auth/login` 성공
+- `GET /api/v1/me`가 관리자 profile/role 반환
+- 관리자 token으로 `GET /api/v1/admin/roster` 성공
+- 관리자 token 없이 `POST /api/v1/admin/roster`가 `401` 반환
+- 관리자 token으로 `POST /api/v1/tasks` 업무 생성 성공
+- 관리자 token으로 `PATCH /api/v1/tasks/{task_id}` 상태/진척도 수정 성공
+- 관리자 token으로 `POST /api/v1/tasks/{task_id}/subtasks` 하위업무 생성 성공
+- 관리자 token으로 `POST /api/v1/tasks/{task_id}/updates` 업데이트 로그 작성 성공
+- 관리자 token으로 `POST /api/v1/tags` 태그 생성 성공
+- 관리자 token으로 `POST /api/v1/calendar/events` 일정 생성 성공
+- 관리자 token으로 `POST /api/v1/briefing-items` 팀 체크 생성 성공
+- 관리자 token으로 `PATCH /api/v1/tasks/{task_id}/status` 상태 변경이력 생성 성공
+- 관리자 token으로 `PATCH /api/v1/tasks/{task_id}/archive` 보관/복원 성공
+- 관리자 token으로 `POST /api/v1/tasks/{task_id}/links` 관련 링크 생성 성공
+- 관리자 token으로 `POST /api/v1/post-categories` 업무 노트 유형 생성 성공
+- 관리자 token으로 `POST /api/v1/tasks/{task_id}/posts` 업무 노트 생성 성공
+- 관리자 token으로 `PATCH /api/v1/tasks/{task_id}/posts/{post_id}` 업무 노트 수정 성공
+- 관리자 token으로 `DELETE /api/v1/tasks/{task_id}/posts/{post_id}` 업무 노트 삭제 성공
+- 관리자 token으로 `PATCH /api/v1/tasks/{task_id}/history/{history_id}` 변경이력 note 수정 성공
+- 관리자 token으로 `DELETE /api/v1/tasks/{task_id}/history/{history_id}` 변경이력 삭제 성공
+- 관리자 token으로 `GET /api/v1/post-rollups/workstreams` 업무흐름별 게시글 모음 조회 성공
+- 관리자 token으로 `PUT/GET /api/v1/canvas/state` Canvas 상태 저장/조회 성공
+
+관리자 token 발급 예시:
+
+```bash
+curl -s -X POST http://127.0.0.1:18080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"seulgis@posco.com","password":"FIRST_ADMIN_PASSWORD에_넣은_값"}'
+```
+
+응답의 `access_token` 값을 복사해서 아래처럼 확인합니다.
+
+```bash
+TOKEN=위에서_받은_access_token
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:18080/api/v1/me
+curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:18080/api/v1/admin/roster
+```
+
+테스트 roster와 업무 생성 예시:
+
+```bash
+curl -s -X POST http://127.0.0.1:18080/api/v1/admin/roster \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"expected_email":"member@example.com","name":"팀원","title":"연구원"}'
+```
+
+응답의 `id`를 `OWNER_ROSTER_ID`에 넣고 업무를 생성합니다.
+
+```bash
+OWNER_ROSTER_ID=위에서_받은_roster_id
+curl -s -X POST http://127.0.0.1:18080/api/v1/tasks \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d "{\"title\":\"회사 백엔드 검증\",\"owner_roster_id\":\"$OWNER_ROSTER_ID\",\"start_date\":\"2026-06-25\",\"due_date\":\"2026-06-30\"}"
+```
+
+응답의 `id`를 `TASK_ID`에 넣고 상태를 변경합니다.
+
+```bash
+TASK_ID=위에서_받은_task_id
+curl -s -X PATCH "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"진행중","progress":40}'
+```
+
+상태 변경이력, 보관, 관련 링크, 업무 노트 smoke:
+
+```bash
+curl -s -X PATCH "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/status" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"진행중","note":"회사 Linux smoke 시작"}'
+
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/history"
+
+curl -s -X PATCH "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/archive" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"archived":true}'
+
+curl -s -X PATCH "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/archive" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"archived":false}'
+
+curl -s -X POST "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/links" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"운영 runbook","url":"https://example.com/runbook","link_type":"문서"}'
+
+curl -s -X POST http://127.0.0.1:18080/api/v1/post-categories \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"key":"decision","label":"결정사항","tone":"blue","sort_order":10}'
+
+POST_CATEGORY_ID=위에서_받은_post_category_id
+curl -s -X POST "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/posts" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d "{\"category_id\":\"$POST_CATEGORY_ID\",\"scope\":\"team\",\"title\":\"운영 결정\",\"body\":\"회사 Linux에서는 FastAPI/PostgreSQL로 검증\"}"
+
+POST_ID=위에서_받은_post_id
+curl -s -X PATCH "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/posts/$POST_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"운영 결정 수정","body":"회사 Linux smoke에서 수정 확인"}'
+
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://127.0.0.1:18080/api/v1/post-rollups/workstreams"
+
+HISTORY_ID=위_변경이력_조회에서_받은_history_id
+curl -s -X PATCH "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/history/$HISTORY_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"note":"변경이력 note 수정 smoke"}'
+
+curl -s -X PUT "http://127.0.0.1:18080/api/v1/canvas/state" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"active_tab_id":"ideas","tabs":[{"id":"ideas","label":"아이디어","title":"생각 정리","description":"운영 준비"}],"nodes_by_tab":{"ideas":[{"id":"node-1","title":"백엔드","body":"FastAPI","template":"memo","todo_items":[{"id":"todo-1","text":"검증","done":false}],"x":120,"y":160}]},"links_by_tab":{"ideas":[]}}'
+
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://127.0.0.1:18080/api/v1/canvas/state"
+
+curl -s -X DELETE "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/posts/$POST_ID" \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -s -X DELETE "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/history/$HISTORY_ID" \
+  -H "Authorization: Bearer $TOKEN"
+
+# 마지막 업무 삭제는 smoke용 업무일 때만 실행합니다.
+curl -s -X DELETE "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+하위업무, 업데이트 로그, 태그, 일정, 팀 체크 smoke:
+
+```bash
+curl -s -X POST "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/subtasks" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"PostgreSQL migration 적용","sort_order":1}'
+
+curl -s -X POST "http://127.0.0.1:18080/api/v1/tasks/$TASK_ID/updates" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"body":"회사 Linux health/db 검증 완료","update_type":"note"}'
+
+curl -s -X POST http://127.0.0.1:18080/api/v1/tags \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"백엔드","tone":"blue"}'
+
+curl -s -X POST http://127.0.0.1:18080/api/v1/calendar/events \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"회사 백엔드 운영 점검","event_date":"2026-06-26","scope":"team","note":"FastAPI systemd 검증"}'
+
+curl -s -X POST http://127.0.0.1:18080/api/v1/briefing-items \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"scope":"team","kind":"todo","item_type":"todo","title":"운영 검증 체크","body":"health/db/auth/task/calendar 확인"}'
+```
 
 ### 11.2 frontend 확인
 
@@ -799,21 +997,28 @@ grant all privileges on database work_dashboard to work_dashboard_user;
 \q
 ```
 
-그 다음:
-
-```text
-Codex에게 FastAPI/PostgreSQL backend Phase 1 구현을 요청합니다.
-```
-
-backend 구현 후:
+backend 환경 파일:
 
 ```bash
 cd backend
+cp .env.example .env
+nano .env
+```
+
+backend 실행:
+
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e .[dev]
 alembic upgrade head
 uvicorn app.main:app --host 0.0.0.0 --port 18080
+```
+
+첫 관리자 seed:
+
+```bash
+work-dashboard-api seed-first-admin
 ```
 
 frontend 연결:

@@ -1,0 +1,1 @@
+"""Work dashboard FastAPI backend."""

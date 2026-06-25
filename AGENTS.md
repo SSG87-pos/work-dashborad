@@ -8,10 +8,19 @@
 - Preview built app when needed: `./node_modules/.bin/vite preview --host 127.0.0.1 --port 4173`.
 - Main browser URL during active development is usually `http://127.0.0.1:5173/`.
 - Do not use plain `npm`, `yarn`, or global `pnpm` unless the user explicitly changes the toolchain.
+- Backend setup after `backend/` exists:
+  - `cd backend && python3 -m venv .venv && source .venv/bin/activate`
+  - `pip install -e .[dev]`
+  - `cp .env.example .env`, then fill real secrets locally.
+  - `alembic upgrade head`
+  - `uvicorn app.main:app --host 0.0.0.0 --port 18080`
+  - `work-dashboard-api seed-first-admin` after `FIRST_ADMIN_PASSWORD` is changed.
+  - Backend tests: `cd backend && python -m pytest`
+  - API smoke: `curl http://127.0.0.1:18080/api/v1/health` and `curl http://127.0.0.1:18080/api/v1/health/db`.
 
 ## Project Context
 
-This is a React/Vite prototype for the `연구기획그룹-전략` shared work dashboard. It prioritizes personal daily briefing, public team workflow, task detail/update logs, tag filtering, timeline/calendar, recurring work, archive, shared memo, performance reporting, and later real login/backend persistence.
+This is a React/Vite prototype for the `연구기획그룹-전략` shared work dashboard. It prioritizes personal daily briefing, public team workflow, task detail/update logs, tag filtering, timeline/calendar, recurring work, archive, shared memo, performance reporting, local fallback persistence, and FastAPI/PostgreSQL backend persistence.
 
 Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persistence, plain CSS with layered overrides.
 
@@ -62,4 +71,4 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 ## Maintenance Policy
 
 - If implementation and these rules drift, update the rules or note the drift in `TODO.md`.
-- Current backend implementation target is FastAPI + PostgreSQL without Docker. Add concrete backend commands here after the `backend/` app is created.
+- Current backend implementation target is FastAPI + PostgreSQL without Docker. `backend/` now has health/db checks, auth/JWT, admin roster create/list/update, task create/list/update/delete, recurring rule persistence, future recurring instance cleanup, status history edit/delete, archive/restore, related links, task posts/categories edit/delete, Highlights post rollups, Canvas state read/save, subtasks, update logs edit/delete, tags/tag groups, calendar events CRUD, preferences, memos, and briefing-item APIs. `src/apiStore.js` switches the UI into FastAPI mode when `VITE_API_BASE_URL` is set; live company PostgreSQL apply/smoke, deeper role filtering from real users, Teams/realtime/AI, and production security hardening remain later phases.
