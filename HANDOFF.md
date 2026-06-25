@@ -189,6 +189,7 @@ Key product decisions now in the prototype:
 - Backend direction is now approved at the architecture level:
   - current company backend route: FastAPI + PostgreSQL without Docker
   - current operating branch for this route: `release/company-fastapi-postgres`
+  - current feature branch for task-channel work: `codex/task-channel-feed-fastapi`
   - implementation spec: `docs/fastapi-postgres-backend-spec.md`
   - beginner company setup/runbook: `docs/company-fastapi-postgres-beginner-runbook.md`
   - Supabase/self-hosted Supabase is no longer the active operating target because the company backend environment cannot install the Supabase Docker stack.
@@ -222,6 +223,14 @@ Key product decisions now in the prototype:
   - `docs/multi-workspace-expansion-plan.md` documents the future expansion path after our-team stabilization: 30-person groups and 10+ groups should use workspace separation, optional unit separation, visibility scopes, and workspace-admin-managed tags/workstreams/post categories. In FastAPI/PostgreSQL mode these are API permission and schema rules, not Supabase RLS rules.
   - The future app should switch into API mode from `VITE_API_BASE_URL`; empty values keep the local fallback/demo store.
   - `docs/personal-notification-inbox-plan.md` documents the later per-user notification inbox: a `notifications` table with recipient-only API permission checks, unread/read state, top bell badge behavior, click-through to task detail, dedupe rules, and Teams integration as a later high-signal-only option. The current app has alert-like signals and a bell icon, but no DB-backed notification inbox yet.
+
+- Task-linked channel feed update:
+  - `업무 노트` remains written from task detail, but each post now has `visibility: team | private`.
+  - Existing older posts default to `team`, so previous Highlights behavior does not disappear during migration.
+  - My Desk shows a compact `내 글` surface with `내가 쓴 글` and `팀 공개 글` tabs.
+  - Team Flow shows a compact `업무 채널` surface grouped by `상위 업무흐름`.
+  - Highlights `업무흐름별 게시글 모음` includes only `team` posts.
+  - FastAPI/PostgreSQL docs now require `task_posts.visibility`, `/posts/mine`, and `/posts/team-channel`. Private posts must not appear in team channels, rollups, exports, or AI summaries unless explicitly made public.
 
 Recent UI/UX refinements from the latest session:
 

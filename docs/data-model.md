@@ -165,12 +165,13 @@ Task-level remembered-context posts used by `업무 노트` and the Highlights `
 | body | text | Main post body. |
 | url | string nullable | Optional Teams, document, or reference URL. |
 | attachment | json object nullable | Placeholder metadata for future Storage-backed files. |
+| visibility | string | `team` for team channel posts, `private` for author-only posts. |
 | author_id | user id | Writer. |
 | posted_at | date | Reader-facing post date. |
 | created_at | datetime | Creation timestamp. |
 | updated_at | datetime | Last body/title/category correction timestamp. |
 
-Post rule: visible task posts are readable by authenticated users who can see the parent task. Authors or task managers can edit/delete a post. Attachments are metadata-only until Supabase Storage policies are added.
+Post rule: `team` posts are readable by authenticated users who can see the parent task and appear in Team Flow `업무 채널` and Highlights workstream rollups. `private` posts are readable only by the author in task detail and `내 글`; they must not appear in team channels, rollups, or AI/team summaries unless the author explicitly changes visibility. Authors or task managers can edit/delete a post, but task managers should not republish private content by default. Attachments are metadata-only until a file storage policy is added.
 
 ### briefing_items
 

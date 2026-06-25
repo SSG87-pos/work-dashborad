@@ -2,6 +2,16 @@
 
 ## Now
 
+- [x] Add task-linked channel feed with public/private task posts.
+  - Branch: `codex/task-channel-feed-fastapi`.
+  - Files: `src/App.jsx`, `src/styles.css`, `src/supabaseStore.js`, `DESIGN.md`, `docs/fastapi-postgres-backend-spec.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/permission-rules.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: task detail `업무 노트` writing/editing now includes `팀 공개` / `나만 보기` visibility.
+  - Done: My Desk now has a compact `내 글` channel surface with `내가 쓴 글` and `팀 공개 글` tabs.
+  - Done: Team Flow now has a compact `업무 채널` surface that groups team-visible task posts by workstream.
+  - Done: Highlights workstream post rollups now include only `팀 공개` posts.
+  - Done: FastAPI/PostgreSQL docs now include `task_posts.visibility`, `/posts/mine`, `/posts/team-channel`, and permission rules for private posts.
+  - Verified: `git diff --check`, `CI=true ... pnpm run build`, and headless Chrome QA on `http://127.0.0.1:5194/` passed for My Desk channel, Team Flow channel, and task-detail note visibility controls. Existing console warnings remain limited to the previous Three/deprecated-parameter messages plus a 404 static resource warning.
+
 - [x] Reframe backend implementation from Supabase Docker to FastAPI + PostgreSQL.
   - Files: `docs/fastapi-postgres-backend-spec.md`, `docs/company-fastapi-postgres-beginner-runbook.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/backend-implementation-plan.md`, `docs/backend-decision-brief.md`, `docs/company-demo-readiness-checklist.md`, `docs/supabase-start-guide.md`, `docs/company-self-hosted-supabase-guide.md`, `docs/personal-notification-inbox-plan.md`, `docs/ai-agent-readiness.md`, `docs/ai-agent-codex-implementation-brief.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
   - Done: documented the current company backend constraint that Supabase Docker/self-hosted Supabase is not available.

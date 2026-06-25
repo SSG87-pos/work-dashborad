@@ -389,6 +389,7 @@ create table task_posts (
   body text not null,
   url text,
   attachment jsonb,
+  visibility text not null default 'team' check (visibility in ('team', 'private')),
   author_id uuid references users(id) on delete set null,
   author_roster_id uuid references team_roster(id) on delete set null,
   posted_at date not null default current_date,
@@ -399,7 +400,10 @@ create table task_posts (
 create index task_posts_task_created_idx on task_posts (task_id, created_at desc);
 create index task_posts_author_idx on task_posts (author_id);
 create index task_posts_category_idx on task_posts (category_id);
+create index task_posts_visibility_created_idx on task_posts (visibility, created_at desc);
 ```
+
+`visibility = 'team'`인 글은 팀 채널과 업무흐름별 게시글 모음에 표시합니다. `visibility = 'private'`인 글은 작성자 본인과 관리자 감사 화면에서만 읽을 수 있고, 팀 채널/Highlights에는 노출하지 않습니다.
 
 초기 게시글 유형:
 
@@ -647,10 +651,14 @@ create index notifications_unread_idx on notifications (recipient_user_id, read_
 | POST | `/post-categories` | admin | 유형 추가 |
 | PATCH | `/post-categories/{category_id}` | admin | 유형명/톤/활성 수정 |
 | GET | `/tasks/{task_id}/posts` | visible user | 선택 업무의 업무 노트 |
-| POST | `/tasks/{task_id}/posts` | visible user | 업무 노트 작성 |
+| POST | `/tasks/{task_id}/posts` | visible user | 업무 노트 작성. body에 `visibility: "team" | "private"` 포함 |
 | PATCH | `/tasks/{task_id}/posts/{post_id}` | author or manager | 노트 수정 |
 | DELETE | `/tasks/{task_id}/posts/{post_id}` | author or manager | 노트 삭제 |
-| GET | `/post-rollups/workstreams` | user | Highlights 업무흐름별 게시글 모음 |
+| GET | `/posts/mine` | user | 현재 사용자가 작성한 글. `visibility`와 무관하게 본인 작성 글 표시 |
+| GET | `/posts/team-channel` | user | `visibility=team`인 팀 공개 글. `workstream`, `authorId`, `categoryId`, `taskId` 필터 지원 |
+| GET | `/post-rollups/workstreams` | user | Highlights 업무흐름별 게시글 모음. `visibility=team`만 포함 |
+
+업무별 조회(`/tasks/{task_id}/posts`)는 선택 업무에 붙은 글만 내려줍니다. 작성자가 아닌 사용자는 `visibility=team` 글만 읽을 수 있습니다. `visibility=private` 글은 작성자 본인의 `/posts/mine`과 해당 업무 상세에서만 표시합니다.
 
 ### 6.8 Briefing Items
 
@@ -939,7 +947,11 @@ WantedBy=multi-user.target
 게시글/브리핑:
 
 - 업무 노트 작성/수정/삭제
+- 업무 노트 작성 시 `visibility=team/private` 저장
+- `/posts/mine`에서 본인 작성 private/team 글 모두 조회
+- `/posts/team-channel`에서 team 공개 글만 조회
 - Highlights 업무흐름별 게시글 모음 조회
+- private 글이 Team Flow 채널, Highlights, export, AI 요약에 노출되지 않음
 - My Desk 업무 인박스가 사람별로 분리
 - Team Check는 팀 공유
 

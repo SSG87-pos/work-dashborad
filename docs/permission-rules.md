@@ -144,12 +144,17 @@ Allowed:
 
 - authenticated users can read posts for visible team tasks
 - members can add posts to visible team tasks
+- authors can mark a post as `team` or `private`
+- `team` posts can appear in Team Flow channels, Highlights rollups, and visible task detail
+- `private` posts can appear only to the author in task detail and `내 글`
 - post authors can edit or delete their own posts
 - task managers can edit or delete posts attached to tasks they manage
 - admin users can manage post category labels, tones, and active/hidden state
 
 Restricted:
 
+- team channels, workstream rollups, exports, and AI summaries must exclude `private` posts by default
+- non-authors cannot read private post bodies through task detail or channel endpoints
 - editing or deleting a post must not change task status, task history, update logs, or due dates
 - non-admin users cannot rename or hide shared post categories
 - attachment file access requires separate Storage policies before real files are stored

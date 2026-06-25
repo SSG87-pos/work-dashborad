@@ -67,6 +67,10 @@ const workKindOptions = [
 ];
 const displayDensityOptions = ["standard", "comfortable"];
 const taskPostToneOptions = ["blue", "green", "amber", "red", "violet", "slate"];
+const taskPostVisibilityOptions = [
+  { value: "team", label: "팀 공개", help: "팀 채널과 업무흐름별 모음에 표시" },
+  { value: "private", label: "나만 보기", help: "작성자 본인에게만 표시" }
+];
 const briefingItemTypes = [
   { value: "mail", label: "메일" },
   { value: "meeting", label: "회의" },
@@ -498,7 +502,24 @@ function cleanImportedTask(task, index, options = {}) {
             };
           })
           .filter((entry) => entry.to)
-      : []
+      : [],
+    postItems: Array.isArray(task.postItems)
+      ? task.postItems
+          .map((post, postIndex) => ({
+            id: typeof post.id === "string" && post.id ? post.id : `imported-post-${Date.now()}-${index}-${postIndex}`,
+            scope: normalizeTaskPostCategoryLabel(post.scope) || "기억할 점",
+            title: typeof post.title === "string" && post.title.trim() ? post.title.trim() : "제목 없음",
+            body: typeof post.body === "string" ? post.body.trim() : "",
+            url: typeof post.url === "string" ? post.url.trim() : "",
+            visibility: normalizeTaskPostVisibility(post.visibility),
+            authorId: knownPersonIds.has(post.authorId) ? post.authorId : ownerId,
+            date: isISODate(post.date) ? post.date : TODAY,
+            createdAt: isISODate(post.createdAt) ? post.createdAt : isISODate(post.date) ? post.date : TODAY,
+            updatedAt: isISODate(post.updatedAt) ? post.updatedAt : "",
+            attachment: post.attachment && typeof post.attachment === "object" ? post.attachment : null
+          }))
+          .filter((post) => post.title || post.body)
+      : undefined
   };
 }
 
@@ -1701,6 +1722,18 @@ function taskPostCategoryMeta(scope, categories = defaultTaskPostCategories) {
   };
 }
 
+function normalizeTaskPostVisibility(value) {
+  return value === "private" ? "private" : "team";
+}
+
+function taskPostVisibilityLabel(value) {
+  return taskPostVisibilityOptions.find((option) => option.value === normalizeTaskPostVisibility(value))?.label ?? "팀 공개";
+}
+
+function canReadTaskPost(post, currentPersonId) {
+  return normalizeTaskPostVisibility(post?.visibility) === "team" || post?.authorId === currentPersonId;
+}
+
 function seedTaskKnowledgePosts(task) {
   if (!task || isDeletedTask(task)) return [];
   const workstream = taskWorkstreamLabel(task);
@@ -1720,6 +1753,7 @@ function seedTaskKnowledgePosts(task) {
       taskTitle,
       ownerId,
       workstream,
+      visibility: "team",
       url: "https://intra.research-strategy.local/docs/monthly-kpi-evidence",
       attachment: {
         label: "근거자료 캡처",
@@ -1736,7 +1770,8 @@ function seedTaskKnowledgePosts(task) {
       taskId: task.id,
       taskTitle,
       ownerId,
-      workstream
+      workstream,
+      visibility: "team"
     },
     {
       id: `${task.id}-risk`,
@@ -1749,6 +1784,7 @@ function seedTaskKnowledgePosts(task) {
       taskTitle: `${workstream} 관련 업무`,
       ownerId,
       workstream,
+      visibility: "team",
       url: "https://intra.research-strategy.local/reference/kpi-source"
     },
     {
@@ -1762,6 +1798,7 @@ function seedTaskKnowledgePosts(task) {
       taskTitle,
       ownerId,
       workstream,
+      visibility: "team",
       url: "https://intra.research-strategy.local/drive/monthly-report"
     },
     {
@@ -1774,7 +1811,8 @@ function seedTaskKnowledgePosts(task) {
       taskId: task.id,
       taskTitle: `${workstream} 관련 업무`,
       ownerId,
-      workstream
+      workstream,
+      visibility: "team"
     }
   ];
 }
@@ -1797,6 +1835,7 @@ function normalizeTaskPosts(posts, task, categories = defaultTaskPostCategories)
         taskTitle,
         ownerId: task.ownerId,
         workstream,
+        visibility: normalizeTaskPostVisibility(post?.visibility),
         url: String(post?.url ?? "").trim(),
         attachment: post?.attachment || null,
         createdAt: post?.createdAt || post?.date || TODAY,
@@ -1809,6 +1848,35 @@ function normalizeTaskPosts(posts, task, categories = defaultTaskPostCategories)
 function taskKnowledgePosts(task, categories = defaultTaskPostCategories) {
   if (!task || isDeletedTask(task)) return [];
   return normalizeTaskPosts(task.postItems, task, categories);
+}
+
+function collectTaskChannelPosts(tasks, categories, currentPersonId) {
+  return tasks
+    .filter((task) => !isDeletedTask(task) && !task.archived)
+    .flatMap((task) =>
+      taskKnowledgePosts(task, categories).map((post) => ({
+        ...post,
+        taskId: task.id,
+        taskTitle: displayTaskTitle(task),
+        ownerId: task.ownerId,
+        workstream: taskWorkstreamLabel(task),
+        status: task.status
+      }))
+    )
+    .filter((post) => canReadTaskPost(post, currentPersonId))
+    .sort((a, b) => b.date.localeCompare(a.date) || a.taskTitle.localeCompare(b.taskTitle, "ko-KR"));
+}
+
+function groupChannelPostsByWorkstream(posts) {
+  const groupMap = new Map();
+  posts.forEach((post) => {
+    const label = post.workstream || "업무흐름 미지정";
+    if (!groupMap.has(label)) groupMap.set(label, []);
+    groupMap.get(label).push(post);
+  });
+  return Array.from(groupMap.entries())
+    .map(([label, items]) => ({ label, items, latestDate: items[0]?.date || "" }))
+    .sort((a, b) => b.latestDate.localeCompare(a.latestDate) || a.label.localeCompare(b.label, "ko-KR"));
 }
 
 async function copyText(text) {
@@ -2343,6 +2411,7 @@ function App() {
       return false;
     }
     const scope = String(draft?.scope ?? "").trim() || taskPostCategories.find((category) => category.active)?.label || "기억할 점";
+    const visibility = normalizeTaskPostVisibility(draft?.visibility);
     const nowId = Date.now().toString(36);
     let savedPost = null;
     setTasks((current) =>
@@ -2357,6 +2426,7 @@ function App() {
           title,
           body,
           url: String(draft.url ?? "").trim(),
+          visibility,
           authorId: existingPost?.authorId || selectedPersonId,
           date: existingPost?.date || TODAY,
           createdAt: existingPost?.createdAt || TODAY,
@@ -2591,6 +2661,10 @@ function App() {
   const summary = useMemo(
     () => dashboardSummary(tasks, activePage, selectedPersonId),
     [activePage, selectedPersonId, tasks]
+  );
+  const taskChannelPosts = useMemo(
+    () => collectTaskChannelPosts(tasks, taskPostCategories, selectedPersonId),
+    [selectedPersonId, taskPostCategories, tasks]
   );
 
   const counts = statuses.reduce((acc, status) => {
@@ -4294,6 +4368,16 @@ function App() {
             )}
 
             {!fullPageViews.includes(activeView) && (
+              <TaskChannelPanel
+                currentPersonId={selectedPersonId}
+                isTeam={activePage === "team"}
+                onSelectTask={(taskId) => selectTask(taskId, "workflow")}
+                postCategories={taskPostCategories}
+                posts={taskChannelPosts}
+              />
+            )}
+
+            {!fullPageViews.includes(activeView) && (
               <div className="control-row">
                 <div className="segmented" role="tablist" aria-label="보기 전환">
                   {[
@@ -5934,6 +6018,112 @@ function InsightStrip({ activeFilter, onSelect, summary }) {
           </motion.button>
         );
       })}
+    </section>
+  );
+}
+
+function TaskChannelPanel({ currentPersonId, isTeam, onSelectTask, postCategories, posts }) {
+  const [activeTab, setActiveTab] = useState("mine");
+  const [expandedGroups, setExpandedGroups] = useState({});
+  const [expandedPostId, setExpandedPostId] = useState("");
+  const myPosts = posts.filter((post) => post.authorId === currentPersonId);
+  const teamPosts = posts.filter((post) => normalizeTaskPostVisibility(post.visibility) === "team");
+  const visiblePosts = isTeam ? teamPosts : activeTab === "mine" ? myPosts : teamPosts;
+  const groupedPosts = groupChannelPostsByWorkstream(visiblePosts);
+  const latestPosts = visiblePosts.slice(0, isTeam ? 10 : 6);
+  const hasPosts = visiblePosts.length > 0;
+  const togglePost = (postId) => setExpandedPostId((current) => (current === postId ? "" : postId));
+  const toggleGroup = (label) => {
+    setExpandedGroups((current) => ({ ...current, [label]: !current[label] }));
+    setExpandedPostId("");
+  };
+  const openTask = (event, taskId) => {
+    event.stopPropagation();
+    onSelectTask?.(taskId);
+  };
+  const renderPostRow = (post) => {
+    const isExpanded = expandedPostId === post.id;
+    return (
+      <div className={`task-channel-post-wrap ${isExpanded ? "open" : ""}`} key={post.id}>
+        <button className="task-channel-post-row" onClick={() => togglePost(post.id)} type="button" aria-expanded={isExpanded}>
+          <span className={`post-scope-chip tone-${taskPostCategoryMeta(post.scope, postCategories).tone}`}>{post.scope}</span>
+          <div className="task-channel-post-main">
+            <strong>{post.title}</strong>
+            <small>
+              {post.date} · {personName(post.authorId)} · {taskPostVisibilityLabel(post.visibility)} · {post.taskTitle}
+            </small>
+          </div>
+          {post.url && <Link2 size={14} aria-hidden="true" />}
+        </button>
+        {isExpanded && (
+          <article className="task-channel-post-detail">
+            <p>{post.body}</p>
+            {post.url && (
+              <a className="task-post-url-card" href={post.url} rel="noreferrer" target="_blank">
+                <Link2 size={14} />
+                <span>{post.url}</span>
+              </a>
+            )}
+            <div className="task-channel-detail-actions">
+              <span>{post.workstream}</span>
+              <button className="secondary-button small" onClick={(event) => openTask(event, post.taskId)} type="button">
+                해당 업무 열기
+              </button>
+            </div>
+          </article>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <section className={`task-channel-panel ${isTeam ? "team-channel" : "my-channel"}`} aria-label={isTeam ? "팀 업무 채널" : "내 업무 채널"}>
+      <div className="task-channel-head">
+        <div>
+          <span className="panel-label">{isTeam ? "업무 채널" : "내 글"}</span>
+          <h2>{isTeam ? "팀 공개 업무 채널" : "내가 남긴 업무 글"}</h2>
+        </div>
+        {!isTeam && (
+          <div className="segmented small task-channel-tabs" role="tablist" aria-label="내 글 보기 전환">
+            <button className={activeTab === "mine" ? "active" : ""} onClick={() => setActiveTab("mine")} type="button">
+              내가 쓴 글
+            </button>
+            <button className={activeTab === "team" ? "active" : ""} onClick={() => setActiveTab("team")} type="button">
+              팀 공개 글
+            </button>
+          </div>
+        )}
+      </div>
+      {!hasPosts ? (
+        <p className="task-channel-empty">
+          {isTeam ? "아직 팀 공개 글이 없습니다." : activeTab === "mine" ? "아직 내가 남긴 업무 글이 없습니다." : "아직 팀 공개 글이 없습니다."}
+        </p>
+      ) : isTeam ? (
+        <div className="task-channel-group-list">
+          {groupedPosts.map((group) => {
+            const isOpen = Boolean(expandedGroups[group.label]);
+            return (
+              <section className="task-channel-group" key={group.label}>
+                <button className="task-channel-group-head" onClick={() => toggleGroup(group.label)} type="button" aria-expanded={isOpen}>
+                  <span>
+                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    <strong>{group.label}</strong>
+                  </span>
+                  <small>{group.latestDate} · {group.items.length}건</small>
+                </button>
+                {isOpen && <div className="task-channel-post-list">{group.items.map(renderPostRow)}</div>}
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="task-channel-post-list">
+          {latestPosts.map(renderPostRow)}
+          {visiblePosts.length > latestPosts.length && (
+            <p className="task-channel-more-note">최근 {latestPosts.length}개만 표시합니다. 더 오래된 글은 업무흐름별 게시글 모음에서 확인하세요.</p>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -8374,6 +8564,7 @@ function PerformanceView({ postCategories, tasks }) {
     const posts = displayTasks
       .filter((task) => !isDeletedTask(task) && !task.archived)
       .flatMap((task) => taskKnowledgePosts(task, postCategories))
+      .filter((post) => normalizeTaskPostVisibility(post.visibility) === "team")
       .sort((a, b) => b.date.localeCompare(a.date) || a.taskTitle.localeCompare(b.taskTitle, "ko-KR"));
     const groupMap = new Map();
     posts.forEach((post) => {
@@ -9199,13 +9390,13 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
   const normalizedPostCategories = normalizeTaskPostCategories(postCategories);
   const activePostCategories = normalizedPostCategories.filter((category) => category.active);
   const defaultScope = activePostCategories[0]?.label || normalizedPostCategories[0]?.label || "기억할 점";
-  const blankDraft = { id: "", scope: defaultScope, title: "", url: "", body: "" };
+  const blankDraft = { id: "", scope: defaultScope, visibility: "team", title: "", url: "", body: "" };
   const [expandedImageId, setExpandedImageId] = useState(null);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [activePostDialog, setActivePostDialog] = useState(null);
   const [postDraft, setPostDraft] = useState(blankDraft);
   const postBodyRef = useRef(null);
-  const postItems = taskKnowledgePosts(task, postCategories);
+  const postItems = taskKnowledgePosts(task, postCategories).filter((post) => canReadTaskPost(post, currentPersonId));
   const recentPosts = postItems.slice(0, 3);
   const olderPosts = postItems.slice(3);
   const activePost =
@@ -9227,6 +9418,7 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
     setPostDraft({
       id: post.id,
       scope: post.scope || defaultScope,
+      visibility: normalizeTaskPostVisibility(post.visibility),
       title: post.title || "",
       url: post.url || "",
       body: post.body || ""
@@ -9271,7 +9463,7 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
               <span className={`post-scope-chip tone-${taskPostCategoryMeta(post.scope, postCategories).tone}`}>{post.scope}</span>
               <div>
                 <strong>{post.title}</strong>
-                <small>{post.date} · {personName(post.authorId)}{post.url ? " · URL" : ""}{post.attachment ? " · 이미지" : ""}</small>
+                <small>{post.date} · {personName(post.authorId)} · {taskPostVisibilityLabel(post.visibility)}{post.url ? " · URL" : ""}{post.attachment ? " · 이미지" : ""}</small>
               </div>
             </button>
           ))}
@@ -9300,7 +9492,7 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
                     <span className={`post-scope-chip tone-${taskPostCategoryMeta(post.scope, postCategories).tone}`}>{post.scope}</span>
                     <div>
                       <strong>{post.title}</strong>
-                      <small>{post.date} · {personName(post.authorId)}{post.url ? " · URL" : ""}</small>
+                      <small>{post.date} · {personName(post.authorId)} · {taskPostVisibilityLabel(post.visibility)}{post.url ? " · URL" : ""}</small>
                     </div>
                   </button>
                 ))}
@@ -9336,6 +9528,23 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
                     >
                       {postDraft.scope === category.label && <Check size={13} aria-hidden="true" />}
                       {category.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="task-post-type-field">
+                <span>공개 범위</span>
+                <div className="task-post-type-options visibility-options" role="group" aria-label="업무 노트 공개 범위 선택">
+                  {taskPostVisibilityOptions.map((option) => (
+                    <button
+                      className={`visibility-chip ${postDraft.visibility === option.value ? "active" : ""}`}
+                      key={option.value}
+                      onClick={() => setPostDraft((current) => ({ ...current, visibility: option.value }))}
+                      title={option.help}
+                      type="button"
+                    >
+                      {postDraft.visibility === option.value && <Check size={13} aria-hidden="true" />}
+                      {option.label}
                     </button>
                   ))}
                 </div>
@@ -9376,6 +9585,7 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
               </label>
               <div className="task-post-write-foot">
                 <span className={`post-scope-chip tone-${taskPostCategoryMeta(postDraft.scope, postCategories).tone}`}>{postDraft.scope}</span>
+                <span className={`visibility-chip read-only ${normalizeTaskPostVisibility(postDraft.visibility)}`}>{taskPostVisibilityLabel(postDraft.visibility)}</span>
                 {tags.length > 0 && <small>업무 태그</small>}
                 {tags.map((tag) => (
                   <em className={`tag-tone-${tagTone(tag)}`} key={tag}>{tag}</em>
@@ -9390,6 +9600,7 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
               <article className="task-post-read-mockup">
                 <div className="task-post-read-meta">
                   <span className={`post-scope-chip tone-${taskPostCategoryMeta(activePost.scope, postCategories).tone}`}>{activePost.scope}</span>
+                  <span className={`visibility-chip read-only ${normalizeTaskPostVisibility(activePost.visibility)}`}>{taskPostVisibilityLabel(activePost.visibility)}</span>
                   <small>{workstream}</small>
                 </div>
                 <p>{activePost.body}</p>

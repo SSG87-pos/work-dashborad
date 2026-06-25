@@ -184,6 +184,7 @@ function fromTaskPostRow(row) {
     body: row.body,
     url: row.url ?? "",
     attachment: row.attachment ?? null,
+    visibility: row.visibility === "private" ? "private" : "team",
     authorId: row.author_id,
     date: row.posted_at ?? row.created_at?.slice(0, 10) ?? TODAY,
     createdAt: row.created_at?.slice(0, 10) ?? row.posted_at ?? TODAY,
@@ -429,6 +430,7 @@ async function saveTaskPost(taskId, post) {
     body,
     url: post.url?.trim() || null,
     attachment: post.attachment ?? null,
+    visibility: post.visibility === "private" ? "private" : "team",
     updated_at: new Date().toISOString()
   };
   if (isUuid(post.id)) {
@@ -438,7 +440,7 @@ async function saveTaskPost(taskId, post) {
       .eq("id", post.id)
       .select("id")
       .single();
-    if (isMissingTableError(error) || isMissingColumnError(error, "attachment")) return { skipped: true, reason: "missing-task-posts-table" };
+    if (isMissingTableError(error) || isMissingColumnError(error, "attachment") || isMissingColumnError(error, "visibility")) return { skipped: true, reason: "missing-task-posts-table" };
     if (error) throw error;
     return { id: data.id };
   }
@@ -452,7 +454,7 @@ async function saveTaskPost(taskId, post) {
     })
     .select("id")
     .single();
-  if (isMissingTableError(error) || isMissingColumnError(error, "attachment")) return { skipped: true, reason: "missing-task-posts-table" };
+  if (isMissingTableError(error) || isMissingColumnError(error, "attachment") || isMissingColumnError(error, "visibility")) return { skipped: true, reason: "missing-task-posts-table" };
   if (error) throw error;
   return { id: data.id };
 }

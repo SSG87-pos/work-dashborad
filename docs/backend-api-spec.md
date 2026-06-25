@@ -208,12 +208,13 @@ Only admin users can insert, rename, recolor, hide, or delete post categories.
 | body | text | yes | Main remembered-context body. |
 | url | text | no | Optional Teams, document, or reference URL. |
 | attachment | jsonb | no | Metadata placeholder for future Storage-backed files. |
+| visibility | text | yes | `team` or `private`. Defaults to `team` for older posts. |
 | author_id | text fk users.id | yes | Writer. |
 | posted_at | date | yes | Reader-facing post date. |
 | created_at | timestamp | yes | Audit. |
 | updated_at | timestamp | yes | Audit. |
 
-`업무 노트` reads only posts attached to the selected task. Highlights `업무흐름별 게시글 모음` derives its grouped view from `task_posts` joined to the parent task and grouped by `상위 업무흐름`. Authors or task managers may edit/delete task posts.
+`업무 노트` reads only posts attached to the selected task. Authors can choose `team` or `private` visibility. Team-visible posts feed Team Flow `업무 채널` and Highlights `업무흐름별 게시글 모음`; private posts appear only to the author in task detail and `내 글`. Authors or task managers may edit/delete task posts, but task managers must not expose private post bodies in team channels.
 
 ### briefing_items
 
@@ -428,6 +429,21 @@ Use `/api/v1` as the initial namespace.
 | PATCH | `/tasks/:id/history/:historyId` | task manager | Update only the history row `note`. |
 | DELETE | `/tasks/:id/history/:historyId` | task manager | Delete an accidental history row without changing current task state. |
 | POST | `/tasks/:id/links` | owner/lead/admin | Add related link. |
+
+### Task Posts and Channels
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| GET | `/post-categories` | user | Read post category labels and tones. |
+| POST | `/post-categories` | admin | Add a post category. |
+| PATCH | `/post-categories/:id` | admin | Rename, retone, activate, or hide a category. |
+| GET | `/tasks/:id/posts` | visible user | Read posts on one task. Non-authors receive only `visibility=team` rows. |
+| POST | `/tasks/:id/posts` | visible user | Create a task post with `visibility=team` or `private`. |
+| PATCH | `/tasks/:id/posts/:postId` | post author or task manager | Edit category, title, body, URL, attachment metadata, or visibility. |
+| DELETE | `/tasks/:id/posts/:postId` | post author or task manager | Delete an accidental post. |
+| GET | `/posts/mine` | user | Current user's own posts, including private posts. |
+| GET | `/posts/team-channel` | user | Team-visible channel feed. Includes only `visibility=team` rows and supports `workstream`, `authorId`, `categoryId`, and `taskId` filters. |
+| GET | `/post-rollups/workstreams` | user | Workstream-grouped visible posts for Highlights. Includes only `visibility=team` rows. |
 
 ### Notifications
 
