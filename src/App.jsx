@@ -6742,11 +6742,10 @@ function AiAssistantPanel({
       <div className="ai-assistant-head">
         <div>
           <span className="panel-label">AI 업무 에이전트</span>
-          <h2>데이터를 읽고, 근거와 함께 답합니다</h2>
         </div>
         <span className={`ai-source-chip ${isRemoteReady ? "remote" : "local"}`}>
           <Database size={14} />
-          {isRemoteReady ? "FastAPI DB 읽기" : "화면 데이터 읽기"}
+          {isRemoteReady ? "회사 DB 기준" : "현재 화면 기준"}
         </span>
       </div>
 
@@ -6754,9 +6753,9 @@ function AiAssistantPanel({
         <label className="ai-assistant-input">
           <MessageSquareText size={17} />
           <textarea
-            aria-label="AI 에이전트에게 물어보기"
+            aria-label="무엇을 도와드릴까요?!"
             onChange={(event) => onPromptChange(event.target.value)}
-            placeholder="예: 이번 주 업무현황 보고서 초안 만들어줘"
+            placeholder="무엇을 도와드릴까요?!"
             rows={2}
             value={prompt}
           />

@@ -8,10 +8,10 @@ import {
 
 export const defaultAiAssistantPrompts = [
   "이번 주 업무현황 보고서 초안 만들어줘",
-  "박경수님 진행 업무 알려줘",
+  "나의 진행 업무를 알려줘",
   "아이디어 관련 이슈 찾아줘",
   "최근 업데이트된 업무만 정리해줘",
-  "회의 후속 업무 등록 초안 만들어줘"
+  "회의 후속 업무를 등록해줘"
 ];
 
 const routeByKind = {
