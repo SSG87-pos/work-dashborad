@@ -2,6 +2,15 @@
 
 ## Now
 
+- [x] Add DB-backed dashboard insight filters.
+  - Branch: `codex/llm-wiki-architecture`.
+  - Files: `backend/app/api/routes_dashboard.py`, `backend/app/schemas/dashboard.py`, `backend/app/main.py`, `backend/tests/test_dashboard_insights.py`, `src/App.jsx`, `src/apiStore.js`, `src/summaryFilters.js`, `src/styles.css`, `scripts/check-api-store.mjs`, `scripts/check-summary-filter.mjs`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added FastAPI `GET /api/v1/dashboard/insights` for DB-computed dashboard signals: open, due soon, overdue, stale/no-update, unclassified workstream, and completed cohorts.
+  - Done: top insight cards now include `업데이트 정체` and `흐름 미지정`; in FastAPI mode they use DB counts/evidence first and fall back to local task-array calculation if the API is unavailable.
+  - Done: summary filters now support the new cohorts so clicking the cards narrows the board to the same operational group.
+  - Verified: `/private/tmp/work-dashboard-backend-venv312/bin/python -m pytest backend/tests` passed with `38 passed`; `check:api-store`, `check:summary-filter`, `git diff --check`, and production build passed.
+  - Browser QA on `http://127.0.0.1:5187/` verified six top insight cards render without horizontal overflow, `흐름 미지정` is quiet when count is 0, and `업데이트 정체` click shows `요약: 업데이트 정체` while narrowing the board lane counts.
+
 - [x] Add DB-evidence workstream similarity suggestions.
   - Branch: `codex/llm-wiki-architecture`.
   - Files: `backend/app/api/routes_workstreams.py`, `backend/app/schemas/task.py`, `backend/app/main.py`, `backend/tests/test_workstreams.py`, `src/App.jsx`, `src/apiStore.js`, `src/styles.css`, `scripts/check-api-store.mjs`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.

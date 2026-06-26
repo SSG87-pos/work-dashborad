@@ -6,6 +6,7 @@ from app.api.routes_ai import router as ai_router
 from app.api.routes_briefing import router as briefing_router
 from app.api.routes_calendar import router as calendar_router
 from app.api.routes_canvas import router as canvas_router
+from app.api.routes_dashboard import router as dashboard_router
 from app.api.routes_health import router as health_router
 from app.api.routes_posts import rollup_router, router as posts_router
 from app.api.routes_preferences import memos_router, preferences_router
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(memos_router, prefix="/api/v1")
     app.include_router(rollup_router, prefix="/api/v1")
     app.include_router(roster_router, prefix="/api/v1")
+    app.include_router(dashboard_router, prefix="/api/v1")
     app.include_router(groups_router, prefix="/api/v1")
     app.include_router(tags_router, prefix="/api/v1")
     app.include_router(workstreams_router, prefix="/api/v1")

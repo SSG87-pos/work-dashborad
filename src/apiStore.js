@@ -716,6 +716,14 @@ async function readWorkstreamSuggestions() {
   return apiRequest("/workstreams/suggestions");
 }
 
+async function readDashboardInsights({ scope = "team", ownerId = "", today = TODAY } = {}) {
+  const params = new URLSearchParams();
+  params.set("scope", scope === "mine" ? "mine" : "team");
+  if (ownerId) params.set("owner_id", ownerId);
+  if (today) params.set("today", today);
+  return apiRequest(`/dashboard/insights?${params.toString()}`);
+}
+
 async function readAiEvidence(intent) {
   const path = buildAiReadPath(intent);
   if (!path) return { skipped: true, reason: "unsupported-ai-intent" };
@@ -862,6 +870,9 @@ export const apiDashboardStore = {
   canvas: {
     read: readCanvasState,
     save: saveCanvasState
+  },
+  dashboard: {
+    insights: readDashboardInsights
   },
   workstreams: {
     suggestions: readWorkstreamSuggestions

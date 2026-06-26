@@ -575,7 +575,15 @@ create index notifications_unread_idx on notifications (recipient_user_id, read_
 }
 ```
 
-### 6.2 Auth
+### 6.2 Dashboard Insights
+
+| Method | Path | 권한 | 설명 |
+| --- | --- | --- | --- |
+| GET | `/dashboard/insights` | user | `scope`, `owner_id`, `today` 기준 운영 인사이트. 진행, 3일 내 마감, 지연, 업데이트 정체, 업무흐름 미지정, 완료 count와 근거 업무 반환 |
+
+Dashboard Insights는 AI 호출 없이 DB에서 직접 계산하는 대시보드 운영 신호입니다. 프론트 상단 요약 카드는 FastAPI 로그인 상태에서 이 endpoint를 우선 사용하고, 실패하면 화면에 내려온 업무 배열 기준으로 fallback합니다.
+
+### 6.3 Auth
 
 | Method | Path | 권한 | 설명 |
 | --- | --- | --- | --- |
@@ -586,7 +594,7 @@ create index notifications_unread_idx on notifications (recipient_user_id, read_
 | PATCH | `/me/profile` | user | 본인 이름/이모지/표시 설정 수정 |
 | PATCH | `/me/preferences` | user | 최근 화면/필터/넓게 보기 저장 |
 
-### 6.3 Users and Roster
+### 6.4 Users and Roster
 
 | Method | Path | 권한 | 설명 |
 | --- | --- | --- | --- |
@@ -597,7 +605,7 @@ create index notifications_unread_idx on notifications (recipient_user_id, read_
 | POST | `/admin/roster` | admin | signup 전 팀원 row 생성 |
 | PATCH | `/admin/roster/{roster_id}` | admin | 이름/직책/표시/예상 이메일 수정 |
 
-### 6.4 Tasks
+### 6.5 Tasks
 
 | Method | Path | 권한 | 설명 |
 | --- | --- | --- | --- |
@@ -619,7 +627,7 @@ create index notifications_unread_idx on notifications (recipient_user_id, read_
 | POST | `/tasks/{task_id}/links` | manager | 관련 링크 추가 |
 | DELETE | `/tasks/{task_id}/links/{link_id}` | manager | 관련 링크 삭제 |
 
-### 6.5 Tags and Workstreams
+### 6.6 Tags and Workstreams
 
 | Method | Path | 권한 | 설명 |
 | --- | --- | --- | --- |
@@ -633,7 +641,7 @@ create index notifications_unread_idx on notifications (recipient_user_id, read_
 
 업무흐름은 별도 테이블 없이 `tasks.workstream` 기반으로 시작할 수 있습니다. 유사 업무흐름 추천은 자동 병합이 아니라 관리자 검토용 후보만 반환하고, 실제 병합은 rename/merge 액션으로 확정합니다. 여러 그룹 확장 시 `workstreams` 테이블을 추가합니다.
 
-### 6.6 Calendar
+### 6.7 Calendar
 
 | Method | Path | 권한 | 설명 |
 | --- | --- | --- | --- |
@@ -642,7 +650,7 @@ create index notifications_unread_idx on notifications (recipient_user_id, read_
 | PATCH | `/calendar/events/{event_id}` | owner/creator/lead/admin | 일정 수정 |
 | DELETE | `/calendar/events/{event_id}` | owner/creator/lead/admin | 일정 삭제 |
 
-### 6.7 Task Posts
+### 6.8 Task Posts
 
 | Method | Path | 권한 | 설명 |
 | --- | --- | --- | --- |
@@ -655,7 +663,7 @@ create index notifications_unread_idx on notifications (recipient_user_id, read_
 | DELETE | `/tasks/{task_id}/posts/{post_id}` | author or manager | 노트 삭제 |
 | GET | `/post-rollups/workstreams` | user | Highlights 업무흐름별 게시글 모음 |
 
-### 6.8 Briefing Items
+### 6.9 Briefing Items
 
 | Method | Path | 권한 | 설명 |
 | --- | --- | --- | --- |
@@ -671,7 +679,7 @@ GET /api/v1/briefing-items?scope=my&ownerId=<user-id>
 GET /api/v1/briefing-items?scope=team
 ```
 
-### 6.9 Canvas
+### 6.10 Canvas
 
 첫 구현은 전체 tab snapshot 저장으로 시작해도 됩니다.
 
@@ -685,7 +693,7 @@ GET /api/v1/briefing-items?scope=team
 
 나중에 동시 편집을 넣을 때는 node/link 단위 PATCH와 `version` 충돌 검사를 추가합니다.
 
-### 6.10 Reports
+### 6.11 Reports
 
 | Method | Path | 권한 | 설명 |
 | --- | --- | --- | --- |
@@ -693,7 +701,7 @@ GET /api/v1/briefing-items?scope=team
 | POST | `/reports/performance/snapshots` | lead/admin | 보고용 snapshot 저장 |
 | GET | `/reports/performance/snapshots/{snapshot_id}` | visible user | 저장된 보고서 조회 |
 
-### 6.11 AI Read API
+### 6.12 AI Read API
 
 LLM/HERmes 연결 전용 read-only endpoint입니다.
 
@@ -709,7 +717,7 @@ LLM/HERmes 연결 전용 read-only endpoint입니다.
 
 Status 2026-06-26: Phase 1 FastAPI read endpoints are implemented. They return deterministic evidence bundles only; OpenAI/HERmes tool calling and AI write-back remain later phases.
 
-### 6.12 AI Wiki API
+### 6.13 AI Wiki API
 
 LLM-Wiki knowledge layer endpoint입니다. 대시보드 DB를 원천으로 유지하고, Wiki는 출처 링크와 revision이 있는 agent-readable 정리 레이어로 사용합니다.
 

@@ -70,7 +70,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 ### Today Briefing
 
 - `오늘 브리핑` is the first meaningful screen.
-- Top insight cards should stay number-first, but act as compact action filters: nonzero cards show a small `보기 →` action and clicking them filters the board to that cohort.
+- Top insight cards should stay number-first, but act as compact action filters: nonzero cards show a small `보기 →` action and clicking them filters the board to that cohort. In FastAPI mode, these cards may use DB-computed insight counts/evidence for operational signals such as `업데이트 정체` and `흐름 미지정`.
 - Insight cards should stay short on 1280-1366px widths: use the right-side space for status copy/action text instead of adding a taller third text row.
 - Insight card labels under the number should be medium-strong, not black-weight bold.
 - Insight hover previews list only the relevant tasks; do not repeat the summary card title inside the hover panel.

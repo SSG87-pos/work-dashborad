@@ -2114,7 +2114,47 @@ function briefingFor(tasks, personId) {
   ].filter((group) => group.tasks.length);
 }
 
-function dashboardSummary(tasks, activePage, selectedPersonId) {
+function latestTaskUpdateDate(task) {
+  return (task.updates ?? [])
+    .map((update) => update.date || update.createdAt)
+    .filter(Boolean)
+    .map((value) => String(value).slice(0, 10))
+    .sort()
+    .reverse()[0] || "";
+}
+
+function mergeRemoteInsightItems(items, tasks, remoteInsights) {
+  if (!remoteInsights?.items?.length) return items;
+  const taskMap = new Map(tasks.map((task) => [task.id, task]));
+  const remoteByKey = new Map(remoteInsights.items.map((item) => [item.key, item]));
+  return items.map((item) => {
+    const remoteItem = remoteByKey.get(item.key);
+    if (!remoteItem) return item;
+    const preview = (remoteItem.tasks ?? []).map((remoteTask) => {
+      const localTask = taskMap.get(remoteTask.id);
+      if (localTask) return localTask;
+      return {
+        id: remoteTask.id,
+        title: remoteTask.title,
+        ownerId: remoteTask.owner_roster_id ?? remoteTask.owner_id ?? "",
+        status: remoteTask.status,
+        priority: remoteTask.priority,
+        dueDate: remoteTask.due_date,
+        workstream: remoteTask.workstream ?? "",
+        updates: []
+      };
+    });
+    return {
+      ...item,
+      value: remoteItem.count ?? item.value,
+      label: remoteItem.label || item.label,
+      caption: remoteItem.caption || item.caption,
+      preview
+    };
+  });
+}
+
+function dashboardSummary(tasks, activePage, selectedPersonId, remoteInsights = null) {
   const scoped = (activePage === "my" ? tasks.filter((task) => task.ownerId === selectedPersonId) : tasks).filter(
     (task) => !isDeletedTask(task) && !task.archived
   );
@@ -2124,6 +2164,11 @@ function dashboardSummary(tasks, activePage, selectedPersonId) {
     const days = diffDays(task.dueDate, TODAY);
     return days >= 0 && days <= 3;
   });
+  const stale = open.filter((task) => {
+    const latestDate = latestTaskUpdateDate(task);
+    return diffDays(task.startDate, TODAY) <= 0 && (!latestDate || diffDays(latestDate, TODAY) < -7);
+  });
+  const unclassified = open.filter((task) => !String(task.workstream ?? "").trim());
   const completed = scoped.filter((task) => task.status === "완료");
   const archived = (activePage === "my" ? tasks.filter((task) => task.ownerId === selectedPersonId) : tasks).filter(
     (task) => !isDeletedTask(task) && task.archived
@@ -2132,7 +2177,7 @@ function dashboardSummary(tasks, activePage, selectedPersonId) {
     ? Math.round(open.reduce((sum, task) => sum + taskProgress(task), 0) / open.length)
     : 100;
 
-  return [
+  return mergeRemoteInsightItems([
     {
       key: "open",
       label: activePage === "my" ? "내 진행 업무" : "팀 진행 업무",
@@ -2164,6 +2209,26 @@ function dashboardSummary(tasks, activePage, selectedPersonId) {
       preview: overdue
     },
     {
+      key: "stale",
+      label: "업데이트 정체",
+      value: stale.length,
+      caption: stale.length ? "7일 이상 새 로그 없음" : "최근 로그 양호",
+      actionLabel: "정체 업무 보기 →",
+      tone: "amber",
+      icon: CircleAlert,
+      preview: stale
+    },
+    {
+      key: "unclassified",
+      label: "흐름 미지정",
+      value: unclassified.length,
+      caption: unclassified.length ? "업무흐름 정리 필요" : "흐름 정리됨",
+      actionLabel: "미지정 업무 보기 →",
+      tone: "amber",
+      icon: Database,
+      preview: unclassified
+    },
+    {
       key: "completed",
       label: "완료 업무",
       value: completed.length,
@@ -2173,7 +2238,7 @@ function dashboardSummary(tasks, activePage, selectedPersonId) {
       icon: CheckCircle2,
       preview: completed
     }
-  ];
+  ], tasks, remoteInsights);
 }
 
 function App() {
@@ -2216,6 +2281,7 @@ function App() {
   const [workKindFilter, setWorkKindFilter] = useState(() => persistedOption(persisted.workKindFilter, workKindFilters, "전체"));
   const [ownerFilter, setOwnerFilter] = useState(() => persistedString(persisted.ownerFilter, "전체"));
   const [summaryFilter, setSummaryFilter] = useState("");
+  const [remoteInsights, setRemoteInsights] = useState(null);
   const [query, setQuery] = useState("");
   const [activeView, setActiveView] = useState(() => persistedOption(persisted.activeView, viewOptions, "board"));
   const [activePage, setActivePage] = useState(() => persistedOption(persisted.activePage, pageOptions, "my"));
@@ -2655,9 +2721,22 @@ function App() {
     [activePage, tasks, selectedPersonId]
   );
   const selectedBriefingGroup = briefing.find((group) => group.key === selectedBriefingKey);
+  const dashboardInsightRefreshKey = useMemo(
+    () => tasks.map((task) => [
+      task.id,
+      task.status,
+      task.dueDate,
+      task.startDate,
+      task.workstream,
+      task.progress,
+      task.archived ? "archived" : "active",
+      task.updates?.length ?? 0
+    ].join(":")).join("|"),
+    [tasks]
+  );
   const summary = useMemo(
-    () => dashboardSummary(tasks, activePage, selectedPersonId),
-    [activePage, selectedPersonId, tasks]
+    () => dashboardSummary(tasks, activePage, selectedPersonId, remoteInsights),
+    [activePage, remoteInsights, selectedPersonId, tasks]
   );
 
   const counts = statuses.reduce((acc, status) => {
@@ -2680,6 +2759,27 @@ function App() {
     if (ownerFilterOptions.some((person) => person.id === ownerFilter)) return;
     setOwnerFilter("전체");
   }, [ownerFilter, ownerFilterOptions]);
+
+  useEffect(() => {
+    if (!isApiReady || authStatus !== "signed-in" || !isAuthenticated || !remoteDashboardStore.dashboard?.insights) {
+      setRemoteInsights(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const scope = activePage === "my" ? "mine" : "team";
+    const ownerId = scope === "mine" && isUuidLike(selectedPersonId) ? selectedPersonId : "";
+    remoteDashboardStore.dashboard.insights({ scope, ownerId, today: TODAY })
+      .then((insights) => {
+        if (!cancelled) setRemoteInsights(insights);
+      })
+      .catch((error) => {
+        console.warn("DB 대시보드 인사이트를 불러오지 못했습니다.", error);
+        if (!cancelled) setRemoteInsights(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activePage, authStatus, dashboardInsightRefreshKey, isApiReady, isAuthenticated, selectedPersonId]);
 
   useEffect(() => {
     if (isSupabaseReady) return;
@@ -6459,7 +6559,7 @@ function InsightStrip({ activeFilter, onSelect, summary }) {
   return (
     <section className="insight-strip" aria-label="업무 요약">
       {summary.map(({ actionLabel, caption, icon: Icon, key, label, preview, tone, value }, index) => {
-        const hasItems = preview.length > 0;
+        const hasItems = value > 0;
         return (
           <motion.button
             animate={{ opacity: 1, y: 0 }}

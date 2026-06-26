@@ -479,6 +479,14 @@ These endpoints are future-facing and should be implemented only after the FastA
 | POST | `/reports/performance/snapshots` | lead/admin | Freeze a generated report. |
 | GET | `/reports/performance/snapshots/:id` | visible user | Read frozen report. |
 
+### Dashboard Insight API
+
+These endpoints are deterministic dashboard operations, not model calls. They let the UI read DB-computed counts and evidence rows for top insight filters while keeping local fallback behavior.
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| GET | `/dashboard/insights` | user | Query by `scope`, optional `owner_id`, and `today`; returns counts and source tasks for open, due soon, overdue, stale/no-update, unclassified workstream, and completed cohorts. |
+
 ### AI Agent Read API
 
 These endpoints are read-only. They return permission-filtered evidence bundles for an approved AI agent or HERmes-style tool layer. See `docs/ai-agent-readiness.md` for answer rules, report templates, and excluded data.

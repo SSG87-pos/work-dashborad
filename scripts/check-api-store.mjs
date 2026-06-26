@@ -86,6 +86,15 @@ const responses = new Map([
     reason: "공통 근거",
     tasks: []
   }]],
+  ["GET /dashboard/insights", {
+    scope: "team",
+    today: "2026-06-26",
+    generated_at: "2026-06-26T00:00:00Z",
+    items: [
+      { key: "stale", label: "업데이트 정체", count: 1, severity: "warning", caption: "7일 이상 새 로그 없음", tasks: [] },
+      { key: "unclassified", label: "흐름 미지정", count: 1, severity: "warning", caption: "업무흐름 정리 필요", tasks: [] }
+    ]
+  }],
   ["GET /preferences/me", {
     user_id: "11111111-1111-4111-8111-111111111111",
     active_page: "team",
@@ -213,6 +222,7 @@ await apiDashboardStore.tags.saveGroup({ id: "preset:operations", label: "운영
 await apiDashboardStore.tags.deleteGroup("preset:operations");
 await apiDashboardStore.tasks.savePostCategory({ id: categoryId, key: "decision", label: "논의사항", tone: "green", active: true });
 await apiDashboardStore.tasks.deactivatePostCategory(categoryId);
+await apiDashboardStore.dashboard.insights({ scope: "team", today: "2026-06-26" });
 await apiDashboardStore.workstreams.suggestions();
 await apiDashboardStore.ai.wiki.search({ query: "AI" });
 await apiDashboardStore.ai.wiki.readPage(wikiPageId);
@@ -261,6 +271,7 @@ assert.ok(calls.some((call) => call.key === `DELETE /tags/${tagId}`));
 assert.ok(calls.some((call) => call.key === "PUT /tag-groups/preset%3Aoperations"));
 assert.ok(calls.some((call) => call.key === "DELETE /tag-groups/preset%3Aoperations"));
 assert.ok(calls.some((call) => call.key === `PATCH /post-categories/${categoryId}`));
+assert.ok(calls.some((call) => call.key === "GET /dashboard/insights"));
 assert.ok(calls.some((call) => call.key === "GET /workstreams/suggestions"));
 assert.ok(calls.some((call) => call.key === "GET /ai/wiki/search"));
 assert.ok(calls.some((call) => call.key === `GET /ai/wiki/pages/${wikiPageId}`));
