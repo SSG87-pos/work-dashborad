@@ -13,6 +13,7 @@ Status 2026-06-26:
 - Backend routes live in `backend/app/api/routes_wiki.py` under `/api/v1/ai/wiki/...`.
 - Tests live in `backend/tests/test_ai_wiki.py`.
 - Task detail has a first `Wiki로 정리` button that creates a pending Wiki draft from a signed-in FastAPI task.
+- Admin has a first `Wiki 초안` review tab for listing, approving, and rejecting pending drafts.
 - No OpenAI/HERmes model call is implemented yet. AI-generated changes still enter through a draft/approval path.
 
 ## What We Mean By LLM-Wiki
@@ -200,7 +201,7 @@ Recommended first UI surfaces:
 - Task detail: `Wiki로 정리` creates a draft page/update from selected task, updates, and 업무 노트. Status: first button is implemented for signed-in FastAPI-backed tasks.
 - Highlights: `업무흐름 Wiki` shows the page connected to the selected workstream.
 - Entry AI assistant: answers by combining live dashboard evidence and Wiki pages.
-- Admin/review: pending AI Wiki drafts can be approved, edited, or rejected.
+- Admin/review: pending AI Wiki drafts can be listed, approved, or rejected. Status: first review tab is implemented; inline editing can be added later.
 
 업무 노트 이미지 rule:
 
@@ -265,7 +266,7 @@ Status: implemented for schema, read endpoints, task-based draft creation, appro
 - Create AI or deterministic draft proposals from task/update/post evidence.
 - Require human approval before publish.
 
-Status: task-detail draft action is implemented. Workstream Highlights controls, admin review UI, and model-assisted draft enrichment remain later work.
+Status: task-detail draft action and admin pending-draft review/approve/reject UI are implemented. Workstream Highlights controls, inline draft editing, and model-assisted draft enrichment remain later work.
 
 ### Phase 3: AI Tool Calling
 

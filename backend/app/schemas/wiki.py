@@ -71,6 +71,10 @@ class WikiDraftApprove(BaseModel):
     status: str = "published"
 
 
+class WikiDraftReject(BaseModel):
+    reason: str | None = None
+
+
 class WikiSourceLinkRead(BaseModel):
     id: UUID
     page_id: UUID

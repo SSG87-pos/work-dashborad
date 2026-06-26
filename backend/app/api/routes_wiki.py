@@ -17,6 +17,7 @@ from app.schemas.wiki import (
     WikiDraftCreate,
     WikiDraftFromDashboardCreate,
     WikiDraftRead,
+    WikiDraftReject,
     WikiErrorBookCreate,
     WikiErrorBookRead,
     WikiLinkInput,
@@ -326,6 +327,18 @@ def read_wiki_page_sources(
     return [serialize_source_link(db, link) for link in sorted(page.source_links, key=lambda item: item.created_at, reverse=True)]
 
 
+@router.get("/drafts", response_model=list[WikiDraftRead])
+def list_wiki_drafts(
+    status_filter: str = Query("pending", alias="status"),
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> list[AiWikiDraft]:
+    query = select(AiWikiDraft).order_by(AiWikiDraft.created_at.desc())
+    if status_filter and status_filter != "all":
+        query = query.where(AiWikiDraft.status == status_filter)
+    return list(db.scalars(query).all())
+
+
 @router.post("/drafts", response_model=WikiDraftRead, status_code=status.HTTP_201_CREATED)
 def create_wiki_draft(
     payload: WikiDraftCreate,
@@ -492,6 +505,30 @@ def approve_wiki_draft(
         .options(selectinload(WikiPage.source_links), selectinload(WikiPage.outgoing_links), selectinload(WikiPage.revisions))
     )
     return serialize_page(db, page)
+
+
+@router.post("/drafts/{draft_id}/reject", response_model=WikiDraftRead)
+def reject_wiki_draft(
+    draft_id: UUID,
+    payload: WikiDraftReject,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> AiWikiDraft:
+    draft = db.get(AiWikiDraft, draft_id)
+    if draft is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="wiki_draft_not_found")
+    if draft.status != "pending":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="wiki_draft_not_pending")
+    draft.status = "rejected"
+    draft.reviewed_by_user_id = admin.id
+    draft.reviewed_at = now_utc()
+    if payload.reason:
+        evidence = dict(draft.source_evidence_json or {})
+        evidence["reject_reason"] = payload.reason
+        draft.source_evidence_json = evidence
+    db.commit()
+    db.refresh(draft)
+    return draft
 
 
 @router.post("/error-book", response_model=WikiErrorBookRead, status_code=status.HTTP_201_CREATED)

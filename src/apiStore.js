@@ -743,6 +743,13 @@ async function createAiWikiDraft(payload) {
   });
 }
 
+async function listAiWikiDrafts({ status = "pending" } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return apiRequest(`/ai/wiki/drafts${suffix}`);
+}
+
 async function createAiWikiDraftFromDashboard(payload) {
   return apiRequest("/ai/wiki/drafts/from-dashboard", {
     method: "POST",
@@ -753,6 +760,14 @@ async function createAiWikiDraftFromDashboard(payload) {
 async function approveAiWikiDraft(draftId, payload = {}) {
   if (!isUuid(draftId)) return { skipped: true, reason: "requires-wiki-draft-id" };
   return apiRequest(`/ai/wiki/drafts/${draftId}/approve`, {
+    method: "POST",
+    body: body(payload)
+  });
+}
+
+async function rejectAiWikiDraft(draftId, payload = {}) {
+  if (!isUuid(draftId)) return { skipped: true, reason: "requires-wiki-draft-id" };
+  return apiRequest(`/ai/wiki/drafts/${draftId}/reject`, {
     method: "POST",
     body: body(payload)
   });
@@ -842,9 +857,11 @@ export const apiDashboardStore = {
       search: searchAiWiki,
       readPage: readAiWikiPage,
       readSources: readAiWikiSources,
+      listDrafts: listAiWikiDrafts,
       createDraft: createAiWikiDraft,
       createDraftFromDashboard: createAiWikiDraftFromDashboard,
       approveDraft: approveAiWikiDraft,
+      rejectDraft: rejectAiWikiDraft,
       recordError: recordAiWikiError
     }
   },

@@ -718,12 +718,14 @@ LLM-Wiki knowledge layer endpoint입니다. 대시보드 DB를 원천으로 유�
 | GET | `/ai/wiki/pages/{page_id}` | user | Wiki page 본문, revision, source, link 조회 |
 | GET | `/ai/wiki/pages/{page_id}/links` | user | page 간 typed link 따라가기 |
 | GET | `/ai/wiki/pages/{page_id}/sources` | user | task/update/post source link와 stale flag 조회 |
+| GET | `/ai/wiki/drafts` | admin | pending/rejected/approved/all Wiki draft 검토 목록 |
 | POST | `/ai/wiki/drafts` | user | 수동 또는 future AI Wiki draft 생성 |
 | POST | `/ai/wiki/drafts/from-dashboard` | user | dashboard task/update/post 기준 deterministic Wiki draft 생성 |
 | POST | `/ai/wiki/drafts/{draft_id}/approve` | admin | pending draft를 page/revision/source link로 발행 |
+| POST | `/ai/wiki/drafts/{draft_id}/reject` | admin | pending draft 거절 및 사유 기록 |
 | POST | `/ai/wiki/error-book` | user | 틀리거나 부족한 답변 correction 기록 |
 
-Status 2026-06-26: Phase 1 FastAPI endpoints and migration `20260625_0011_llm_wiki.py` are implemented. OpenAI/HERmes/MCP wrapping and frontend Wiki controls remain later phases.
+Status 2026-06-26: Phase 1 FastAPI endpoints and migration `20260625_0011_llm_wiki.py` are implemented, including admin draft list/approve/reject. OpenAI/HERmes/MCP wrapping and richer frontend Wiki browsing remain later phases.
 
 ## 7. FastAPI Project Structure
 

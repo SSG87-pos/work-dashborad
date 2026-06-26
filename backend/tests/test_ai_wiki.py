@@ -76,6 +76,10 @@ def test_ai_wiki_draft_approve_search_read_sources_and_error_book() -> None:
     assert "회의 화이트보드에 중앙 DB와 Wiki 계층" in post_source["excerpt"]
     assert "PostgreSQL 원천, Wiki는 정리 레이어" in post_source["excerpt"]
 
+    pending_response = client.get("/api/v1/ai/wiki/drafts?status=pending", headers={"Authorization": f"Bearer {token}"})
+    assert pending_response.status_code == 200
+    assert [item["id"] for item in pending_response.json()] == [draft["id"]]
+
     approve_response = client.post(
         f"/api/v1/ai/wiki/drafts/{draft['id']}/approve",
         headers={"Authorization": f"Bearer {token}"},
@@ -122,6 +126,38 @@ def test_ai_wiki_draft_approve_search_read_sources_and_error_book() -> None:
     )
     assert error_response.status_code == 201
     assert error_response.json()["resolution_status"] == "open"
+
+
+def test_admin_can_list_and_reject_ai_wiki_draft() -> None:
+    client, session_factory = build_test_client()
+    seed_admin(session_factory)
+    token = login_admin(client)
+    task_id = seed_wiki_source_task(client, token)
+
+    draft_response = client.post(
+        "/api/v1/ai/wiki/drafts/from-dashboard",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"source_type": "task", "source_id": task_id, "proposed_page_type": "workstream"},
+    )
+    draft = draft_response.json()
+
+    reject_response = client.post(
+        f"/api/v1/ai/wiki/drafts/{draft['id']}/reject",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"reason": "중복 초안"},
+    )
+
+    assert reject_response.status_code == 200
+    assert reject_response.json()["status"] == "rejected"
+    assert reject_response.json()["source_evidence_json"]["reject_reason"] == "중복 초안"
+
+    pending_response = client.get("/api/v1/ai/wiki/drafts?status=pending", headers={"Authorization": f"Bearer {token}"})
+    assert pending_response.status_code == 200
+    assert pending_response.json() == []
+
+    rejected_response = client.get("/api/v1/ai/wiki/drafts?status=rejected", headers={"Authorization": f"Bearer {token}"})
+    assert rejected_response.status_code == 200
+    assert [item["id"] for item in rejected_response.json()] == [draft["id"]]
 
 
 def test_ai_wiki_requires_authentication() -> None:

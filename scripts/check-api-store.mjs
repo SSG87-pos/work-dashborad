@@ -110,9 +110,11 @@ responses.set(`PATCH /post-categories/${categoryId}`, { id: categoryId, key: "de
 responses.set("GET /ai/wiki/search", { generated_at: "2026-06-26T00:00:00Z", query: "AI", items: [{ id: wikiPageId, title: "AI 업무 에이전트" }] });
 responses.set(`GET /ai/wiki/pages/${wikiPageId}`, { id: wikiPageId, title: "AI 업무 에이전트", body_markdown: "# AI" });
 responses.set(`GET /ai/wiki/pages/${wikiPageId}/sources`, [{ id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", source_type: "task", source_id: taskId }]);
+responses.set("GET /ai/wiki/drafts", [{ id: wikiDraftId, status: "pending", proposed_title: "AI 업무 에이전트" }]);
 responses.set("POST /ai/wiki/drafts", { id: wikiDraftId, status: "pending" });
 responses.set("POST /ai/wiki/drafts/from-dashboard", { id: wikiDraftId, status: "pending", proposed_title: "AI 업무 에이전트" });
 responses.set(`POST /ai/wiki/drafts/${wikiDraftId}/approve`, { id: wikiPageId, status: "published" });
+responses.set(`POST /ai/wiki/drafts/${wikiDraftId}/reject`, { id: wikiDraftId, status: "rejected" });
 responses.set("POST /ai/wiki/error-book", { id: "ffffffff-ffff-4fff-8fff-ffffffffffff", resolution_status: "open" });
 responses.set("PATCH /admin/roster/22222222-2222-4222-8222-222222222222", {
   id: "22222222-2222-4222-8222-222222222222",
@@ -204,9 +206,11 @@ await apiDashboardStore.tasks.deactivatePostCategory(categoryId);
 await apiDashboardStore.ai.wiki.search({ query: "AI" });
 await apiDashboardStore.ai.wiki.readPage(wikiPageId);
 await apiDashboardStore.ai.wiki.readSources(wikiPageId);
+await apiDashboardStore.ai.wiki.listDrafts({ status: "pending" });
 await apiDashboardStore.ai.wiki.createDraft({ proposed_title: "AI 업무 에이전트", proposed_body_markdown: "# AI" });
 await apiDashboardStore.ai.wiki.createDraftFromDashboard({ source_type: "task", source_id: taskId });
 await apiDashboardStore.ai.wiki.approveDraft(wikiDraftId, { change_reason: "검토 완료" });
+await apiDashboardStore.ai.wiki.rejectDraft(wikiDraftId, { reason: "중복 초안" });
 await apiDashboardStore.ai.wiki.recordError({ question: "원천?", correction: "PostgreSQL" });
 await apiDashboardStore.profiles.updateAdministration("22222222-2222-4222-8222-222222222222", {
   name: "팀원2",
@@ -248,9 +252,11 @@ assert.ok(calls.some((call) => call.key === `PATCH /post-categories/${categoryId
 assert.ok(calls.some((call) => call.key === "GET /ai/wiki/search"));
 assert.ok(calls.some((call) => call.key === `GET /ai/wiki/pages/${wikiPageId}`));
 assert.ok(calls.some((call) => call.key === `GET /ai/wiki/pages/${wikiPageId}/sources`));
+assert.ok(calls.some((call) => call.key === "GET /ai/wiki/drafts"));
 assert.ok(calls.some((call) => call.key === "POST /ai/wiki/drafts"));
 assert.ok(calls.some((call) => call.key === "POST /ai/wiki/drafts/from-dashboard"));
 assert.ok(calls.some((call) => call.key === `POST /ai/wiki/drafts/${wikiDraftId}/approve`));
+assert.ok(calls.some((call) => call.key === `POST /ai/wiki/drafts/${wikiDraftId}/reject`));
 assert.ok(calls.some((call) => call.key === "POST /ai/wiki/error-book"));
 assert.ok(calls.some((call) => call.key === "PATCH /admin/roster/22222222-2222-4222-8222-222222222222"));
 assert.ok(calls.every((call) => call.options.headers?.Authorization || call.key === "POST /auth/login"));

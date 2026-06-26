@@ -2264,6 +2264,9 @@ function App() {
   const [assistantStatus, setAssistantStatus] = useState("idle");
   const [assistantError, setAssistantError] = useState("");
   const [wikiDraftTaskId, setWikiDraftTaskId] = useState("");
+  const [wikiReviewDrafts, setWikiReviewDrafts] = useState([]);
+  const [wikiReviewStatus, setWikiReviewStatus] = useState("idle");
+  const [wikiReviewError, setWikiReviewError] = useState("");
 
   const directory = useMemo(
     () => {
@@ -2834,6 +2837,11 @@ function App() {
   }, [activeView, isSelectedAdmin]);
 
   useEffect(() => {
+    if (activeView !== "admin" || !isSelectedAdmin) return;
+    loadWikiReviewDrafts();
+  }, [activeView, authStatus, isApiReady, isAuthenticated, isSelectedAdmin]);
+
+  useEffect(() => {
     const previous = navigationScrollRef.current;
     const changedPage = previous.page !== activePage;
     const enteredFullPage = fullPageViews.includes(activeView) && previous.view !== activeView;
@@ -3058,6 +3066,64 @@ function App() {
       showSyncNotice("Wiki 초안 생성을 FastAPI에 반영하지 못했습니다.");
     } finally {
       setWikiDraftTaskId("");
+    }
+  }
+
+  async function loadWikiReviewDrafts() {
+    if (!isSelectedAdmin) return;
+    if (!isApiReady || authStatus !== "signed-in" || !isAuthenticated || !remoteDashboardStore.ai?.wiki?.listDrafts) {
+      setWikiReviewDrafts([]);
+      setWikiReviewError("Wiki 초안 검토는 FastAPI 로그인 상태에서 사용할 수 있습니다.");
+      return;
+    }
+    setWikiReviewStatus("loading");
+    setWikiReviewError("");
+    try {
+      const drafts = await remoteDashboardStore.ai.wiki.listDrafts({ status: "pending" });
+      setWikiReviewDrafts(Array.isArray(drafts) ? drafts : []);
+      setWikiReviewStatus("idle");
+    } catch (error) {
+      console.warn("Wiki 초안 목록을 불러오지 못했습니다.", error);
+      setWikiReviewError("Wiki 초안 목록을 FastAPI에서 불러오지 못했습니다.");
+      setWikiReviewStatus("error");
+    }
+  }
+
+  async function approveWikiReviewDraft(draftId) {
+    if (!draftId || !remoteDashboardStore.ai?.wiki?.approveDraft) return;
+    setWikiReviewStatus("saving");
+    setWikiReviewError("");
+    try {
+      await remoteDashboardStore.ai.wiki.approveDraft(draftId, {
+        change_reason: "관리자 검토 승인",
+        visibility: "team",
+        status: "published"
+      });
+      setWikiReviewDrafts((current) => current.filter((draft) => draft.id !== draftId));
+      setWikiReviewStatus("idle");
+      showSyncNotice("Wiki 초안을 승인해 게시했습니다.");
+    } catch (error) {
+      console.warn("Wiki 초안 승인에 실패했습니다.", error);
+      setWikiReviewError("Wiki 초안 승인을 FastAPI에 반영하지 못했습니다.");
+      setWikiReviewStatus("error");
+    }
+  }
+
+  async function rejectWikiReviewDraft(draftId) {
+    if (!draftId || !remoteDashboardStore.ai?.wiki?.rejectDraft) return;
+    const reason = window.prompt("거절 사유를 입력하세요. 비워도 거절은 처리됩니다.", "중복 또는 보완 필요");
+    if (reason === null) return;
+    setWikiReviewStatus("saving");
+    setWikiReviewError("");
+    try {
+      await remoteDashboardStore.ai.wiki.rejectDraft(draftId, { reason });
+      setWikiReviewDrafts((current) => current.filter((draft) => draft.id !== draftId));
+      setWikiReviewStatus("idle");
+      showSyncNotice("Wiki 초안을 거절 처리했습니다.");
+    } catch (error) {
+      console.warn("Wiki 초안 거절에 실패했습니다.", error);
+      setWikiReviewError("Wiki 초안 거절을 FastAPI에 반영하지 못했습니다.");
+      setWikiReviewStatus("error");
     }
   }
 
@@ -4728,11 +4794,14 @@ function App() {
               <AdminView
                 currentPersonId={selectedPersonId}
                 onAddTag={addTag}
+                onApproveWikiDraft={approveWikiReviewDraft}
                 onDeletePreset={deleteTagGroup}
                 onDeleteTag={deleteTag}
                 onMoveTagToPreset={moveTagToPreset}
                 onRenameTag={renameTag}
                 onRenameWorkstream={renameWorkstream}
+                onRefreshWikiDrafts={loadWikiReviewDrafts}
+                onRejectWikiDraft={rejectWikiReviewDraft}
                 onSavePostCategory={saveTaskPostCategory}
                 onDeletePostCategory={deleteTaskPostCategory}
                 onSavePreset={saveTagGroup}
@@ -4742,6 +4811,10 @@ function App() {
                 presets={tagGroups}
                 tags={availableTags}
                 tasks={tasks}
+                wikiDraftError={wikiReviewError}
+                wikiDraftStatus={wikiReviewStatus}
+                wikiDrafts={wikiReviewDrafts}
+                wikiDraftsReady={isApiReady && authStatus === "signed-in" && isAuthenticated}
               />
             )}
           </div>
@@ -5143,7 +5216,7 @@ function LoginScreen({
   );
 }
 
-function AdminView({ currentPersonId, onAddTag, onDeletePostCategory, onDeletePreset, onDeleteTag, onMoveTagToPreset, onRenameTag, onRenameWorkstream, onSavePostCategory, onSavePreset, onUpdateUserAdministration, people, postCategories, presets, tags, tasks }) {
+function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePostCategory, onDeletePreset, onDeleteTag, onMoveTagToPreset, onRefreshWikiDrafts, onRejectWikiDraft, onRenameTag, onRenameWorkstream, onSavePostCategory, onSavePreset, onUpdateUserAdministration, people, postCategories, presets, tags, tasks, wikiDraftError = "", wikiDraftStatus = "idle", wikiDrafts = [], wikiDraftsReady = false }) {
   const [activeAdminTab, setActiveAdminTab] = useState("people");
   const activeTasks = useMemo(() => (tasks ?? []).filter((task) => task && !isDeletedTask(task)), [tasks]);
   const workstreamGroups = useMemo(
@@ -5154,7 +5227,8 @@ function AdminView({ currentPersonId, onAddTag, onDeletePostCategory, onDeletePr
     { id: "people", label: "사람 관리", count: teamAssignablePeople(people).length },
     { id: "tags", label: "태그 관리", count: tags.length },
     { id: "workstreams", label: "업무흐름 관리", count: workstreamGroups.filter((group) => group.label).length },
-    { id: "postTypes", label: "게시글 유형 관리", count: normalizeTaskPostCategories(postCategories).filter((category) => category.active).length }
+    { id: "postTypes", label: "게시글 유형 관리", count: normalizeTaskPostCategories(postCategories).filter((category) => category.active).length },
+    { id: "wikiDrafts", label: "Wiki 초안", count: wikiDrafts.length }
   ];
 
   return (
@@ -5215,6 +5289,85 @@ function AdminView({ currentPersonId, onAddTag, onDeletePostCategory, onDeletePr
           onDelete={onDeletePostCategory}
           onSave={onSavePostCategory}
         />
+      )}
+      {activeAdminTab === "wikiDrafts" && (
+        <AdminWikiDraftsPanel
+          drafts={wikiDrafts}
+          error={wikiDraftError}
+          isReady={wikiDraftsReady}
+          onApprove={onApproveWikiDraft}
+          onRefresh={onRefreshWikiDrafts}
+          onReject={onRejectWikiDraft}
+          status={wikiDraftStatus}
+        />
+      )}
+    </section>
+  );
+}
+
+function AdminWikiDraftsPanel({ drafts, error, isReady, onApprove, onRefresh, onReject, status }) {
+  return (
+    <section className="admin-panel wiki-drafts-panel">
+      <div className="admin-panel-heading">
+        <div>
+          <span className="panel-label">
+            <NotebookPen size={14} />
+            LLM-Wiki 검토
+          </span>
+          <h3>대기 중인 Wiki 초안</h3>
+        </div>
+        <p>업무 상세에서 만든 Wiki 초안을 사람이 승인해야 팀 Wiki page로 발행합니다.</p>
+      </div>
+      <div className="wiki-drafts-toolbar">
+        <span>{isReady ? `검토 대기 ${drafts.length}건` : "FastAPI 로그인 필요"}</span>
+        <button className="secondary-button small" disabled={!isReady || status === "loading" || status === "saving"} onClick={onRefresh} type="button">
+          <RotateCcw size={13} />
+          새로고침
+        </button>
+      </div>
+      {error && <div className="inline-warning">{error}</div>}
+      {!isReady && (
+        <div className="empty-state compact">
+          <strong>회사 DB 연결 후 사용할 수 있습니다.</strong>
+          <p>Wiki 초안 검토는 FastAPI 로그인과 관리자 권한이 필요합니다.</p>
+        </div>
+      )}
+      {isReady && drafts.length === 0 && (
+        <div className="empty-state compact">
+          <strong>검토 대기 초안 없음</strong>
+          <p>업무 상세의 `Wiki로 정리` 버튼으로 초안을 만들면 여기에 표시됩니다.</p>
+        </div>
+      )}
+      {isReady && drafts.length > 0 && (
+        <div className="wiki-draft-list">
+          {drafts.map((draft) => (
+            <article className="wiki-draft-card" key={draft.id}>
+              <div className="wiki-draft-card-head">
+                <div>
+                  <span>{draft.proposed_page_type}</span>
+                  <strong>{draft.proposed_title}</strong>
+                </div>
+                <small>{draft.created_by_ai_model}</small>
+              </div>
+              <p>{draft.proposed_summary || "요약 없음"}</p>
+              <pre>{String(draft.proposed_body_markdown || "").slice(0, 900)}</pre>
+              <div className="wiki-draft-meta">
+                <span>출처 {draft.proposed_source_links?.length ?? 0}건</span>
+                <span>{String(draft.created_at || "").slice(0, 10)}</span>
+              </div>
+              <div className="wiki-draft-actions">
+                <button className="primary-button small" disabled={status === "saving"} onClick={() => onApprove?.(draft.id)} type="button">
+                  <Check size={13} />
+                  승인 발행
+                </button>
+                <button className="secondary-button small danger-text" disabled={status === "saving"} onClick={() => onReject?.(draft.id)} type="button">
+                  <X size={13} />
+                  거절
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
       )}
     </section>
   );
