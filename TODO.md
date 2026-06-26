@@ -13,10 +13,11 @@
   - Done: added a first task-detail `LLM-Wiki 정리` surface. `Wiki로 정리` creates a pending Wiki draft from the selected FastAPI-backed task while leaving local/sample tasks unsynced with a notice.
   - Done: added admin `Wiki 초안` review surface. Admins can list pending drafts, edit the title/type/summary/body before publishing, and approve/publish or reject them through the FastAPI API.
   - Done: added image-evidence plumbing for 업무 노트. Users can paste an image into the note dialog for local/prototype preview, and `attachment.ocrText` plus `attachment.visionSummary` are now included in AI recent-post evidence and LLM-Wiki draft/source excerpts.
+  - Done: added a Highlights `Wiki` tab for searching published workstream Wiki pages and reading the selected page body plus source links through the FastAPI Wiki API.
   - Done: kept model-generated changes behind pending drafts and admin approval; no OpenAI/HERmes direct write behavior was added.
   - Verified: `/private/tmp/work-dashboard-backend-venv312/bin/python -m pytest backend/tests` passed with `35 passed`.
   - Verified: Alembic offline SQL rendered through head, `compileall`, `check:api-store`, production build, and `git diff --check` passed.
-  - Next: add production image/file storage, automatic OCR/HERmes/OpenAI Vision extraction into the existing attachment fields, Highlights/workstream Wiki views, and wrap these endpoints as OpenAI/HERmes/MCP tools.
+  - Next: add production image/file storage, automatic OCR/HERmes/OpenAI Vision extraction into the existing attachment fields, and wrap these endpoints as OpenAI/HERmes/MCP tools.
 
 - [x] Start AI database assistant Phase 1 on `codex/ai-agent-db-assistant`.
   - Files: `src/aiEvidence.js`, `src/aiAssistant.js`, `src/App.jsx`, `src/apiStore.js`, `src/styles.css`, `scripts/check-ai-evidence.mjs`, `scripts/check-ai-assistant.mjs`, `package.json`, `backend/app/api/routes_ai.py`, `backend/app/schemas/ai.py`, `backend/tests/test_ai_read.py`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `HANDOFF.md`, `TODO.md`.

@@ -189,9 +189,12 @@ Possible FastAPI paths:
 - `GET /api/v1/ai/wiki/pages/{page_id}`
 - `GET /api/v1/ai/wiki/pages/{page_id}/links`
 - `GET /api/v1/ai/wiki/pages/{page_id}/sources`
+- `GET /api/v1/ai/wiki/drafts`
 - `POST /api/v1/ai/wiki/drafts`
 - `POST /api/v1/ai/wiki/drafts/from-dashboard`
+- `PATCH /api/v1/ai/wiki/drafts/{draft_id}`
 - `POST /api/v1/ai/wiki/drafts/{draft_id}/approve`
+- `POST /api/v1/ai/wiki/drafts/{draft_id}/reject`
 - `POST /api/v1/ai/wiki/error-book`
 
 ## Dashboard Integration
@@ -199,9 +202,9 @@ Possible FastAPI paths:
 Recommended first UI surfaces:
 
 - Task detail: `Wiki로 정리` creates a draft page/update from selected task, updates, and 업무 노트. Status: first button is implemented for signed-in FastAPI-backed tasks.
-- Highlights: `업무흐름 Wiki` shows the page connected to the selected workstream.
+- Highlights: `업무흐름 Wiki` shows the page connected to the selected workstream. Status: first Highlights `Wiki` tab is implemented for published workstream Wiki search/read/source review.
 - Entry AI assistant: answers by combining live dashboard evidence and Wiki pages.
-- Admin/review: pending AI Wiki drafts can be listed, approved, or rejected. Status: first review tab is implemented; inline editing can be added later.
+- Admin/review: pending AI Wiki drafts can be listed, edited, approved, or rejected. Status: first review tab is implemented.
 
 업무 노트 이미지 rule:
 
@@ -266,7 +269,7 @@ Status: implemented for schema, read endpoints, task-based draft creation, appro
 - Create AI or deterministic draft proposals from task/update/post evidence.
 - Require human approval before publish.
 
-Status: task-detail draft action and admin pending-draft review/edit/approve/reject UI are implemented. Workstream Highlights controls and model-assisted draft enrichment remain later work.
+Status: task-detail draft action, Highlights published Wiki search/read UI, and admin pending-draft review/edit/approve/reject UI are implemented. Model-assisted draft enrichment remains later work.
 
 ### Phase 3: AI Tool Calling
 

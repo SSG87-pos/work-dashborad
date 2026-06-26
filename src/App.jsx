@@ -3145,6 +3145,20 @@ function App() {
     }
   }
 
+  async function searchPublishedWikiPages({ query = "", pageType = "workstream" } = {}) {
+    if (!isApiReady || authStatus !== "signed-in" || !isAuthenticated || !remoteDashboardStore.ai?.wiki?.search) {
+      throw new Error("Wiki 검색은 FastAPI 로그인 상태에서 사용할 수 있습니다.");
+    }
+    return remoteDashboardStore.ai.wiki.search({ query, pageType });
+  }
+
+  async function readPublishedWikiPage(pageId) {
+    if (!isApiReady || authStatus !== "signed-in" || !isAuthenticated || !remoteDashboardStore.ai?.wiki?.readPage) {
+      throw new Error("Wiki page 읽기는 FastAPI 로그인 상태에서 사용할 수 있습니다.");
+    }
+    return remoteDashboardStore.ai.wiki.readPage(pageId);
+  }
+
   function enterDashboardWithAssistantDraft(personId = selectedPersonId) {
     const nextPerson = directory.find((person) => person.id === personId) ?? selectedPerson;
     const creatorId = nextPerson?.id ?? selectedPersonId;
@@ -4796,6 +4810,9 @@ function App() {
             )}
             {activeView === "performance" && (
               <PerformanceView
+                isWikiReady={isApiReady && authStatus === "signed-in" && isAuthenticated}
+                onReadWikiPage={readPublishedWikiPage}
+                onSearchWikiPages={searchPublishedWikiPages}
                 postCategories={taskPostCategories}
                 tasks={tasks}
               />
@@ -8921,7 +8938,7 @@ function RecurringEditScopeModal({ onCancel, onSelect, task }) {
   );
 }
 
-function PerformanceView({ postCategories, tasks }) {
+function PerformanceView({ isWikiReady = false, onReadWikiPage, onSearchWikiPages, postCategories, tasks }) {
   const [activePerformanceTab, setActivePerformanceTab] = useState("report");
   const [mode, setMode] = useState("week");
   const [anchorDate, setAnchorDate] = useState(TODAY);
@@ -8931,6 +8948,12 @@ function PerformanceView({ postCategories, tasks }) {
   const [showCopyFallback, setShowCopyFallback] = useState(false);
   const [personFilter, setPersonFilter] = useState("전체");
   const [expandedPostGroups, setExpandedPostGroups] = useState({});
+  const [wikiQuery, setWikiQuery] = useState("");
+  const [wikiWorkstream, setWikiWorkstream] = useState("전체");
+  const [wikiStatus, setWikiStatus] = useState("idle");
+  const [wikiError, setWikiError] = useState("");
+  const [wikiPages, setWikiPages] = useState([]);
+  const [selectedWikiPage, setSelectedWikiPage] = useState(null);
   const range = periodRange(mode, anchorDate);
   const selectedYear = anchorDate.slice(0, 4);
   const selectedMonth = Number(anchorDate.slice(5, 7));
@@ -8945,6 +8968,10 @@ function PerformanceView({ postCategories, tasks }) {
     ])
   ).sort();
   const reportTitle = periodReportTitle(mode, anchorDate, range);
+  const wikiWorkstreamOptions = useMemo(
+    () => collectWorkstreams(tasks.filter((task) => !isDeletedTask(task) && !task.archived)).map((group) => group.label).filter(Boolean),
+    [tasks]
+  );
   const updateMonthAnchor = (year, month) => setAnchorDate(`${year}-${String(month).padStart(2, "0")}-01`);
   const updateQuarterAnchor = (year, quarter) => setAnchorDate(`${year}-${String((Number(quarter) - 1) * 3 + 1).padStart(2, "0")}-01`);
   const updateYearAnchor = (year) => setAnchorDate(`${year}-01-01`);
@@ -8982,6 +9009,42 @@ function PerformanceView({ postCategories, tasks }) {
     showLongDetails
   });
 
+  async function searchWikiPages(event) {
+    event?.preventDefault();
+    if (!isWikiReady || !onSearchWikiPages) return;
+    setWikiStatus("loading");
+    setWikiError("");
+    try {
+      const query = wikiQuery.trim() || (wikiWorkstream === "전체" ? "" : wikiWorkstream);
+      const response = await onSearchWikiPages({ query, pageType: "workstream" });
+      const items = Array.isArray(response?.items) ? response.items : [];
+      setWikiPages(items);
+      setSelectedWikiPage(null);
+      setWikiStatus("idle");
+    } catch (error) {
+      console.warn("Wiki page 검색에 실패했습니다.", error);
+      setWikiPages([]);
+      setSelectedWikiPage(null);
+      setWikiError(error.message || "Wiki page 검색에 실패했습니다.");
+      setWikiStatus("error");
+    }
+  }
+
+  async function selectWikiPage(pageId) {
+    if (!pageId || !onReadWikiPage) return;
+    setWikiStatus("loading");
+    setWikiError("");
+    try {
+      const page = await onReadWikiPage(pageId);
+      setSelectedWikiPage(page);
+      setWikiStatus("idle");
+    } catch (error) {
+      console.warn("Wiki page 읽기에 실패했습니다.", error);
+      setWikiError(error.message || "Wiki page 읽기에 실패했습니다.");
+      setWikiStatus("error");
+    }
+  }
+
   async function copyReportMarkdown() {
     const copied = await copyText(reportMarkdown);
     setCopyState(copied ? "복사됨" : "직접 복사");
@@ -9005,8 +9068,8 @@ function PerformanceView({ postCategories, tasks }) {
       <div className="performance-heading">
         <div>
           <span className="panel-label">업무실적</span>
-          <h2>{activePerformanceTab === "posts" ? "업무흐름별 게시글 모음" : reportTitle}</h2>
-          <p>{activePerformanceTab === "posts" ? "업무흐름별로 게시글을 접어 두고 필요한 흐름만 펼쳐 봅니다." : `${range.label} 기준으로 업무명과 세부 진행내역을 보고서 초안처럼 묶어 보여줍니다.`}</p>
+          <h2>{activePerformanceTab === "posts" ? "업무흐름별 게시글 모음" : activePerformanceTab === "wiki" ? "업무흐름 Wiki" : reportTitle}</h2>
+          <p>{activePerformanceTab === "posts" ? "업무흐름별로 게시글을 접어 두고 필요한 흐름만 펼쳐 봅니다." : activePerformanceTab === "wiki" ? "발행된 Wiki page를 업무흐름 기준으로 검색하고 출처와 함께 읽습니다." : `${range.label} 기준으로 업무명과 세부 진행내역을 보고서 초안처럼 묶어 보여줍니다.`}</p>
         </div>
         <div className="performance-controls">
           <div className="segmented small performance-tabs" role="tablist" aria-label="Highlights 보기">
@@ -9015,6 +9078,9 @@ function PerformanceView({ postCategories, tasks }) {
             </button>
             <button className={activePerformanceTab === "posts" ? "active" : ""} onClick={() => setActivePerformanceTab("posts")} type="button">
               업무흐름별 게시글 모음
+            </button>
+            <button className={activePerformanceTab === "wiki" ? "active" : ""} onClick={() => setActivePerformanceTab("wiki")} type="button">
+              Wiki
             </button>
           </div>
           {activePerformanceTab === "report" && (
@@ -9146,6 +9212,21 @@ function PerformanceView({ postCategories, tasks }) {
           onToggleGroup={(label) => setExpandedPostGroups((current) => ({ ...current, [label]: !current[label] }))}
           postCategories={postCategories}
         />
+      ) : activePerformanceTab === "wiki" ? (
+        <HighlightsWikiView
+          error={wikiError}
+          isReady={isWikiReady}
+          onReadPage={selectWikiPage}
+          onSearch={searchWikiPages}
+          pages={wikiPages}
+          query={wikiQuery}
+          selectedPage={selectedWikiPage}
+          setQuery={setWikiQuery}
+          setWorkstream={setWikiWorkstream}
+          status={wikiStatus}
+          workstream={wikiWorkstream}
+          workstreams={wikiWorkstreamOptions}
+        />
       ) : (
         <>
       {showCopyFallback && (
@@ -9267,6 +9348,100 @@ function PerformanceView({ postCategories, tasks }) {
         </>
       )}
     </section>
+  );
+}
+
+function HighlightsWikiView({ error, isReady, onReadPage, onSearch, pages, query, selectedPage, setQuery, setWorkstream, status, workstream, workstreams }) {
+  return (
+    <div className="highlight-wiki-view">
+      <form className="highlight-wiki-toolbar" onSubmit={onSearch}>
+        <label>
+          업무흐름
+          <select disabled={!isReady || status === "loading"} onChange={(event) => setWorkstream(event.target.value)} value={workstream}>
+            <option value="전체">전체</option>
+            {workstreams.map((label) => (
+              <option key={label} value={label}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          검색어
+          <input
+            disabled={!isReady || status === "loading"}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="업무흐름, 주제, 키워드"
+            value={query}
+          />
+        </label>
+        <button className="secondary-button small" disabled={!isReady || status === "loading"} type="submit">
+          <Search size={14} />
+          {status === "loading" ? "검색 중" : "Wiki 검색"}
+        </button>
+      </form>
+      {error && <div className="inline-warning">{error}</div>}
+      {!isReady && (
+        <div className="empty-state compact">
+          <strong>회사 DB 연결 후 사용할 수 있습니다.</strong>
+          <p>발행된 Wiki page 조회는 FastAPI 로그인과 Wiki API가 필요합니다.</p>
+        </div>
+      )}
+      {isReady && !pages.length && !selectedPage && (
+        <div className="empty-state compact">
+          <strong>검색 결과 없음</strong>
+          <p>관리자가 승인 발행한 workstream Wiki page가 생기면 여기에서 검색해 읽을 수 있습니다.</p>
+        </div>
+      )}
+      {isReady && (pages.length > 0 || selectedPage) && (
+        <div className="highlight-wiki-grid">
+          <section className="highlight-wiki-results">
+            {pages.map((page) => (
+              <button
+                className={`highlight-wiki-page-row ${selectedPage?.id === page.id ? "selected" : ""}`}
+                key={page.id}
+                onClick={() => onReadPage(page.id)}
+                type="button"
+              >
+                <span>{page.page_type || "wiki"}</span>
+                <strong>{page.title}</strong>
+                <small>{page.summary || "요약 없음"}</small>
+                <em>출처 {page.source_count ?? 0}건 · 링크 {page.link_count ?? 0}건</em>
+              </button>
+            ))}
+          </section>
+          <section className="highlight-wiki-detail">
+            {selectedPage ? (
+              <>
+                <div className="highlight-wiki-detail-head">
+                  <span>{selectedPage.page_type}</span>
+                  <h3>{selectedPage.title}</h3>
+                  <p>{selectedPage.summary || "요약 없음"}</p>
+                </div>
+                <pre>{selectedPage.body_markdown || "본문 없음"}</pre>
+                <div className="highlight-wiki-sources">
+                  <strong>출처</strong>
+                  {(selectedPage.sources || []).length ? (
+                    selectedPage.sources.map((source) => (
+                      <article key={source.id}>
+                        <span>{source.source_type}</span>
+                        <p>{source.excerpt || source.source_title || "출처 요약 없음"}</p>
+                        <small>{source.source_date || String(source.created_at || "").slice(0, 10)}</small>
+                      </article>
+                    ))
+                  ) : (
+                    <small>연결된 출처가 없습니다.</small>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="empty-state compact">
+                <strong>Wiki page를 선택하세요.</strong>
+                <p>검색 결과에서 page를 선택하면 본문과 출처 링크가 여기에 표시됩니다.</p>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
   );
 }
 
