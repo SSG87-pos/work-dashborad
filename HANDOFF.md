@@ -59,8 +59,9 @@ Key product decisions now in the prototype:
   - Backend files: `backend/app/models/wiki.py`, `backend/app/schemas/wiki.py`, `backend/app/api/routes_wiki.py`, `backend/alembic/versions/20260625_0011_llm_wiki.py`, and `backend/tests/test_ai_wiki.py`.
   - Frontend API boundary: `src/apiStore.js` exposes `apiDashboardStore.ai.wiki.search/readPage/readSources/createDraft/createDraftFromDashboard/approveDraft/recordError`, and `scripts/check-api-store.mjs` verifies those paths.
   - Implemented routes under `/api/v1/ai/wiki/...`: search, page read, link follow, source read, draft create, dashboard-task draft create, admin approval, and Error Book correction create.
+  - Task detail now has a first usable `LLM-Wiki 정리` action. `Wiki로 정리` calls the FastAPI dashboard-task draft endpoint for UUID-backed tasks when the user is signed in, and keeps local/sample tasks behind a clear notice instead of pretending they were synced.
   - Verification passed with Python 3.12 venv: `python -m pytest backend/tests` reported `35 passed`; Alembic offline SQL rendered through head; `compileall`, `check:api-store`, production build, and `git diff --check` passed.
-  - Remaining later phase: OpenAI/HERmes/MCP tool calling around these backend routes and frontend UI controls such as `Wiki로 정리`.
+  - Remaining later phase: OpenAI/HERmes/MCP tool calling around these backend routes, Highlights/workstream Wiki surfaces, and an admin draft-review UI.
 - Future HERmes/AI-agent integration is documented as a read-only, evidence-first layer:
   - `docs/ai-agent-codex-implementation-brief.md` is the developer execution brief for future Codex sessions; it starts with Phase 1 evidence builders/check scripts and explicitly defers OpenAI calls and MCP.
   - `docs/ai-agent-implementation-guide.md` is the beginner-friendly starting point for why the recommended path is `read-only API first, MCP Tool second`, what each piece means, and what to implement first.

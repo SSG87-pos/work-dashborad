@@ -2217,6 +2217,7 @@ function App() {
   const [assistantResult, setAssistantResult] = useState(null);
   const [assistantStatus, setAssistantStatus] = useState("idle");
   const [assistantError, setAssistantError] = useState("");
+  const [wikiDraftTaskId, setWikiDraftTaskId] = useState("");
 
   const directory = useMemo(
     () => {
@@ -2983,6 +2984,33 @@ function App() {
       ]
     });
     showSyncNotice("AI 등록 초안을 업무 추가 창으로 열었습니다. 확인 후 저장해 주세요.");
+  }
+
+  async function createWikiDraftFromTask(task) {
+    if (!task) return;
+    if (!isApiReady || authStatus !== "signed-in" || !isAuthenticated || !remoteDashboardStore.ai?.wiki?.createDraftFromDashboard) {
+      showSyncNotice("Wiki 초안 생성은 FastAPI 로그인 상태에서 사용할 수 있습니다.");
+      return;
+    }
+    if (!isUuidLike(task.id)) {
+      showSyncNotice("샘플/로컬 업무는 먼저 FastAPI에 저장된 뒤 Wiki 초안으로 정리할 수 있습니다.");
+      return;
+    }
+    setWikiDraftTaskId(task.id);
+    try {
+      const draft = await remoteDashboardStore.ai.wiki.createDraftFromDashboard({
+        source_type: "task",
+        source_id: task.id,
+        proposed_page_type: "workstream"
+      });
+      const title = draft?.proposed_title || taskWorkstreamLabel(task) || displayTaskTitle(task);
+      showSyncNotice(`Wiki 초안 "${title}"을 만들었습니다. 관리자 승인 후 Wiki page로 발행됩니다.`);
+    } catch (error) {
+      console.warn("Wiki 초안 생성에 실패했습니다.", error);
+      showSyncNotice("Wiki 초안 생성을 FastAPI에 반영하지 못했습니다.");
+    } finally {
+      setWikiDraftTaskId("");
+    }
   }
 
   function enterDashboardWithAssistantDraft(personId = selectedPersonId) {
@@ -4125,10 +4153,12 @@ function App() {
       onToggleSubtask={toggleSubtask}
       onDeletePost={(postId) => deleteTaskPost(selectedTask.id, postId)}
       onSavePost={(draft) => saveTaskPost(selectedTask.id, draft)}
+      onCreateWikiDraft={() => createWikiDraftFromTask(selectedTask)}
       canManage={canManageTaskFor(selectedTask, selectedPersonId)}
       postCategories={taskPostCategories}
       selectedPersonId={selectedPersonId}
       task={selectedTask}
+      wikiDraftStatus={wikiDraftTaskId === selectedTask.id ? "saving" : ""}
     />
   ) : null;
   const isWorkflowDetailContext = hasTaskDetail && !fullPageViews.includes(activeView) && detailContext === "workflow";
@@ -9066,7 +9096,7 @@ function HighlightsPostsView({ expandedGroups, groups, onToggleGroup, postCatego
   );
 }
 
-function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onDelete, onDeleteHistory, onDeletePost, onDeleteUpdate, onEdit, onRestore, onSavePost, onToggleSubtask, onUpdateHistory, onUpdateLog, postCategories = defaultTaskPostCategories, selectedPersonId, task }) {
+function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onCreateWikiDraft, onDelete, onDeleteHistory, onDeletePost, onDeleteUpdate, onEdit, onRestore, onSavePost, onToggleSubtask, onUpdateHistory, onUpdateLog, postCategories = defaultTaskPostCategories, selectedPersonId, task, wikiDraftStatus = "" }) {
   const [quickUpdate, setQuickUpdate] = useState("");
   const [quickLink, setQuickLink] = useState({ title: "", url: "", type: "자료" });
   const [isHistoryManaging, setIsHistoryManaging] = useState(false);
@@ -9191,6 +9221,18 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onD
             <span>다음 액션 추천</span>
             <strong>{nextAction}</strong>
           </div>
+          {onCreateWikiDraft && (
+            <div className="wiki-draft-action">
+              <div>
+                <strong>LLM-Wiki 정리</strong>
+                <small>이 업무의 설명, 업데이트 로그, 업무 노트를 출처가 있는 Wiki 초안으로 만듭니다.</small>
+              </div>
+              <button className="secondary-button small" disabled={wikiDraftStatus === "saving"} onClick={onCreateWikiDraft} type="button">
+                <NotebookPen size={13} />
+                {wikiDraftStatus === "saving" ? "생성 중" : "Wiki로 정리"}
+              </button>
+            </div>
+          )}
           <TaskPostsMockup
             canManageTask={canManage}
             currentPersonId={selectedPersonId}
