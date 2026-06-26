@@ -500,6 +500,7 @@ h1 {
   background: var(--blue);
   color: white;
   box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .primary-button:hover {
@@ -622,9 +623,27 @@ h1 {
 }
 
 .ai-assistant-panel {
+  position: relative;
+  overflow: hidden;
   padding: 16px;
   display: grid;
   gap: 12px;
+}
+
+.ai-assistant-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(37, 99, 235, 0.1), transparent 30%),
+    radial-gradient(circle at 10% 100%, rgba(15, 118, 110, 0.08), transparent 34%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.ai-assistant-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .ai-assistant-head,
@@ -661,6 +680,7 @@ h1 {
   font-size: 12px;
   font-weight: 850;
   white-space: nowrap;
+  cursor: default;
 }
 
 .ai-source-chip.remote {
@@ -688,11 +708,19 @@ h1 {
   gap: 8px;
   align-items: start;
   min-height: 64px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #f8fafc;
+  border: 1px solid #d8e5f4;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.86);
   color: #64748b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 8px 18px rgba(15, 23, 42, 0.04);
   padding: 10px 12px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.ai-assistant-input:focus-within {
+  border-color: rgba(37, 99, 235, 0.42);
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 0 0 4px rgba(37, 99, 235, 0.08);
 }
 
 .ai-assistant-input textarea {
@@ -716,11 +744,12 @@ h1 {
 .ai-prompt-row button {
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.82);
   color: #334155;
   padding: 6px 9px;
   font-size: 12px;
   font-weight: 800;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease, transform 0.16s ease;
 }
 
 .ai-prompt-row button.active,
@@ -728,6 +757,62 @@ h1 {
   border-color: rgba(37, 99, 235, 0.3);
   background: #eff6ff;
   color: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.atlas-spinner {
+  position: relative;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at center, #ffffff 0 22%, transparent 23%),
+    conic-gradient(from 0deg, rgba(255, 255, 255, 0.95), rgba(191, 219, 254, 0.92), rgba(255, 255, 255, 0.95));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.78), 0 4px 12px rgba(37, 99, 235, 0.22);
+  flex: 0 0 auto;
+  transform-origin: center;
+  transition: transform 0.22s ease;
+}
+
+.atlas-spinner span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(191, 219, 254, 0.48);
+  transform-origin: 0 0;
+}
+
+.atlas-spinner span:nth-child(1) {
+  transform: rotate(0deg) translate(6px, -3px);
+}
+
+.atlas-spinner span:nth-child(2) {
+  transform: rotate(120deg) translate(6px, -3px);
+}
+
+.atlas-spinner span:nth-child(3) {
+  transform: rotate(240deg) translate(6px, -3px);
+}
+
+.primary-button:hover .atlas-spinner,
+.primary-button:focus-visible .atlas-spinner {
+  transform: rotate(120deg) scale(1.04);
+}
+
+.primary-button:active .atlas-spinner,
+.atlas-spinner.spinning {
+  animation: atlas-spinner-spin 0.72s cubic-bezier(0.2, 0.72, 0.24, 1) infinite;
+}
+
+@keyframes atlas-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .ai-answer-surface {
@@ -3331,11 +3416,11 @@ h1 {
 }
 
 .entry-ai-panel {
-  gap: 10px;
-  border-color: rgba(203, 213, 225, 0.72);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 16px 34px rgba(5, 80, 125, 0.07);
-  padding: 12px;
+  gap: 11px;
+  border-color: rgba(183, 207, 236, 0.82);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(244, 249, 255, 0.86) 100%);
+  box-shadow: 0 18px 38px rgba(5, 80, 125, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  padding: 13px;
 }
 
 .entry-ai-panel .ai-assistant-head {
@@ -3358,7 +3443,8 @@ h1 {
 
 .entry-ai-panel .ai-assistant-input {
   min-height: 54px;
-  background: rgba(248, 250, 252, 0.84);
+  border-color: rgba(191, 219, 254, 0.95);
+  background: rgba(255, 255, 255, 0.88);
   padding: 9px 10px;
 }
 
@@ -3369,8 +3455,18 @@ h1 {
 
 .entry-ai-panel .primary-button {
   width: 100%;
-  min-height: 38px;
-  border-radius: 7px;
+  min-height: 42px;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 18% 50%, rgba(255, 255, 255, 0.2), transparent 28%),
+    linear-gradient(135deg, #155eef 0%, #0f7cc8 54%, #0f766e 100%);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+  gap: 9px;
+}
+
+.entry-ai-panel .primary-button:hover:not(:disabled) {
+  box-shadow: 0 15px 28px rgba(37, 99, 235, 0.24);
+  transform: translateY(-1px);
 }
 
 .entry-ai-panel .ai-prompt-row {
@@ -3378,7 +3474,8 @@ h1 {
 }
 
 .entry-ai-panel .ai-prompt-row button {
-  padding: 5px 8px;
+  border-color: rgba(203, 213, 225, 0.82);
+  padding: 5px 9px;
   font-size: 11px;
 }
 
@@ -14020,6 +14117,7 @@ button.post-scope-chip svg {
 
   .task-card.is-select-pulsing,
   .task-status-chip.is-status-popping,
+  .atlas-spinner.spinning,
   .person-pill.is-pulsing::after,
   .canvas-sync-status.status-saving::after,
   .canvas-link-layer path.is-manual-link-beam {

@@ -6761,7 +6761,11 @@ function AiAssistantPanel({
           />
         </label>
         <button className="primary-button" disabled={isLoading || !prompt.trim()} type="submit">
-          <Sparkles size={17} />
+          <span className={`atlas-spinner ${isLoading ? "spinning" : ""}`} aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
           {isLoading ? "읽는 중" : "물어보기"}
         </button>
       </form>
