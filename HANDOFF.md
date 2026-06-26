@@ -21,6 +21,7 @@ Last updated: 2026-06-26
   - `docs/ai-agent-codex-implementation-brief.md`
   - `docs/ai-agent-implementation-guide.md`
   - `docs/ai-agent-readiness.md`
+  - `docs/llm-wiki-architecture-plan.md`
   - `docs/personal-notification-inbox-plan.md`
   - `TODO.md`
 - Package manager: `/Users/seulgi/Library/pnpm/bin/pnpm`.
@@ -51,6 +52,11 @@ Key product decisions now in the prototype:
   - Browser/CDP QA used isolated local-mode Vite because `.env.local` puts normal dev mode into FastAPI login and another existing app occupied `127.0.0.1:5173`. QA confirmed entry-screen AI panel visibility, dashboard entry, suggested prompt answer/evidence rendering, registration-draft opening of the existing 업무 추가 modal, and house-icon return to the entry screen. In-app Browser attach failed twice; local Chrome CDP was used instead. Headless Chrome reported existing WebGL/lanyard context errors unrelated to the AI panel.
   - Python syntax compile passed when using `PYTHONPYCACHEPREFIX=/private/tmp/work-dashboard-pycache`; full backend pytest could not run in this shell because only Python 3.9.6 is available and backend dependencies/pytest are not installed, while the backend requires Python >=3.11.
   - Next implementation step is running backend pytest in the proper Python 3.11+ environment, then wiring OpenAI/HERmes tool-calling around the existing evidence/read endpoints and draft-approval workflow.
+- LLM-Wiki architecture planning is started on branch `codex/llm-wiki-architecture`:
+  - `docs/llm-wiki-architecture-plan.md` adapts the Karpathy-style LLM-Wiki / personal knowledge-base direction to this dashboard.
+  - The plan keeps FastAPI/PostgreSQL as the source of truth and treats Wiki pages as an agent-readable knowledge layer with source links, revisions, typed page links, AI drafts, and an Error Book for corrections.
+  - Obsidian is explicitly optional as a Markdown client/export path later, not the company sync source.
+  - The recommended first implementation is Phase 1 schema/read contract: Wiki tables, permission-filtered read endpoints, source-link tests, revision tests, and stale-page detection before any OpenAI/HERmes write behavior.
 - Future HERmes/AI-agent integration is documented as a read-only, evidence-first layer:
   - `docs/ai-agent-codex-implementation-brief.md` is the developer execution brief for future Codex sessions; it starts with Phase 1 evidence builders/check scripts and explicitly defers OpenAI calls and MCP.
   - `docs/ai-agent-implementation-guide.md` is the beginner-friendly starting point for why the recommended path is `read-only API first, MCP Tool second`, what each piece means, and what to implement first.

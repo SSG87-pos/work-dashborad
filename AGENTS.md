@@ -65,6 +65,7 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 - **[AI agent readiness](./docs/ai-agent-readiness.md)** — Future read-only HERmes/AI answer and report-generation contract.
 - **[AI implementation guide](./docs/ai-agent-implementation-guide.md)** — Beginner-friendly starting point for future OpenAI/HERmes/MCP integration.
 - **[AI Codex implementation brief](./docs/ai-agent-codex-implementation-brief.md)** — Developer execution checklist for future Codex implementation sessions.
+- **[LLM-Wiki architecture plan](./docs/llm-wiki-architecture-plan.md)** — Future agent-readable Wiki layer over FastAPI/PostgreSQL dashboard data, source links, revisions, and Error Book corrections.
 - **[Multi-workspace expansion plan](./docs/multi-workspace-expansion-plan.md)** — Future group/workspace/unit expansion and RLS separation plan.
 - **[Personal notification inbox plan](./docs/personal-notification-inbox-plan.md)** — Future per-user notification inbox, bell badge, backend permission rules, and Teams-notification boundary.
 

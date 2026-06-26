@@ -4,6 +4,7 @@ This note defines the future read-only AI agent layer for the `연구기획그�
 
 For a beginner-friendly implementation path, start from `docs/ai-agent-implementation-guide.md`.
 For a Codex execution brief, use `docs/ai-agent-codex-implementation-brief.md`.
+For the future LLM-Wiki knowledge layer, use `docs/llm-wiki-architecture-plan.md`.
 
 ## Goal
 

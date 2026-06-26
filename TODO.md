@@ -2,6 +2,14 @@
 
 ## Now
 
+- [x] Start LLM-Wiki architecture branch from the AI database assistant branch.
+  - Branch: `codex/llm-wiki-architecture`.
+  - Files: `docs/llm-wiki-architecture-plan.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: documented the recommended LLM-Wiki shape for this dashboard: PostgreSQL remains the source of truth, Wiki pages are the agent-readable knowledge layer, source links connect back to task/update/post/report records, revisions are append-only, AI changes stay in drafts until human approval, and repeated answer misses go into `wiki_error_book`.
+  - Done: clarified that Obsidian should be optional Markdown export/import later, not the central company sync system.
+  - Done: listed proposed Wiki tables, FastAPI AI Wiki endpoints, read/draft tool names, dashboard UI entry points, accuracy expectations, permission rules, and phased implementation order.
+  - Next: implement Phase 1 schema/read contract in a Python 3.11+ backend environment after the company backend target is available for migrations and pytest.
+
 - [x] Start AI database assistant Phase 1 on `codex/ai-agent-db-assistant`.
   - Files: `src/aiEvidence.js`, `src/aiAssistant.js`, `src/App.jsx`, `src/apiStore.js`, `src/styles.css`, `scripts/check-ai-evidence.mjs`, `scripts/check-ai-assistant.mjs`, `package.json`, `backend/app/api/routes_ai.py`, `backend/app/schemas/ai.py`, `backend/tests/test_ai_read.py`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added deterministic AI evidence builders for report evidence, person work status, topic search, workstream issues, and recent updates.
