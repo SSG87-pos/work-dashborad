@@ -690,7 +690,7 @@ GET /api/v1/briefing-items?scope=team
 | POST | `/reports/performance/snapshots` | lead/admin | 보고용 snapshot 저장 |
 | GET | `/reports/performance/snapshots/{snapshot_id}` | visible user | 저장된 보고서 조회 |
 
-### 6.11 Future AI Read API
+### 6.11 AI Read API
 
 LLM/HERmes 연결 전용 read-only endpoint입니다.
 
@@ -699,9 +699,12 @@ LLM/HERmes 연결 전용 read-only endpoint입니다.
 | GET | `/ai/read/person-work-status` | user | 담당자별 진행 근거 |
 | GET | `/ai/read/topic-search` | user | 주제/문서/이슈 검색 근거 |
 | GET | `/ai/read/workstream-issues` | user | 업무흐름별 진행/리스크 |
+| GET | `/ai/read/recent-updates` | user | 기간/담당/태그/상태 기준 최근 업데이트 근거 |
 | GET | `/ai/read/report-evidence` | user | 보고서 초안 근거 묶음 |
 
 개인 인박스와 개인 일정은 기본 제외합니다. 사용자가 명시적으로 자기 데이터를 포함 요청한 경우에만 포함합니다.
+
+Status 2026-06-26: Phase 1 FastAPI read endpoints are implemented. They return deterministic evidence bundles only; OpenAI/HERmes tool calling and AI write-back remain later phases.
 
 ## 7. FastAPI Project Structure
 

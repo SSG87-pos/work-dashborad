@@ -1,4 +1,5 @@
 import { initialCalendarEvents, initialTasks, TODAY } from "./data.js";
+import { buildAiReadPath } from "./aiAssistant.js";
 import { createDashboardSnapshot } from "./storage.js";
 
 const apiEnv = import.meta.env ?? globalThis.__WORK_DASHBOARD_API_ENV__ ?? {};
@@ -711,6 +712,12 @@ async function saveCanvasState(state) {
   });
 }
 
+async function readAiEvidence(intent) {
+  const path = buildAiReadPath(intent);
+  if (!path) return { skipped: true, reason: "unsupported-ai-intent" };
+  return apiRequest(path);
+}
+
 async function importDashboardData() {
   return { skipped: true, reason: "bulk-import-not-implemented" };
 }
@@ -781,6 +788,9 @@ export const apiDashboardStore = {
   canvas: {
     read: readCanvasState,
     save: saveCanvasState
+  },
+  ai: {
+    readEvidence: readAiEvidence
   },
   importData: importDashboardData,
   mappers: {

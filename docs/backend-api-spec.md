@@ -479,7 +479,7 @@ These endpoints are future-facing and should be implemented only after the FastA
 
 ### AI Agent Read API
 
-These endpoints are future-facing and read-only. They should return permission-filtered evidence bundles for an approved AI agent or HERmes-style tool layer. See `docs/ai-agent-readiness.md` for answer rules, report templates, and excluded data.
+These endpoints are read-only. They return permission-filtered evidence bundles for an approved AI agent or HERmes-style tool layer. See `docs/ai-agent-readiness.md` for answer rules, report templates, and excluded data.
 
 | Method | Path | Role | Notes |
 | --- | --- | --- | --- |
@@ -488,6 +488,8 @@ These endpoints are future-facing and read-only. They should return permission-f
 | GET | `/ai/read/workstream-issues` | user | Query by workstream plus period; returns progress, recent updates, explicit issues, inferred signals, and source task ids. |
 | GET | `/ai/read/recent-updates` | user | Query by owner/status/tag/workstream/period; returns recent update evidence sorted newest first. |
 | GET | `/ai/read/report-evidence` | user | Query by report type, period, and filters; returns a report-ready evidence bundle with source ids and dates. |
+
+Status 2026-06-26: FastAPI Phase 1 endpoints are implemented under `/api/v1/ai/read/...` for deterministic evidence bundles. They do not call OpenAI/HERmes and do not write back to the database.
 
 ## Permission Enforcement
 

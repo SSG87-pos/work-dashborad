@@ -22,6 +22,7 @@ import {
   Filter,
   FileText,
   FolderOpen,
+  House,
   Info,
   LayoutDashboard,
   Link2,
@@ -51,6 +52,12 @@ import { buildSupabaseImportPlan, formatSupabaseImportPlanMessage } from "./supa
 import { apiConfig, apiDashboardStore } from "./apiStore.js";
 import { supabaseConfig } from "./supabaseClient.js";
 import { supabaseDashboardStore } from "./supabaseStore.js";
+import {
+  buildLocalAssistantReply,
+  classifyAssistantPrompt,
+  defaultAiAssistantPrompts,
+  summarizeAssistantEvidence
+} from "./aiAssistant.js";
 import { summaryFilterLabels, summaryFilterMatches } from "./summaryFilters.js";
 import { collectWorkstreams, groupTasksByWorkstream, recommendWorkstream } from "./workstreams.js";
 
@@ -2206,6 +2213,10 @@ function App() {
   const syncNoticeTimerRef = useRef(null);
   const autoRecurringGenerationRef = useRef(new Set());
   const [syncNotice, setSyncNotice] = useState("");
+  const [assistantPrompt, setAssistantPrompt] = useState(defaultAiAssistantPrompts[0]);
+  const [assistantResult, setAssistantResult] = useState(null);
+  const [assistantStatus, setAssistantStatus] = useState("idle");
+  const [assistantError, setAssistantError] = useState("");
 
   const directory = useMemo(
     () => {
@@ -2915,6 +2926,72 @@ function App() {
   function openTaskEditor(task, mode = "task") {
     setEditingTaskMode(mode);
     setEditingTask(task);
+  }
+
+  async function askAiAssistant(promptText = assistantPrompt) {
+    const cleanPrompt = String(promptText ?? "").trim();
+    if (!cleanPrompt || assistantStatus === "loading") return;
+    setAssistantPrompt(cleanPrompt);
+    setAssistantStatus("loading");
+    setAssistantError("");
+
+    const intent = classifyAssistantPrompt(cleanPrompt, { people: directory, today: TODAY });
+    if (intent.kind === "task-draft") {
+      setAssistantResult(buildLocalAssistantReply({ prompt: cleanPrompt, tasks, people: directory, today: TODAY }));
+      setAssistantStatus("idle");
+      return;
+    }
+
+    const canReadFromApi = isApiReady && isAuthenticated && authStatus === "signed-in" && remoteDashboardStore.ai?.readEvidence;
+    if (canReadFromApi) {
+      try {
+        const evidence = await remoteDashboardStore.ai.readEvidence(intent);
+        setAssistantResult({
+          intent,
+          evidence,
+          answer: summarizeAssistantEvidence(evidence, intent),
+          sources: []
+        });
+        setAssistantStatus("idle");
+        return;
+      } catch (error) {
+        console.warn("AI 읽기 API 호출에 실패했습니다.", error);
+        setAssistantError("FastAPI AI 읽기 API 호출에 실패해서 화면 데이터 기준으로 임시 답변했습니다.");
+      }
+    }
+
+    setAssistantResult(buildLocalAssistantReply({ prompt: cleanPrompt, tasks, people: directory, today: TODAY }));
+    setAssistantStatus("idle");
+  }
+
+  function createTaskFromAssistantDraft(ownerId = defaultTaskOwnerId, creatorId = selectedPersonId) {
+    const rawText = assistantResult?.intent?.params?.rawText || assistantPrompt;
+    const title = rawText
+      .replace(/등록|추가|생성|업무화|해줘|해주세요/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 64) || "AI 등록 초안";
+    openTaskEditor({
+      ...createBlankTask(ownerId, creatorId),
+      title,
+      description: `AI 대화 원문: ${rawText}`,
+      tags: ["기획보고", "AI활용"],
+      category: "기획보고",
+      subtasks: [
+        { id: `st-ai-${Date.now()}-1`, title: "요청 내용 확인", done: false },
+        { id: `st-ai-${Date.now()}-2`, title: "담당자와 마감일 확정", done: false }
+      ]
+    });
+    showSyncNotice("AI 등록 초안을 업무 추가 창으로 열었습니다. 확인 후 저장해 주세요.");
+  }
+
+  function enterDashboardWithAssistantDraft(personId = selectedPersonId) {
+    const nextPerson = directory.find((person) => person.id === personId) ?? selectedPerson;
+    const creatorId = nextPerson?.id ?? selectedPersonId;
+    const ownerId = nextPerson?.isTeamMember === false ? "lead" : creatorId;
+    if (!isAuthenticated && creatorId) loginAs(creatorId);
+    setHasEnteredDashboard(true);
+    window.setTimeout(() => createTaskFromAssistantDraft(ownerId, creatorId), 0);
   }
 
   function closeTaskEditor() {
@@ -4015,6 +4092,14 @@ function App() {
         authStatus={authStatus}
         isAlreadyAuthenticated={isAuthenticated}
         isSupabaseReady={isSupabaseReady}
+        assistantError={assistantError}
+        assistantPrompt={assistantPrompt}
+        assistantResult={assistantResult}
+        assistantStatus={assistantStatus}
+        isAssistantRemoteReady={isApiReady && isAuthenticated && authStatus === "signed-in"}
+        onAssistantAsk={askAiAssistant}
+        onAssistantDraftTask={enterDashboardWithAssistantDraft}
+        onAssistantPromptChange={setAssistantPrompt}
         onEnterDashboard={() => setHasEnteredDashboard(true)}
         onLogin={enterDashboardAs}
         onSupabaseAuth={authenticateWithSupabase}
@@ -4211,6 +4296,15 @@ function App() {
             >
               <PanelRightOpen size={16} />
               <span>{displayDensity === "comfortable" ? "기본" : "넓게"}</span>
+            </button>
+            <button
+              className="icon-button"
+              onClick={() => setHasEnteredDashboard(false)}
+              type="button"
+              title="입장 화면으로 돌아가기"
+              aria-label="입장 화면으로 돌아가기"
+            >
+              <House size={18} />
             </button>
             <span
               className={`backend-status ${isSupabaseReady ? "connected" : "local"}`}
@@ -4786,7 +4880,24 @@ function insertEmojiAtCursor(textareaRef, currentValue, emoji, onChange) {
   });
 }
 
-function LoginScreen({ authMessage, authStatus, isAlreadyAuthenticated, isSupabaseReady, onEnterDashboard, onLogin, onSupabaseAuth, people }) {
+function LoginScreen({
+  assistantError,
+  assistantPrompt,
+  assistantResult,
+  assistantStatus,
+  authMessage,
+  authStatus,
+  isAlreadyAuthenticated,
+  isAssistantRemoteReady,
+  isSupabaseReady,
+  onAssistantAsk,
+  onAssistantDraftTask,
+  onAssistantPromptChange,
+  onEnterDashboard,
+  onLogin,
+  onSupabaseAuth,
+  people
+}) {
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -4931,6 +5042,20 @@ function LoginScreen({ authMessage, authStatus, isAlreadyAuthenticated, isSupaba
                 </div>
               )}
             </div>
+          )}
+
+          {(!isSupabaseReady || isAlreadyAuthenticated) && (
+            <AiAssistantPanel
+              className="entry-ai-panel"
+              error={assistantError}
+              isRemoteReady={isAssistantRemoteReady}
+              onAsk={onAssistantAsk}
+              onCreateDraftTask={() => onAssistantDraftTask(isAlreadyAuthenticated ? undefined : selectedLocalPerson?.id)}
+              onPromptChange={onAssistantPromptChange}
+              prompt={assistantPrompt}
+              result={assistantResult}
+              status={assistantStatus}
+            />
           )}
 
           <p className="auth-footnote">회사 로그인 연동이 확정되면 이 진입 화면은 SSO 시작 화면으로 전환할 수 있습니다.</p>
@@ -5939,6 +6064,115 @@ function InsightStrip({ activeFilter, onSelect, summary }) {
         );
       })}
     </section>
+  );
+}
+
+function AiAssistantPanel({
+  className = "",
+  error,
+  isRemoteReady,
+  onAsk,
+  onCreateDraftTask,
+  onPromptChange,
+  prompt,
+  result,
+  status
+}) {
+  const isLoading = status === "loading";
+  const evidenceItems = result?.evidence?.items ?? [];
+  const isDraft = result?.intent?.kind === "task-draft";
+
+  function submit(event) {
+    event.preventDefault();
+    onAsk(prompt);
+  }
+
+  return (
+    <motion.section
+      animate={{ opacity: 1, y: 0 }}
+      className={`ai-assistant-panel ${className}`.trim()}
+      initial={false}
+      transition={{ duration: 0.22 }}
+    >
+      <div className="ai-assistant-head">
+        <div>
+          <span className="panel-label">AI 업무 에이전트</span>
+          <h2>데이터를 읽고, 근거와 함께 답합니다</h2>
+        </div>
+        <span className={`ai-source-chip ${isRemoteReady ? "remote" : "local"}`}>
+          <Database size={14} />
+          {isRemoteReady ? "FastAPI DB 읽기" : "화면 데이터 읽기"}
+        </span>
+      </div>
+
+      <form className="ai-assistant-form" onSubmit={submit}>
+        <label className="ai-assistant-input">
+          <MessageSquareText size={17} />
+          <textarea
+            aria-label="AI 에이전트에게 물어보기"
+            onChange={(event) => onPromptChange(event.target.value)}
+            placeholder="예: 이번 주 업무현황 보고서 초안 만들어줘"
+            rows={2}
+            value={prompt}
+          />
+        </label>
+        <button className="primary-button" disabled={isLoading || !prompt.trim()} type="submit">
+          <Sparkles size={17} />
+          {isLoading ? "읽는 중" : "물어보기"}
+        </button>
+      </form>
+
+      <div className="ai-prompt-row" aria-label="추천 질문">
+        {defaultAiAssistantPrompts.slice(0, 5).map((item) => (
+          <button
+            className={prompt === item ? "active" : ""}
+            key={item}
+            onClick={() => {
+              onPromptChange(item);
+              onAsk(item);
+            }}
+            type="button"
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+
+      {(result || error) && (
+        <div className="ai-answer-surface">
+          {error && <p className="ai-answer-warning">{error}</p>}
+          {result?.answer && (
+            <div className="ai-answer-copy">
+              {result.answer.split("\n").map((line, index) => (
+                <p key={`${line}-${index}`}>{line}</p>
+              ))}
+            </div>
+          )}
+
+          {isDraft && onCreateDraftTask && (
+            <button className="secondary-button small" onClick={onCreateDraftTask} type="button">
+              <Plus size={15} />
+              업무 추가 창으로 열기
+            </button>
+          )}
+
+          {!isDraft && evidenceItems.length > 0 && (
+            <div className="ai-source-list" aria-label="AI 답변 근거">
+              <span className="panel-label">근거 업무 {evidenceItems.length}건</span>
+              {evidenceItems.slice(0, 4).map((item) => (
+                <div className="ai-source-row" key={`${item.taskId}-${item.taskTitle}`}>
+                  <strong>{item.taskTitle}</strong>
+                  <span>
+                    {item.ownerName || "담당자 미상"} · {item.status || "상태 미상"}
+                    {item.recentUpdates?.[0]?.id ? ` · update:${item.recentUpdates[0].id}` : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </motion.section>
   );
 }
 

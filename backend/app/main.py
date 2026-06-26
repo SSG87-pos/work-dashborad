@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes_auth import router as auth_router
+from app.api.routes_ai import router as ai_router
 from app.api.routes_briefing import router as briefing_router
 from app.api.routes_calendar import router as calendar_router
 from app.api.routes_canvas import router as canvas_router
@@ -24,6 +25,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(auth_router, prefix="/api/v1")
+    app.include_router(ai_router, prefix="/api/v1")
     app.include_router(briefing_router, prefix="/api/v1")
     app.include_router(calendar_router, prefix="/api/v1")
     app.include_router(canvas_router, prefix="/api/v1")

@@ -2,6 +2,21 @@
 
 ## Now
 
+- [x] Start AI database assistant Phase 1 on `codex/ai-agent-db-assistant`.
+  - Files: `src/aiEvidence.js`, `src/aiAssistant.js`, `src/App.jsx`, `src/apiStore.js`, `src/styles.css`, `scripts/check-ai-evidence.mjs`, `scripts/check-ai-assistant.mjs`, `package.json`, `backend/app/api/routes_ai.py`, `backend/app/schemas/ai.py`, `backend/tests/test_ai_read.py`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added deterministic AI evidence builders for report evidence, person work status, topic search, workstream issues, and recent updates.
+  - Done: evidence output includes source task ids/titles, owner names, status, priority, workstream, tags, due date, progress, recent updates, task posts, open subtasks, and explicit/inferred signals.
+  - Done: excluded personal notes and private calendar detail from the evidence output by default.
+  - Done: added FastAPI read endpoints under `/api/v1/ai/read/...` for report evidence, person work status, topic search, workstream issues, and recent updates.
+  - Done: added first-entry-screen `AI 업무 에이전트` panel inside the existing POSLAB Work Hub entry screen. In FastAPI mode it appears after login, not before authentication; in local fallback it appears on the local entry screen. It can answer from local screen data in fallback mode, call FastAPI AI read endpoints when signed in, show evidence rows, and convert registration-style prompts into a human-reviewed 업무 추가 draft.
+  - Done: added a top-bar house icon in the dashboard for returning to the POSLAB entry screen without logging out.
+  - Verified: `scripts/check-ai-evidence.mjs`, `scripts/check-ai-assistant.mjs`, and `scripts/check-api-store.mjs` passed through the Node REPL runtime.
+  - Verified: production build passed with `PATH=/Users/seulgi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
+  - Verified: browser/CDP QA on isolated local-mode Vite confirmed entry-screen AI panel visibility, dashboard entry, suggested prompt interaction, answer/evidence rendering, registration-draft opening of the 업무 추가 modal, and top-bar house-icon return to the entry screen. In-app Browser attach failed twice, so QA used local Chrome CDP; headless Chrome logged existing WebGL/lanyard errors unrelated to the AI panel.
+  - Verified: Python syntax compile passed with `PYTHONPYCACHEPREFIX=/private/tmp/work-dashboard-pycache python3 -m py_compile ...`.
+  - Blocked: backend pytest could not run in this shell because Python is 3.9.6 with no backend dependencies/pytest installed, while the backend requires Python >=3.11.
+  - Next: run backend pytest in a Python 3.11+ environment, then wire OpenAI/HERmes tool-calling around the existing evidence/read endpoints and draft-approval flow.
+
 - [x] Reframe backend implementation from Supabase Docker to FastAPI + PostgreSQL.
   - Files: `docs/fastapi-postgres-backend-spec.md`, `docs/company-fastapi-postgres-beginner-runbook.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/backend-implementation-plan.md`, `docs/backend-decision-brief.md`, `docs/company-demo-readiness-checklist.md`, `docs/supabase-start-guide.md`, `docs/company-self-hosted-supabase-guide.md`, `docs/personal-notification-inbox-plan.md`, `docs/ai-agent-readiness.md`, `docs/ai-agent-codex-implementation-brief.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
   - Done: documented the current company backend constraint that Supabase Docker/self-hosted Supabase is not available.

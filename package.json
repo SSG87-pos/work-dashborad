@@ -11,6 +11,8 @@
     "check:import-plan": "node scripts/check-supabase-import-plan.mjs",
     "check:canvas-storage": "node scripts/check-canvas-storage.mjs",
     "check:api-store": "node scripts/check-api-store.mjs",
+    "check:ai-evidence": "node scripts/check-ai-evidence.mjs",
+    "check:ai-assistant": "node scripts/check-ai-assistant.mjs",
     "check:mindmap-structure": "node scripts/check-mindmap-structure.mjs",
     "check:workstreams": "node scripts/check-workstreams.mjs",
     "check:summary-filter": "node scripts/check-summary-filter.mjs",

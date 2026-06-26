@@ -605,6 +605,7 @@ h1 {
   min-width: 0;
 }
 
+.ai-assistant-panel,
 .briefing-panel,
 .detail-panel,
 .board-view,
@@ -618,6 +619,179 @@ h1 {
 
 .briefing-panel {
   padding: 18px;
+}
+
+.ai-assistant-panel {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.ai-assistant-head,
+.ai-assistant-form,
+.ai-prompt-row,
+.ai-answer-surface,
+.ai-source-row {
+  min-width: 0;
+}
+
+.ai-assistant-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.ai-assistant-head h2 {
+  margin-top: 3px;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.ai-source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #475569;
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.ai-source-chip.remote {
+  border-color: rgba(37, 99, 235, 0.22);
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.ai-source-chip.local {
+  border-color: rgba(15, 118, 110, 0.22);
+  color: #0f766e;
+  background: #ecfdf5;
+}
+
+.ai-assistant-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.ai-assistant-input {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-height: 64px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #64748b;
+  padding: 10px 12px;
+}
+
+.ai-assistant-input textarea {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  outline: 0;
+  resize: vertical;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  line-height: 1.45;
+}
+
+.ai-prompt-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.ai-prompt-row button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ai-prompt-row button.active,
+.ai-prompt-row button:hover {
+  border-color: rgba(37, 99, 235, 0.3);
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.ai-answer-surface {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.ai-answer-warning {
+  margin: 0;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ai-answer-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.ai-answer-copy p {
+  margin: 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.ai-source-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+}
+
+.ai-source-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.85fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  padding: 7px 0;
+}
+
+.ai-source-row strong,
+.ai-source-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-source-row strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.ai-source-row span {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .section-heading {
@@ -2772,8 +2946,8 @@ h1 {
 .poslab-entry-panel {
   display: grid;
   align-content: center;
-  gap: 24px;
-  max-width: 430px;
+  gap: 18px;
+  max-width: 470px;
   justify-self: end;
 }
 
@@ -2860,6 +3034,79 @@ h1 {
   border-color: rgba(0, 165, 229, 0.52);
   background: #ffffff;
   box-shadow: 0 10px 24px rgba(5, 80, 125, 0.08);
+}
+
+.entry-ai-panel {
+  gap: 10px;
+  border-color: rgba(203, 213, 225, 0.72);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 16px 34px rgba(5, 80, 125, 0.07);
+  padding: 12px;
+}
+
+.entry-ai-panel .ai-assistant-head {
+  align-items: center;
+}
+
+.entry-ai-panel .ai-assistant-head h2 {
+  font-size: 15px;
+}
+
+.entry-ai-panel .ai-source-chip {
+  height: 27px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.entry-ai-panel .ai-assistant-form {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.entry-ai-panel .ai-assistant-input {
+  min-height: 54px;
+  background: rgba(248, 250, 252, 0.84);
+  padding: 9px 10px;
+}
+
+.entry-ai-panel .ai-assistant-input textarea {
+  min-height: 34px;
+  font-size: 13px;
+}
+
+.entry-ai-panel .primary-button {
+  width: 100%;
+  min-height: 38px;
+  border-radius: 7px;
+}
+
+.entry-ai-panel .ai-prompt-row {
+  gap: 6px;
+}
+
+.entry-ai-panel .ai-prompt-row button {
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+.entry-ai-panel .ai-answer-surface {
+  gap: 8px;
+  padding-top: 9px;
+}
+
+.entry-ai-panel .ai-answer-copy p {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.entry-ai-panel .ai-source-list {
+  max-height: 148px;
+  overflow: auto;
+}
+
+.entry-ai-panel .ai-source-row {
+  grid-template-columns: 1fr;
+  gap: 2px;
+  padding: 6px 0;
 }
 
 .poslab-entry-panel .auth-footnote {
@@ -3359,6 +3606,13 @@ h1 {
 
 .briefing-panel {
   padding: 14px;
+}
+
+.ai-assistant-panel {
+  padding: 14px;
+  border-color: var(--line);
+  box-shadow: none;
+  background: #ffffff;
 }
 
 .section-heading {
@@ -9859,6 +10113,24 @@ button.post-scope-chip svg {
 }
 
 @media (max-width: 900px) {
+  .ai-assistant-head,
+  .ai-assistant-form {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-assistant-head {
+    display: grid;
+  }
+
+  .ai-source-chip {
+    width: fit-content;
+  }
+
+  .ai-source-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
   .briefing-row {
     grid-template-columns: 34px minmax(104px, 136px) minmax(0, 1fr) 34px;
   }

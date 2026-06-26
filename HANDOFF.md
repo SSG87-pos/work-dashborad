@@ -6,7 +6,7 @@ Mainline handoff for `/Users/seulgi/Documents/work-dashboard`.
 
 Project goal: build a clickable React/Vite prototype and evolve it into a usable shared work dashboard for `연구기획그룹-전략`. The dashboard is centered on personal daily briefing, public team workflow, task assignment, task detail/update logs, tag filtering, timeline/calendar, recurring work, archive, personal notes, performance reporting, and later real login/admin/backend support.
 
-Last updated: 2026-06-09
+Last updated: 2026-06-26
 
 ## Current State
 
@@ -36,6 +36,21 @@ Last updated: 2026-06-09
 
 Key product decisions now in the prototype:
 
+- AI database assistant Phase 1 is started on branch `codex/ai-agent-db-assistant`:
+  - `src/aiEvidence.js` defines deterministic evidence builders for `report-evidence`, `person-work-status`, `topic-search`, `workstream-issues`, and `recent-updates`.
+  - `src/aiAssistant.js` classifies first-page prompts, maps them to FastAPI AI read paths, summarizes evidence, and keeps task-registration requests in a draft/approval path.
+  - `src/App.jsx` now renders the `AI 업무 에이전트` panel inside the existing POSLAB Work Hub entry screen after authentication and before users enter the dashboard. In FastAPI mode, the AI panel is hidden before login; in local fallback, it appears on the local entry screen. It shows suggested prompts, reads local screen data in fallback mode, calls FastAPI AI read endpoints when signed in, renders answer evidence rows, and opens the existing 업무 추가 modal for registration drafts after user action when that does not bypass login.
+  - The dashboard top bar has a house icon that returns to the POSLAB entry screen without logging out, so users can get back to the first-page assistant.
+  - `src/apiStore.js` exposes `apiDashboardStore.ai.readEvidence(intent)` so FastAPI mode can reuse the same intent/path mapping without spreading endpoint calls through view code.
+  - `scripts/check-ai-evidence.mjs` verifies source task/update/post fields, topic search, owner filtering, issue signal distinction, and default exclusion of personal notes/private calendar details.
+  - `scripts/check-ai-assistant.mjs` verifies prompt classification, AI read path construction, local answer generation, and task-draft safety behavior.
+  - `package.json` has `check:ai-evidence` and `check:ai-assistant`.
+  - `backend/app/api/routes_ai.py` and `backend/app/schemas/ai.py` expose the same read-only evidence concepts as FastAPI endpoints under `/api/v1/ai/read/...`.
+  - `backend/tests/test_ai_read.py` covers report evidence, topic/person/workstream/recent-update endpoints, authentication, source ids, open subtasks, task posts, explicit issue signals, inferred stale-record signals, and exclusion metadata.
+  - Verification note: `scripts/check-ai-evidence.mjs`, `scripts/check-ai-assistant.mjs`, and `scripts/check-api-store.mjs` passed through the Node REPL runtime. Production build passed with `PATH=/Users/seulgi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
+  - Browser/CDP QA used isolated local-mode Vite because `.env.local` puts normal dev mode into FastAPI login and another existing app occupied `127.0.0.1:5173`. QA confirmed entry-screen AI panel visibility, dashboard entry, suggested prompt answer/evidence rendering, registration-draft opening of the existing 업무 추가 modal, and house-icon return to the entry screen. In-app Browser attach failed twice; local Chrome CDP was used instead. Headless Chrome reported existing WebGL/lanyard context errors unrelated to the AI panel.
+  - Python syntax compile passed when using `PYTHONPYCACHEPREFIX=/private/tmp/work-dashboard-pycache`; full backend pytest could not run in this shell because only Python 3.9.6 is available and backend dependencies/pytest are not installed, while the backend requires Python >=3.11.
+  - Next implementation step is running backend pytest in the proper Python 3.11+ environment, then wiring OpenAI/HERmes tool-calling around the existing evidence/read endpoints and draft-approval workflow.
 - Future HERmes/AI-agent integration is documented as a read-only, evidence-first layer:
   - `docs/ai-agent-codex-implementation-brief.md` is the developer execution brief for future Codex sessions; it starts with Phase 1 evidence builders/check scripts and explicitly defers OpenAI calls and MCP.
   - `docs/ai-agent-implementation-guide.md` is the beginner-friendly starting point for why the recommended path is `read-only API first, MCP Tool second`, what each piece means, and what to implement first.
