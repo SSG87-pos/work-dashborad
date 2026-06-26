@@ -21,8 +21,10 @@ from app.models.task import (
     TaskWorkKind,
 )
 from app.models.user import PermissionRole, TeamRoster, User
+from app.models.wiki import AiWikiDraft, WikiErrorBookEntry, WikiLink, WikiPage, WikiRevision, WikiSourceLink
 
 __all__ = [
+    "AiWikiDraft",
     "AssignerType",
     "BriefingItem",
     "CanvasLink",
@@ -48,4 +50,9 @@ __all__ = [
     "TeamRoster",
     "User",
     "UserPreference",
+    "WikiErrorBookEntry",
+    "WikiLink",
+    "WikiPage",
+    "WikiRevision",
+    "WikiSourceLink",
 ]

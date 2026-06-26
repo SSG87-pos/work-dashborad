@@ -2,13 +2,18 @@
 
 ## Now
 
-- [x] Start LLM-Wiki architecture branch from the AI database assistant branch.
+- [x] Implement LLM-Wiki backend Phase 1 from the AI database assistant branch.
   - Branch: `codex/llm-wiki-architecture`.
-  - Files: `docs/llm-wiki-architecture-plan.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Files: `backend/app/models/wiki.py`, `backend/app/schemas/wiki.py`, `backend/app/api/routes_wiki.py`, `backend/alembic/versions/20260625_0011_llm_wiki.py`, `backend/tests/test_ai_wiki.py`, `src/apiStore.js`, `scripts/check-api-store.mjs`, `docs/llm-wiki-architecture-plan.md`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
   - Done: documented the recommended LLM-Wiki shape for this dashboard: PostgreSQL remains the source of truth, Wiki pages are the agent-readable knowledge layer, source links connect back to task/update/post/report records, revisions are append-only, AI changes stay in drafts until human approval, and repeated answer misses go into `wiki_error_book`.
   - Done: clarified that Obsidian should be optional Markdown export/import later, not the central company sync system.
-  - Done: listed proposed Wiki tables, FastAPI AI Wiki endpoints, read/draft tool names, dashboard UI entry points, accuracy expectations, permission rules, and phased implementation order.
-  - Next: implement Phase 1 schema/read contract in a Python 3.11+ backend environment after the company backend target is available for migrations and pytest.
+  - Done: added Alembic migration `20260625_0011_llm_wiki.py` for `wiki_pages`, `wiki_revisions`, `wiki_source_links`, `wiki_links`, `ai_wiki_drafts`, and `wiki_error_book`.
+  - Done: added FastAPI routes under `/api/v1/ai/wiki/...` for search, page read, link follow, source read, draft create, dashboard-task draft create, admin approval, and Error Book correction create.
+  - Done: added `apiDashboardStore.ai.wiki` helper methods so future UI/OpenAI/HERmes integration can use the existing API-store boundary instead of hardcoding endpoint URLs in view code.
+  - Done: kept model-generated changes behind pending drafts and admin approval; no OpenAI/HERmes direct write behavior was added.
+  - Verified: `/private/tmp/work-dashboard-backend-venv312/bin/python -m pytest backend/tests` passed with `35 passed`.
+  - Verified: Alembic offline SQL rendered through head, `compileall`, `check:api-store`, production build, and `git diff --check` passed.
+  - Next: add frontend `Wiki로 정리` controls and wrap these endpoints as OpenAI/HERmes/MCP tools.
 
 - [x] Start AI database assistant Phase 1 on `codex/ai-agent-db-assistant`.
   - Files: `src/aiEvidence.js`, `src/aiAssistant.js`, `src/App.jsx`, `src/apiStore.js`, `src/styles.css`, `scripts/check-ai-evidence.mjs`, `scripts/check-ai-assistant.mjs`, `package.json`, `backend/app/api/routes_ai.py`, `backend/app/schemas/ai.py`, `backend/tests/test_ai_read.py`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `HANDOFF.md`, `TODO.md`.

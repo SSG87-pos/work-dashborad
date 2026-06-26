@@ -52,11 +52,15 @@ Key product decisions now in the prototype:
   - Browser/CDP QA used isolated local-mode Vite because `.env.local` puts normal dev mode into FastAPI login and another existing app occupied `127.0.0.1:5173`. QA confirmed entry-screen AI panel visibility, dashboard entry, suggested prompt answer/evidence rendering, registration-draft opening of the existing 업무 추가 modal, and house-icon return to the entry screen. In-app Browser attach failed twice; local Chrome CDP was used instead. Headless Chrome reported existing WebGL/lanyard context errors unrelated to the AI panel.
   - Python syntax compile passed when using `PYTHONPYCACHEPREFIX=/private/tmp/work-dashboard-pycache`; full backend pytest could not run in this shell because only Python 3.9.6 is available and backend dependencies/pytest are not installed, while the backend requires Python >=3.11.
   - Next implementation step is running backend pytest in the proper Python 3.11+ environment, then wiring OpenAI/HERmes tool-calling around the existing evidence/read endpoints and draft-approval workflow.
-- LLM-Wiki architecture planning is started on branch `codex/llm-wiki-architecture`:
+- LLM-Wiki backend Phase 1 is implemented on branch `codex/llm-wiki-architecture`:
   - `docs/llm-wiki-architecture-plan.md` adapts the Karpathy-style LLM-Wiki / personal knowledge-base direction to this dashboard.
   - The plan keeps FastAPI/PostgreSQL as the source of truth and treats Wiki pages as an agent-readable knowledge layer with source links, revisions, typed page links, AI drafts, and an Error Book for corrections.
   - Obsidian is explicitly optional as a Markdown client/export path later, not the company sync source.
-  - The recommended first implementation is Phase 1 schema/read contract: Wiki tables, permission-filtered read endpoints, source-link tests, revision tests, and stale-page detection before any OpenAI/HERmes write behavior.
+  - Backend files: `backend/app/models/wiki.py`, `backend/app/schemas/wiki.py`, `backend/app/api/routes_wiki.py`, `backend/alembic/versions/20260625_0011_llm_wiki.py`, and `backend/tests/test_ai_wiki.py`.
+  - Frontend API boundary: `src/apiStore.js` exposes `apiDashboardStore.ai.wiki.search/readPage/readSources/createDraft/createDraftFromDashboard/approveDraft/recordError`, and `scripts/check-api-store.mjs` verifies those paths.
+  - Implemented routes under `/api/v1/ai/wiki/...`: search, page read, link follow, source read, draft create, dashboard-task draft create, admin approval, and Error Book correction create.
+  - Verification passed with Python 3.12 venv: `python -m pytest backend/tests` reported `35 passed`; Alembic offline SQL rendered through head; `compileall`, `check:api-store`, production build, and `git diff --check` passed.
+  - Remaining later phase: OpenAI/HERmes/MCP tool calling around these backend routes and frontend UI controls such as `Wiki로 정리`.
 - Future HERmes/AI-agent integration is documented as a read-only, evidence-first layer:
   - `docs/ai-agent-codex-implementation-brief.md` is the developer execution brief for future Codex sessions; it starts with Phase 1 evidence builders/check scripts and explicitly defers OpenAI calls and MCP.
   - `docs/ai-agent-implementation-guide.md` is the beginner-friendly starting point for why the recommended path is `read-only API first, MCP Tool second`, what each piece means, and what to implement first.

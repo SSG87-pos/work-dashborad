@@ -706,6 +706,23 @@ LLM/HERmes 연결 전용 read-only endpoint입니다.
 
 Status 2026-06-26: Phase 1 FastAPI read endpoints are implemented. They return deterministic evidence bundles only; OpenAI/HERmes tool calling and AI write-back remain later phases.
 
+### 6.12 AI Wiki API
+
+LLM-Wiki knowledge layer endpoint입니다. 대시보드 DB를 원천으로 유지하고, Wiki는 출처 링크와 revision이 있는 agent-readable 정리 레이어로 사용합니다.
+
+| Method | Path | 권한 | 설명 |
+| --- | --- | --- | --- |
+| GET | `/ai/wiki/search` | user | 읽을 수 있는 Wiki page 검색 |
+| GET | `/ai/wiki/pages/{page_id}` | user | Wiki page 본문, revision, source, link 조회 |
+| GET | `/ai/wiki/pages/{page_id}/links` | user | page 간 typed link 따라가기 |
+| GET | `/ai/wiki/pages/{page_id}/sources` | user | task/update/post source link와 stale flag 조회 |
+| POST | `/ai/wiki/drafts` | user | 수동 또는 future AI Wiki draft 생성 |
+| POST | `/ai/wiki/drafts/from-dashboard` | user | dashboard task/update/post 기준 deterministic Wiki draft 생성 |
+| POST | `/ai/wiki/drafts/{draft_id}/approve` | admin | pending draft를 page/revision/source link로 발행 |
+| POST | `/ai/wiki/error-book` | user | 틀리거나 부족한 답변 correction 기록 |
+
+Status 2026-06-26: Phase 1 FastAPI endpoints and migration `20260625_0011_llm_wiki.py` are implemented. OpenAI/HERmes/MCP wrapping and frontend Wiki controls remain later phases.
+
 ## 7. FastAPI Project Structure
 
 권장 backend 폴더:

@@ -1,12 +1,15 @@
-from datetime import date, datetime
+from __future__ import annotations
+
+from datetime import date as DateOnly
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 
 class AiEvidencePeriod(BaseModel):
-    start: date | None = None
-    end: date | None = None
+    start: DateOnly | None = None
+    end: DateOnly | None = None
 
 
 class AiEvidenceExclusions(BaseModel):
@@ -17,12 +20,12 @@ class AiEvidenceExclusions(BaseModel):
 class AiSourceRef(BaseModel):
     type: str
     id: UUID | None = None
-    date: date | None = None
+    date: DateOnly | None = None
 
 
 class AiRecentUpdateEvidence(BaseModel):
     id: UUID
-    date: date
+    date: DateOnly
     type: str
     body: str
     author_id: UUID | None = None
@@ -30,7 +33,7 @@ class AiRecentUpdateEvidence(BaseModel):
 
 class AiRecentPostEvidence(BaseModel):
     id: UUID
-    date: date
+    date: DateOnly
     scope: str
     title: str
     body: str
@@ -53,7 +56,7 @@ class AiTaskEvidenceItem(BaseModel):
     priority: str
     workstream: str | None = None
     tags: list[str] = Field(default_factory=list)
-    due_date: date
+    due_date: DateOnly
     progress: int
     recent_updates: list[AiRecentUpdateEvidence] = Field(default_factory=list)
     recent_posts: list[AiRecentPostEvidence] = Field(default_factory=list)
@@ -83,7 +86,7 @@ class AiRecentUpdateItem(BaseModel):
     workstream: str | None = None
     tags: list[str] = Field(default_factory=list)
     update_id: UUID
-    date: date
+    date: DateOnly
     type: str
     body: str
 

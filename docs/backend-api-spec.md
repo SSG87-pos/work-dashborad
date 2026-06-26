@@ -491,6 +491,23 @@ These endpoints are read-only. They return permission-filtered evidence bundles 
 
 Status 2026-06-26: FastAPI Phase 1 endpoints are implemented under `/api/v1/ai/read/...` for deterministic evidence bundles. They do not call OpenAI/HERmes and do not write back to the database.
 
+### AI Wiki API
+
+These endpoints make the LLM-Wiki layer usable from the backend without giving an AI model direct unrestricted database access. See `docs/llm-wiki-architecture-plan.md`.
+
+| Method | Path | Role | Notes |
+| --- | --- | --- | --- |
+| GET | `/ai/wiki/search` | user | Search readable Wiki pages by query and optional `page_type`. |
+| GET | `/ai/wiki/pages/{page_id}` | user | Read one Wiki page with body, revision number, source links, and outgoing links. |
+| GET | `/ai/wiki/pages/{page_id}/links` | user | Follow readable incoming/outgoing typed page links. |
+| GET | `/ai/wiki/pages/{page_id}/sources` | user | Return source links back to task/update/post records and stale flags. |
+| POST | `/ai/wiki/drafts` | user | Create a pending Wiki draft manually or from a future AI tool. |
+| POST | `/ai/wiki/drafts/from-dashboard` | user | Create a deterministic pending Wiki draft from a dashboard task, its updates, and 업무 노트. |
+| POST | `/ai/wiki/drafts/{draft_id}/approve` | admin | Publish a pending draft into `wiki_pages`, append `wiki_revisions`, and create source/link rows. |
+| POST | `/ai/wiki/error-book` | user | Record a correction when an AI/Wiki answer was wrong or incomplete. |
+
+Status 2026-06-26: FastAPI Phase 1 endpoints are implemented under `/api/v1/ai/wiki/...`. OpenAI/HERmes tool calling is not implemented yet; use the draft/approval path for any generated Wiki changes.
+
 ## Permission Enforcement
 
 Server must enforce the same rules as `docs/permission-rules.md`.

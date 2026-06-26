@@ -2,7 +2,17 @@
 
 This note adapts the recent LLM-Wiki / personal knowledge-base idea to the work dashboard.
 
-It is a planning contract for a future backend implementation. It does not require installing Obsidian on the company Linux server, and it should not turn the AI into a direct unrestricted database client.
+It is the architecture contract for the LLM-Wiki backend implementation. It does not require installing Obsidian on the company Linux server, and it should not turn the AI into a direct unrestricted database client.
+
+Status 2026-06-26:
+
+- FastAPI/PostgreSQL Phase 1 backend is implemented.
+- Alembic migration `20260625_0011_llm_wiki.py` adds `wiki_pages`, `wiki_revisions`, `wiki_source_links`, `wiki_links`, `ai_wiki_drafts`, and `wiki_error_book`.
+- Backend models live in `backend/app/models/wiki.py`.
+- Backend schemas live in `backend/app/schemas/wiki.py`.
+- Backend routes live in `backend/app/api/routes_wiki.py` under `/api/v1/ai/wiki/...`.
+- Tests live in `backend/tests/test_ai_wiki.py`.
+- No OpenAI/HERmes model call is implemented yet. AI-generated changes still enter through a draft/approval path.
 
 ## What We Mean By LLM-Wiki
 
@@ -178,6 +188,7 @@ Possible FastAPI paths:
 - `GET /api/v1/ai/wiki/pages/{page_id}/links`
 - `GET /api/v1/ai/wiki/pages/{page_id}/sources`
 - `POST /api/v1/ai/wiki/drafts`
+- `POST /api/v1/ai/wiki/drafts/from-dashboard`
 - `POST /api/v1/ai/wiki/drafts/{draft_id}/approve`
 - `POST /api/v1/ai/wiki/error-book`
 
@@ -238,6 +249,8 @@ Practical rule:
 - Seed a few manually written pages from existing workstream/report concepts.
 - Add tests for permissions, source links, revisions, and stale-page detection.
 
+Status: implemented for schema, read endpoints, task-based draft creation, approval, source links, revisions, and Error Book creation. Manual seed pages and richer stale-source checks can be expanded later.
+
 ### Phase 2: Draft From Dashboard
 
 - Add `Wiki로 정리` draft action for task detail and workstream Highlights.
@@ -249,6 +262,8 @@ Practical rule:
 - Let OpenAI/HERmes call `wiki_search`, `wiki_read`, `wiki_follow_links`, and current dashboard evidence tools together.
 - Keep final answers citation-first.
 - Log tool calls, scope, and source ids.
+
+Status: not implemented yet. The backend API is ready to be wrapped by OpenAI tool calling or HERmes/MCP.
 
 ### Phase 4: Error Book
 

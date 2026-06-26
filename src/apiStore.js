@@ -718,6 +718,53 @@ async function readAiEvidence(intent) {
   return apiRequest(path);
 }
 
+async function searchAiWiki({ query = "", pageType = "" } = {}) {
+  const params = new URLSearchParams();
+  if (query) params.set("query", query);
+  if (pageType) params.set("page_type", pageType);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return apiRequest(`/ai/wiki/search${suffix}`);
+}
+
+async function readAiWikiPage(pageId) {
+  if (!isUuid(pageId)) return { skipped: true, reason: "requires-wiki-page-id" };
+  return apiRequest(`/ai/wiki/pages/${pageId}`);
+}
+
+async function readAiWikiSources(pageId) {
+  if (!isUuid(pageId)) return { skipped: true, reason: "requires-wiki-page-id" };
+  return apiRequest(`/ai/wiki/pages/${pageId}/sources`);
+}
+
+async function createAiWikiDraft(payload) {
+  return apiRequest("/ai/wiki/drafts", {
+    method: "POST",
+    body: body(payload)
+  });
+}
+
+async function createAiWikiDraftFromDashboard(payload) {
+  return apiRequest("/ai/wiki/drafts/from-dashboard", {
+    method: "POST",
+    body: body(payload)
+  });
+}
+
+async function approveAiWikiDraft(draftId, payload = {}) {
+  if (!isUuid(draftId)) return { skipped: true, reason: "requires-wiki-draft-id" };
+  return apiRequest(`/ai/wiki/drafts/${draftId}/approve`, {
+    method: "POST",
+    body: body(payload)
+  });
+}
+
+async function recordAiWikiError(payload) {
+  return apiRequest("/ai/wiki/error-book", {
+    method: "POST",
+    body: body(payload)
+  });
+}
+
 async function importDashboardData() {
   return { skipped: true, reason: "bulk-import-not-implemented" };
 }
@@ -790,7 +837,16 @@ export const apiDashboardStore = {
     save: saveCanvasState
   },
   ai: {
-    readEvidence: readAiEvidence
+    readEvidence: readAiEvidence,
+    wiki: {
+      search: searchAiWiki,
+      readPage: readAiWikiPage,
+      readSources: readAiWikiSources,
+      createDraft: createAiWikiDraft,
+      createDraftFromDashboard: createAiWikiDraftFromDashboard,
+      approveDraft: approveAiWikiDraft,
+      recordError: recordAiWikiError
+    }
   },
   importData: importDashboardData,
   mappers: {

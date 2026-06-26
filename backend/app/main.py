@@ -12,6 +12,7 @@ from app.api.routes_preferences import memos_router, preferences_router
 from app.api.routes_roster import router as roster_router
 from app.api.routes_tags import groups_router, router as tags_router
 from app.api.routes_tasks import router as tasks_router
+from app.api.routes_wiki import router as wiki_router
 from app.core.config import settings
 
 
@@ -26,6 +27,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(ai_router, prefix="/api/v1")
+    app.include_router(wiki_router, prefix="/api/v1")
     app.include_router(briefing_router, prefix="/api/v1")
     app.include_router(calendar_router, prefix="/api/v1")
     app.include_router(canvas_router, prefix="/api/v1")
