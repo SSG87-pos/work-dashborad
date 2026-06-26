@@ -30,9 +30,8 @@
   - Verified: `scripts/check-ai-evidence.mjs`, `scripts/check-ai-assistant.mjs`, and `scripts/check-api-store.mjs` passed through the Node REPL runtime.
   - Verified: production build passed with `PATH=/Users/seulgi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
   - Verified: browser/CDP QA on isolated local-mode Vite confirmed entry-screen AI panel visibility, dashboard entry, suggested prompt interaction, answer/evidence rendering, registration-draft opening of the 업무 추가 modal, and top-bar house-icon return to the entry screen. In-app Browser attach failed twice, so QA used local Chrome CDP; headless Chrome logged existing WebGL/lanyard errors unrelated to the AI panel.
-  - Verified: Python syntax compile passed with `PYTHONPYCACHEPREFIX=/private/tmp/work-dashboard-pycache python3 -m py_compile ...`.
-  - Blocked: backend pytest could not run in this shell because Python is 3.9.6 with no backend dependencies/pytest installed, while the backend requires Python >=3.11.
-  - Next: run backend pytest in a Python 3.11+ environment, then wire OpenAI/HERmes tool-calling around the existing evidence/read endpoints and draft-approval flow.
+  - Verified: latest backend verification used `/private/tmp/work-dashboard-backend-venv312/bin/python -m pytest backend/tests` and passed with `36 passed`.
+  - Next: wire OpenAI/HERmes tool-calling around the existing evidence/read endpoints and draft-approval flow after company secrets/runtime boundaries are confirmed.
 
 - [x] Reframe backend implementation from Supabase Docker to FastAPI + PostgreSQL.
   - Files: `docs/fastapi-postgres-backend-spec.md`, `docs/company-fastapi-postgres-beginner-runbook.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/backend-implementation-plan.md`, `docs/backend-decision-brief.md`, `docs/company-demo-readiness-checklist.md`, `docs/supabase-start-guide.md`, `docs/company-self-hosted-supabase-guide.md`, `docs/personal-notification-inbox-plan.md`, `docs/ai-agent-readiness.md`, `docs/ai-agent-codex-implementation-brief.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
