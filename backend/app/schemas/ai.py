@@ -38,6 +38,10 @@ class AiRecentPostEvidence(BaseModel):
     title: str
     body: str
     url: str | None = None
+    attachment_label: str | None = None
+    attachment_caption: str | None = None
+    attachment_text: str | None = None
+    attachment_summary: str | None = None
 
 
 class AiSignalEvidence(BaseModel):

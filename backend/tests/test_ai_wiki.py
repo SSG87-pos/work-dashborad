@@ -42,6 +42,12 @@ def seed_wiki_source_task(client, token: str) -> str:
             "scope": "결정사항",
             "title": "PostgreSQL을 원천으로 유지",
             "body": "Obsidian vault가 아니라 FastAPI/PostgreSQL을 중앙 원천으로 둡니다.",
+            "attachment": {
+                "label": "화이트보드 캡처",
+                "caption": "LLM-Wiki 원천 구조 회의 이미지",
+                "ocrText": "PostgreSQL 원천, Wiki는 정리 레이어, Obsidian은 선택 export",
+                "visionSummary": "회의 화이트보드에 중앙 DB와 Wiki 계층이 구분되어 있음",
+            },
             "posted_at": "2026-06-25",
         },
     )
@@ -64,7 +70,11 @@ def test_ai_wiki_draft_approve_search_read_sources_and_error_book() -> None:
     assert draft["status"] == "pending"
     assert draft["proposed_title"] == "AI 업무 에이전트"
     assert "LLM Wiki 업무지식 구조화" in draft["proposed_body_markdown"]
+    assert "PostgreSQL 원천, Wiki는 정리 레이어" in draft["proposed_body_markdown"]
     assert {link["source_type"] for link in draft["proposed_source_links"]} == {"task", "task_update", "task_post"}
+    post_source = next(link for link in draft["proposed_source_links"] if link["source_type"] == "task_post")
+    assert "회의 화이트보드에 중앙 DB와 Wiki 계층" in post_source["excerpt"]
+    assert "PostgreSQL 원천, Wiki는 정리 레이어" in post_source["excerpt"]
 
     approve_response = client.post(
         f"/api/v1/ai/wiki/drafts/{draft['id']}/approve",

@@ -1731,7 +1731,9 @@ function seedTaskKnowledgePosts(task) {
       url: "https://intra.research-strategy.local/docs/monthly-kpi-evidence",
       attachment: {
         label: "근거자료 캡처",
-        caption: "월간보고 근거표 이미지"
+        caption: "월간보고 근거표 이미지",
+        ocrText: "월간 KPI 근거표: 지연 업무 2건, 완료 4건, 검토 대기 1건",
+        visionSummary: "월간보고 근거표 캡처로, 상태별 업무 수와 보완 필요 항목이 정리되어 있습니다."
       }
     },
     {
@@ -1787,6 +1789,50 @@ function seedTaskKnowledgePosts(task) {
   ];
 }
 
+function normalizePostAttachment(attachment) {
+  if (!attachment || typeof attachment !== "object") return null;
+  const label = String(attachment.label ?? attachment.fileName ?? "").trim();
+  const caption = String(attachment.caption ?? "").trim();
+  const ocrText = String(attachment.ocrText ?? attachment.extractedText ?? attachment.text ?? "").trim();
+  const visionSummary = String(attachment.visionSummary ?? attachment.summary ?? "").trim();
+  const source = String(attachment.source ?? "").trim();
+  const imageDataUrl = typeof attachment.imageDataUrl === "string" && attachment.imageDataUrl.startsWith("data:image/")
+    ? attachment.imageDataUrl
+    : "";
+  const mimeType = String(attachment.mimeType ?? "").trim();
+  const fileName = String(attachment.fileName ?? "").trim();
+  if (!label && !caption && !ocrText && !visionSummary && !imageDataUrl) return null;
+  return {
+    ...(label ? { label } : {}),
+    ...(caption ? { caption } : {}),
+    ...(ocrText ? { ocrText } : {}),
+    ...(visionSummary ? { visionSummary } : {}),
+    ...(source ? { source } : {}),
+    ...(imageDataUrl ? { imageDataUrl } : {}),
+    ...(mimeType ? { mimeType } : {}),
+    ...(fileName ? { fileName } : {})
+  };
+}
+
+function buildPostAttachmentFromDraft(draft) {
+  return normalizePostAttachment({
+    label: draft?.attachmentLabel,
+    caption: draft?.attachmentCaption,
+    ocrText: draft?.attachmentText,
+    visionSummary: draft?.attachmentSummary,
+    source: draft?.attachmentSource || "manual",
+    imageDataUrl: draft?.attachmentImageDataUrl,
+    mimeType: draft?.attachmentMimeType,
+    fileName: draft?.attachmentFileName
+  });
+}
+
+function attachmentEvidenceText(attachment) {
+  const normalized = normalizePostAttachment(attachment);
+  if (!normalized) return "";
+  return [normalized.visionSummary, normalized.ocrText].filter(Boolean).join("\n\n");
+}
+
 function normalizeTaskPosts(posts, task, categories = defaultTaskPostCategories) {
   if (!Array.isArray(posts)) return seedTaskKnowledgePosts(task);
   const workstream = taskWorkstreamLabel(task);
@@ -1806,7 +1852,7 @@ function normalizeTaskPosts(posts, task, categories = defaultTaskPostCategories)
         ownerId: task.ownerId,
         workstream,
         url: String(post?.url ?? "").trim(),
-        attachment: post?.attachment || null,
+        attachment: normalizePostAttachment(post?.attachment),
         createdAt: post?.createdAt || post?.date || TODAY,
         updatedAt: post?.updatedAt || ""
       };
@@ -2359,6 +2405,7 @@ function App() {
       return false;
     }
     const scope = String(draft?.scope ?? "").trim() || taskPostCategories.find((category) => category.active)?.label || "기억할 점";
+    const attachment = buildPostAttachmentFromDraft(draft) || normalizePostAttachment(draft?.attachment);
     const nowId = Date.now().toString(36);
     let savedPost = null;
     setTasks((current) =>
@@ -2373,6 +2420,7 @@ function App() {
           title,
           body,
           url: String(draft.url ?? "").trim(),
+          attachment,
           authorId: existingPost?.authorId || selectedPersonId,
           date: existingPost?.date || TODAY,
           createdAt: existingPost?.createdAt || TODAY,
@@ -9479,7 +9527,21 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
   const normalizedPostCategories = normalizeTaskPostCategories(postCategories);
   const activePostCategories = normalizedPostCategories.filter((category) => category.active);
   const defaultScope = activePostCategories[0]?.label || normalizedPostCategories[0]?.label || "기억할 점";
-  const blankDraft = { id: "", scope: defaultScope, title: "", url: "", body: "" };
+  const blankDraft = {
+    id: "",
+    scope: defaultScope,
+    title: "",
+    url: "",
+    body: "",
+    attachmentLabel: "",
+    attachmentCaption: "",
+    attachmentText: "",
+    attachmentSummary: "",
+    attachmentSource: "manual",
+    attachmentImageDataUrl: "",
+    attachmentMimeType: "",
+    attachmentFileName: ""
+  };
   const [expandedImageId, setExpandedImageId] = useState(null);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [activePostDialog, setActivePostDialog] = useState(null);
@@ -9504,15 +9566,44 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
     setExpandedImageId(null);
   };
   const openEditDialog = (post) => {
+    const attachment = normalizePostAttachment(post.attachment);
     setPostDraft({
       id: post.id,
       scope: post.scope || defaultScope,
       title: post.title || "",
       url: post.url || "",
-      body: post.body || ""
+      body: post.body || "",
+      attachmentLabel: attachment?.label || "",
+      attachmentCaption: attachment?.caption || "",
+      attachmentText: attachment?.ocrText || "",
+      attachmentSummary: attachment?.visionSummary || "",
+      attachmentSource: attachment?.source || "manual",
+      attachmentImageDataUrl: attachment?.imageDataUrl || "",
+      attachmentMimeType: attachment?.mimeType || "",
+      attachmentFileName: attachment?.fileName || ""
     });
     setActivePostDialog({ mode: "edit", postId: post.id });
     setExpandedImageId(null);
+  };
+  const handlePostPaste = (event) => {
+    const imageItem = Array.from(event.clipboardData?.items ?? []).find((item) => item.type.startsWith("image/"));
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const imageDataUrl = typeof reader.result === "string" ? reader.result : "";
+      if (!imageDataUrl) return;
+      setPostDraft((current) => ({
+        ...current,
+        attachmentLabel: current.attachmentLabel || file.name || "붙여넣은 이미지",
+        attachmentCaption: current.attachmentCaption || "게시글에 붙여넣은 이미지",
+        attachmentImageDataUrl: imageDataUrl,
+        attachmentMimeType: file.type,
+        attachmentFileName: file.name || ""
+      }));
+    };
+    reader.readAsDataURL(file);
   };
   const closePostDialog = () => {
     setActivePostDialog(null);
@@ -9603,7 +9694,7 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
               </button>
             </div>
             {activePostDialog.mode !== "read" && (
-            <form className="task-post-write-mockup" onSubmit={submitPost}>
+            <form className="task-post-write-mockup" onPaste={handlePostPaste} onSubmit={submitPost}>
               <div className="task-post-type-field">
                 <span>노트 구분</span>
                 <div className="task-post-type-options" role="group" aria-label="업무 노트 구분 선택">
@@ -9636,6 +9727,61 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
                   value={postDraft.url}
                 />
               </label>
+              <div className="task-post-attachment-fields">
+                {postDraft.attachmentImageDataUrl && (
+                  <div className="task-post-pasted-image">
+                    <img alt={postDraft.attachmentLabel || "붙여넣은 이미지"} src={postDraft.attachmentImageDataUrl} />
+                    <button
+                      className="secondary-button small"
+                      onClick={() =>
+                        setPostDraft((current) => ({
+                          ...current,
+                          attachmentImageDataUrl: "",
+                          attachmentMimeType: "",
+                          attachmentFileName: ""
+                        }))
+                      }
+                      type="button"
+                    >
+                      이미지 제거
+                    </button>
+                  </div>
+                )}
+                <label>
+                  <span>이미지 이름</span>
+                  <input
+                    onChange={(event) => setPostDraft((current) => ({ ...current, attachmentLabel: event.target.value }))}
+                    placeholder="예: 회의 캡처, 보고서 표 이미지"
+                    value={postDraft.attachmentLabel}
+                  />
+                </label>
+                <label>
+                  <span>이미지 설명</span>
+                  <input
+                    onChange={(event) => setPostDraft((current) => ({ ...current, attachmentCaption: event.target.value }))}
+                    placeholder="이미지에 담긴 자료의 맥락"
+                    value={postDraft.attachmentCaption}
+                  />
+                </label>
+                <label>
+                  <span>이미지 요약</span>
+                  <textarea
+                    onChange={(event) => setPostDraft((current) => ({ ...current, attachmentSummary: event.target.value }))}
+                    placeholder="이미지 전체에서 확인되는 핵심 내용을 짧게 정리"
+                    rows={3}
+                    value={postDraft.attachmentSummary}
+                  />
+                </label>
+                <label>
+                  <span>이미지 판독 텍스트</span>
+                  <textarea
+                    onChange={(event) => setPostDraft((current) => ({ ...current, attachmentText: event.target.value }))}
+                    placeholder="캡처/표/문서 이미지 안의 글자를 붙여넣거나 OCR 결과를 남기세요."
+                    rows={5}
+                    value={postDraft.attachmentText}
+                  />
+                </label>
+              </div>
               <label>
                 <span>본문</span>
                 <div className="emoji-textarea-frame task-post-body-frame">
@@ -9681,12 +9827,22 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
                 )}
                 {activePost.attachment && (
                   <button className="task-post-image-thumb" onClick={() => setExpandedImageId(activePost.id)} type="button">
+                    {activePost.attachment.imageDataUrl && (
+                      <img alt={activePost.attachment.label || "첨부 이미지"} src={activePost.attachment.imageDataUrl} />
+                    )}
                     <span>
                       <FileText size={13} />
-                      {activePost.attachment.label}
+                      {activePost.attachment.label || "이미지 근거"}
                     </span>
-                    <small>{activePost.attachment.caption} · 클릭해서 크게 보기</small>
+                    <small>{activePost.attachment.caption || "판독 텍스트 포함"} · 클릭해서 크게 보기</small>
                   </button>
+                )}
+                {attachmentEvidenceText(activePost.attachment) && (
+                  <div className="task-post-attachment-evidence">
+                    <strong>이미지 판독 근거</strong>
+                    {activePost.attachment?.visionSummary && <p>{activePost.attachment.visionSummary}</p>}
+                    {activePost.attachment?.ocrText && <pre>{activePost.attachment.ocrText}</pre>}
+                  </div>
                 )}
                 {canEditActivePost && (
                   <div className="task-post-read-actions">
@@ -9716,9 +9872,18 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
               </button>
             </div>
             <div className="task-post-image-preview-large">
-              <span>{workstream}</span>
-              <strong>{expandedImagePost.attachment.caption}</strong>
-              <em>{taskTitle}</em>
+              {expandedImagePost.attachment.imageDataUrl ? (
+                <img alt={expandedImagePost.attachment.label || "첨부 이미지"} src={expandedImagePost.attachment.imageDataUrl} />
+              ) : (
+                <>
+                  <span>{workstream}</span>
+                  <strong>{expandedImagePost.attachment.caption || expandedImagePost.attachment.visionSummary || "이미지 근거"}</strong>
+                  <em>{taskTitle}</em>
+                  {attachmentEvidenceText(expandedImagePost.attachment) && (
+                    <p>{attachmentEvidenceText(expandedImagePost.attachment)}</p>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

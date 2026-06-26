@@ -515,6 +515,8 @@ create table user_preferences (
 );
 ```
 
+`attachment` is the compatibility field for pasted images and future file storage. Current supported JSON keys are `label`, `caption`, `imageDataUrl`, `fileName`, `mimeType`, `ocrText`, `visionSummary`, and `source`. Company production should store the binary image in an internal file/object store and keep only a storage reference plus `ocrText`/`visionSummary` in this JSON. AI/HERmes/OpenAI must not rely on opening intranet URLs directly.
+
 ### 5.15 notifications
 
 알림은 후속 기능입니다. DB 스키마는 미리 잡아둘 수 있지만 첫 운영 구현에서는 endpoint와 UI만 나중에 연결합니다.

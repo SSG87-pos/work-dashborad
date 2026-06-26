@@ -11,10 +11,11 @@
   - Done: added FastAPI routes under `/api/v1/ai/wiki/...` for search, page read, link follow, source read, draft create, dashboard-task draft create, admin approval, and Error Book correction create.
   - Done: added `apiDashboardStore.ai.wiki` helper methods so future UI/OpenAI/HERmes integration can use the existing API-store boundary instead of hardcoding endpoint URLs in view code.
   - Done: added a first task-detail `LLM-Wiki 정리` surface. `Wiki로 정리` creates a pending Wiki draft from the selected FastAPI-backed task while leaving local/sample tasks unsynced with a notice.
+  - Done: added image-evidence plumbing for 업무 노트. Users can paste an image into the note dialog for local/prototype preview, and `attachment.ocrText` plus `attachment.visionSummary` are now included in AI recent-post evidence and LLM-Wiki draft/source excerpts.
   - Done: kept model-generated changes behind pending drafts and admin approval; no OpenAI/HERmes direct write behavior was added.
   - Verified: `/private/tmp/work-dashboard-backend-venv312/bin/python -m pytest backend/tests` passed with `35 passed`.
   - Verified: Alembic offline SQL rendered through head, `compileall`, `check:api-store`, production build, and `git diff --check` passed.
-  - Next: add Highlights/workstream Wiki views, admin draft-review controls, and wrap these endpoints as OpenAI/HERmes/MCP tools.
+  - Next: add production image/file storage, automatic OCR/HERmes/OpenAI Vision extraction into the existing attachment fields, Highlights/workstream Wiki views, admin draft-review controls, and wrap these endpoints as OpenAI/HERmes/MCP tools.
 
 - [x] Start AI database assistant Phase 1 on `codex/ai-agent-db-assistant`.
   - Files: `src/aiEvidence.js`, `src/aiAssistant.js`, `src/App.jsx`, `src/apiStore.js`, `src/styles.css`, `scripts/check-ai-evidence.mjs`, `scripts/check-ai-assistant.mjs`, `package.json`, `backend/app/api/routes_ai.py`, `backend/app/schemas/ai.py`, `backend/tests/test_ai_read.py`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `HANDOFF.md`, `TODO.md`.
@@ -143,7 +144,7 @@
   - Done after approval: live Supabase migration `020_task_posts` was applied to project `nbefvcrcfwacvnohtsmy`.
   - Verified live DB: migration history shows `20260608140147 020_task_posts`; `task_posts` and `task_post_categories` have RLS enabled; 7 active default post categories exist; authenticated-role rollback smoke created, read, updated, and deleted one task post with URL and attachment metadata, then confirmed 0 QA rows remained.
   - Verified live UI: on `http://127.0.0.1:5188/`, Supabase-connected task detail created a test `업무 노트`, reopened it, confirmed body/URL, updated title/body/URL, deleted it, reloaded the dashboard, and confirmed the deleted note stayed gone. Follow-up DB query confirmed 0 leftover UI QA rows.
-  - Scope guard: real uploaded images/files still need Supabase Storage bucket/RLS. Current `attachment` is metadata-only.
+  - Scope guard: production uploaded images/files still need internal storage bucket/RLS or equivalent. Current `attachment` can carry pasted-image preview metadata and OCR/vision text, but automatic server-side OCR is not implemented yet.
 
 - [x] Document company self-hosted Supabase operating path.
   - Files: `docs/company-self-hosted-supabase-guide.md`, `docs/supabase-start-guide.md`, `HANDOFF.md`, `TODO.md`.

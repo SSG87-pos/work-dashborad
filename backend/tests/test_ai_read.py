@@ -76,6 +76,12 @@ def seed_ai_evidence_fixture(client, token: str) -> tuple[str, str]:
             "scope": "리스크",
             "title": "외부 자료 미확보",
             "body": "외부 자료 미확보로 일정 조정 필요",
+            "attachment": {
+                "label": "외부자료 캡처",
+                "caption": "자료 요청 현황 이미지",
+                "ocrText": "공급사 회신 지연. 대체 자료 확보 필요.",
+                "visionSummary": "자료 확보 상태가 지연으로 표시된 캡처",
+            },
             "posted_at": "2026-06-05",
         },
     )
@@ -134,6 +140,9 @@ def test_ai_read_report_evidence_returns_grounded_items_and_exclusions() -> None
     assert "우선순위 확정" in ai_item["open_subtasks"]
     assert {update["id"] for update in ai_item["recent_updates"]} == {first_update_id, issue_update_id}
     assert ai_item["recent_posts"][0]["id"] == post_id
+    assert ai_item["recent_posts"][0]["attachment_label"] == "외부자료 캡처"
+    assert ai_item["recent_posts"][0]["attachment_text"] == "공급사 회신 지연. 대체 자료 확보 필요."
+    assert ai_item["recent_posts"][0]["attachment_summary"] == "자료 확보 상태가 지연으로 표시된 캡처"
     assert any(signal["type"] == "explicit" and signal["label"] == "이슈" for signal in ai_item["signals"])
 
     stale_item = next(item for item in payload["items"] if item["task_title"] == "월간 KPI 관리")

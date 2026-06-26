@@ -202,6 +202,13 @@ Recommended first UI surfaces:
 - Entry AI assistant: answers by combining live dashboard evidence and Wiki pages.
 - Admin/review: pending AI Wiki drafts can be approved, edited, or rejected.
 
+업무 노트 이미지 rule:
+
+- Intranet URLs may be unreadable to AI because of company security.
+- Users can paste screenshot/image evidence into 업무 노트.
+- The image binary is user-facing evidence; AI/Wiki reads `attachment.ocrText` and `attachment.visionSummary`.
+- Future OCR, HERmes, or OpenAI Vision integration should write extracted text back into those same fields before draft/search answer generation.
+
 Example flow:
 
 ```txt

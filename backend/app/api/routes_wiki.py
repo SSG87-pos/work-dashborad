@@ -204,14 +204,53 @@ def update_source_link(update: TaskUpdateLog, task_title: str) -> WikiSourceLink
 
 
 def post_source_link(post: TaskPost, task_title: str) -> WikiSourceLinkInput:
+    attachment = post_attachment_evidence(post)
+    excerpt = "\n\n".join(
+        part
+        for part in [
+            post.body,
+            f"[이미지 요약] {attachment['summary']}" if attachment["summary"] else "",
+            f"[이미지 판독] {attachment['text']}" if attachment["text"] else "",
+        ]
+        if part
+    )
     return WikiSourceLinkInput(
         source_type="task_post",
         source_id=post.id,
         source_title=post.title or task_title,
         source_date=post.posted_at,
-        excerpt=post.body,
-        content_hash=source_hash("task_post", post.title or task_title, post.body),
+        excerpt=excerpt or post.body,
+        content_hash=source_hash("task_post", post.title or task_title, excerpt or post.body),
     )
+
+
+def clean_attachment_value(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
+
+
+def post_attachment_evidence(post: TaskPost) -> dict[str, str | None]:
+    attachment = post.attachment if isinstance(post.attachment, dict) else {}
+    return {
+        "summary": clean_attachment_value(attachment.get("visionSummary")) or clean_attachment_value(attachment.get("summary")),
+        "text": (
+            clean_attachment_value(attachment.get("ocrText"))
+            or clean_attachment_value(attachment.get("extractedText"))
+            or clean_attachment_value(attachment.get("text"))
+        ),
+    }
+
+
+def post_wiki_line(post: TaskPost) -> str:
+    attachment = post_attachment_evidence(post)
+    parts = [post.body]
+    if attachment["summary"]:
+        parts.append(f"[이미지 요약] {attachment['summary']}")
+    if attachment["text"]:
+        parts.append(f"[이미지 판독] {attachment['text']}")
+    return f"- {post.posted_at}: [{post.scope}] {post.title} - {' / '.join(part for part in parts if part)}"
 
 
 @router.get("/search", response_model=WikiSearchResponse)
@@ -336,7 +375,7 @@ def create_wiki_draft_from_dashboard(
     updates = sorted(task.updates, key=lambda update: update.created_at or datetime.min, reverse=True)
     posts = sorted(task.posts, key=lambda post: post.posted_at, reverse=True)
     update_lines = "\n".join(f"- {update.created_at.date() if update.created_at else ''}: {update.body}" for update in updates[:5])
-    post_lines = "\n".join(f"- {post.posted_at}: [{post.scope}] {post.title} - {post.body}" for post in posts[:5])
+    post_lines = "\n".join(post_wiki_line(post) for post in posts[:5])
     body = "\n\n".join(
         part
         for part in [

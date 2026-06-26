@@ -53,7 +53,37 @@ def update_is_issue(update: TaskUpdateLog) -> bool:
 
 def post_is_issue(post: TaskPost) -> bool:
     scope = post.scope.lower()
-    return scope in explicit_issue_types or text_has_issue(post.scope) or text_has_issue(post.title) or text_has_issue(post.body)
+    attachment = post_attachment_evidence(post)
+    return (
+        scope in explicit_issue_types
+        or text_has_issue(post.scope)
+        or text_has_issue(post.title)
+        or text_has_issue(post.body)
+        or text_has_issue(attachment["text"])
+        or text_has_issue(attachment["summary"])
+    )
+
+
+def clean_attachment_value(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
+
+
+def post_attachment_evidence(post: TaskPost) -> dict[str, str | None]:
+    attachment = post.attachment if isinstance(post.attachment, dict) else {}
+    text = (
+        clean_attachment_value(attachment.get("ocrText"))
+        or clean_attachment_value(attachment.get("extractedText"))
+        or clean_attachment_value(attachment.get("text"))
+    )
+    return {
+        "label": clean_attachment_value(attachment.get("label")) or clean_attachment_value(attachment.get("fileName")),
+        "caption": clean_attachment_value(attachment.get("caption")),
+        "text": text,
+        "summary": clean_attachment_value(attachment.get("visionSummary")) or clean_attachment_value(attachment.get("summary")),
+    }
 
 
 def progress_for(task: Task) -> int:
@@ -148,11 +178,12 @@ def build_signals(
             )
     for post in recent_posts:
         if post_is_issue(post):
+            attachment = post_attachment_evidence(post)
             signals.append(
                 AiSignalEvidence(
                     type="explicit",
                     label=post.scope or "업무 노트",
-                    reason=" - ".join(part for part in [post.title, post.body] if part),
+                    reason=" - ".join(part for part in [post.title, post.body, attachment["summary"], attachment["text"]] if part),
                     source=AiSourceRef(type="task_post", id=post.id, date=post.posted_at),
                 )
             )
@@ -199,6 +230,10 @@ def build_task_item(task: Task, period_start: date | None, period_end: date | No
                 title=post.title,
                 body=post.body,
                 url=post.url,
+                attachment_label=post_attachment_evidence(post)["label"],
+                attachment_caption=post_attachment_evidence(post)["caption"],
+                attachment_text=post_attachment_evidence(post)["text"],
+                attachment_summary=post_attachment_evidence(post)["summary"],
             )
             for post in recent_posts
         ],

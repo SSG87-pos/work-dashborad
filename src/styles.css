@@ -14535,6 +14535,15 @@ button.post-scope-chip svg {
   text-align: left;
 }
 
+.task-post-image-thumb > img {
+  width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 7px;
+  background: #ffffff;
+}
+
 .task-post-image-thumb span {
   display: inline-flex;
   align-items: center;
@@ -14807,6 +14816,80 @@ button.post-scope-chip svg {
   padding-right: 44px !important;
 }
 
+.task-post-attachment-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.task-post-attachment-fields label:nth-child(n + 3) {
+  grid-column: 1 / -1;
+}
+
+.task-post-pasted-image {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+}
+
+.task-post-pasted-image img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border: 1px solid #cbdcf3;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.task-post-pasted-image button {
+  justify-self: end;
+}
+
+.task-post-attachment-fields textarea {
+  min-height: 78px;
+}
+
+@media (max-width: 720px) {
+  .task-post-attachment-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .task-post-attachment-fields label {
+    grid-column: 1 / -1;
+  }
+}
+
+.task-post-attachment-evidence {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #d7e2ef;
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 10px;
+}
+
+.task-post-attachment-evidence strong {
+  color: #172033;
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.task-post-attachment-evidence p,
+.task-post-attachment-evidence pre {
+  margin: 0;
+  color: #334155;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 540;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: keep-all;
+}
+
 .task-post-write-foot,
 .task-post-read-meta,
 .task-post-read-actions {
@@ -14948,6 +15031,14 @@ button.post-scope-chip svg {
   padding: 18px;
 }
 
+.task-post-image-preview-large > img {
+  width: 100%;
+  max-height: min(62vh, 560px);
+  object-fit: contain;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
 .task-post-image-preview-large span {
   width: fit-content;
   height: 24px;
@@ -14971,6 +15062,17 @@ button.post-scope-chip svg {
   font-size: 13px;
   font-style: normal;
   font-weight: 620;
+}
+
+.task-post-image-preview-large p {
+  margin: 0;
+  max-width: 560px;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 540;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: keep-all;
 }
 
 .app-shell.comfortable-density .task-posts-mockup-head strong {

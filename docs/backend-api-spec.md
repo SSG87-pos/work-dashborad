@@ -207,13 +207,15 @@ Only admin users can insert, rename, recolor, hide, or delete post categories.
 | title | text | yes | Title-first list label. |
 | body | text | yes | Main remembered-context body. |
 | url | text | no | Optional Teams, document, or reference URL. |
-| attachment | jsonb | no | Metadata placeholder for future Storage-backed files. |
+| attachment | jsonb | no | Optional pasted-image/file metadata and AI-readable extraction result. Supported keys include `label`, `caption`, `imageDataUrl` for local/prototype paste preview, `fileName`, `mimeType`, `ocrText`, `visionSummary`, and `source`. In production, replace `imageDataUrl` with a storage key or signed URL while keeping `ocrText`/`visionSummary` as the AI-readable fields. |
 | author_id | text fk users.id | yes | Writer. |
 | posted_at | date | yes | Reader-facing post date. |
 | created_at | timestamp | yes | Audit. |
 | updated_at | timestamp | yes | Audit. |
 
 `업무 노트` reads only posts attached to the selected task. Highlights `업무흐름별 게시글 모음` derives its grouped view from `task_posts` joined to the parent task and grouped by `상위 업무흐름`. Authors or task managers may edit/delete task posts.
+
+For internal security environments, do not assume the AI can open `url`. If users paste a screenshot/image into a post, the AI and LLM-Wiki layer must use `attachment.ocrText` and `attachment.visionSummary` as the grounded readable content. The pasted image itself is evidence for users, while the extracted text/summary is evidence for the AI.
 
 ### briefing_items
 
