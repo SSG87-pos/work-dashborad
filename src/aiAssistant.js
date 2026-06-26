@@ -7,11 +7,11 @@ import {
 } from "./aiEvidence.js";
 
 export const defaultAiAssistantPrompts = [
-  "이번 주 업무현황 보고서 초안 만들어줘",
-  "나의 진행 업무를 알려줘",
-  "아이디어 관련 이슈 찾아줘",
-  "최근 업데이트된 업무만 정리해줘",
-  "회의 후속 업무를 등록해줘"
+  "내 진행 업무와 개인 메모를 정리해줘",
+  "이번 주 업무현황을 보고서 형태로 정리해줘",
+  "최근 업데이트된 업무만 요약해줘",
+  "지연되거나 리스크가 있는 업무를 찾아줘",
+  "회의 후속 업무 등록 초안을 만들어줘"
 ];
 
 const routeByKind = {
@@ -80,12 +80,40 @@ function keywordQuery(prompt) {
   return prompt.replace(/알려줘|정리해줘|찾아줘|검색해줘|뭐야|무엇/g, "").trim();
 }
 
-export function classifyAssistantPrompt(prompt, { people = [], today = new Date().toISOString().slice(0, 10) } = {}) {
+function isSelfReference(text) {
+  return /(^|\s)(나|내|내가|저|제|본인|나의|내\s*업무|제\s*업무)(\s|의|가|를|은|는|만|$)/.test(text);
+}
+
+function personalContextFrom({ briefingItems = [], currentPersonId = "", memoByPage = {} } = {}) {
+  const items = Array.isArray(briefingItems)
+    ? briefingItems
+      .filter((item) => item && !item.deletedAt && item.scope !== "team")
+      .filter((item) => item.ownerId === currentPersonId || (!item.ownerId && item.authorId === currentPersonId))
+      .slice(0, 5)
+      .map((item) => ({
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        body: item.body,
+        status: item.status,
+        updatedAt: item.updatedAt || item.createdAt
+      }))
+    : [];
+  const memo = typeof memoByPage?.my === "string" ? memoByPage.my.trim() : "";
+  return {
+    memo,
+    inboxItems: items,
+    hasPrivateContext: Boolean(memo || items.length)
+  };
+}
+
+export function classifyAssistantPrompt(prompt, { people = [], today = new Date().toISOString().slice(0, 10), currentPerson = null } = {}) {
   const text = normalizePrompt(prompt);
   const week = weekRange(today);
   const month = monthRange(today);
   const lower = text.toLowerCase();
   const mentionedPerson = findMentionedPerson(text, people);
+  const selfPerson = currentPerson && isSelfReference(text) ? currentPerson : null;
 
   if (/등록|추가|생성|업무화/.test(text) && /업무|할일|태스크|후속/.test(text)) {
     return {
@@ -113,13 +141,15 @@ export function classifyAssistantPrompt(prompt, { people = [], today = new Date(
     };
   }
 
-  if (mentionedPerson) {
+  if (selfPerson || mentionedPerson) {
+    const person = selfPerson || mentionedPerson;
     return {
       kind: "person-work-status",
-      label: `${mentionedPerson.name} 업무현황`,
+      label: selfPerson ? "내 업무현황" : `${person.name} 업무현황`,
       params: {
-        person: mentionedPerson.name,
-        personId: mentionedPerson.id,
+        person: person.name,
+        personId: person.id,
+        isSelf: Boolean(selfPerson),
         periodStart: month.start,
         periodEnd: month.end
       }
@@ -171,6 +201,8 @@ export function buildAiReadPath(intent) {
   if (values.periodEnd) params.set("period_end", values.periodEnd);
   if (values.reportType) params.set("report_type", values.reportType);
   if (values.person) params.set("person", values.person);
+  if (values.personId && !values.person) params.set("person", values.personId);
+  if (values.person && intent.kind === "recent-updates") params.set("owner", values.person);
   if (values.query) params.set("query", values.query);
   if (values.workstream && intent.kind === "workstream-issues") params.set("workstream", values.workstream);
   return `${route}${params.toString() ? `?${params.toString()}` : ""}`;
@@ -191,10 +223,29 @@ function firstSignalText(item) {
   return `${signal.label}: ${signal.reason}`;
 }
 
+function summarizePersonalContext(context) {
+  if (!context?.hasPrivateContext) return [];
+  const lines = [];
+  if (context.memo) {
+    lines.push(`개인 메모: ${context.memo.slice(0, 90)}${context.memo.length > 90 ? "..." : ""}`);
+  }
+  context.inboxItems?.slice(0, 3).forEach((item) => {
+    const body = item.body ? ` - ${item.body.slice(0, 70)}${item.body.length > 70 ? "..." : ""}` : "";
+    lines.push(`개인 인박스: ${item.title}${body}`);
+  });
+  return lines;
+}
+
 export function summarizeAssistantEvidence(evidence, intent) {
   const items = evidence?.items ?? [];
+  const personalLines = summarizePersonalContext(evidence?.personalContext);
+  const teamReferenceItems = evidence?.teamReferenceItems ?? [];
   if (!items.length) {
-    return "조건에 맞는 기록을 찾지 못했습니다. 기간이나 담당자, 주제어를 바꿔 다시 확인해 주세요.";
+    return [
+      "조건에 맞는 업무 기록을 찾지 못했습니다. 기간이나 담당자, 주제어를 바꿔 다시 확인해 주세요.",
+      ...personalLines,
+      ...teamReferenceItems.slice(0, 2).map((item) => `참고 팀 업무: ${item.taskTitle} (${item.ownerName || "담당자 미상"}, ${item.status || "상태 미상"})`)
+    ].join("\n");
   }
 
   if (intent.kind === "recent-updates") {
@@ -211,7 +262,10 @@ export function summarizeAssistantEvidence(evidence, intent) {
     const tail = signal || updates || (item.openSubtasks?.length ? `다음 확인: ${item.openSubtasks.join(", ")}` : "최근 기록 부족");
     return `- ${item.taskTitle}: ${item.status}, ${item.ownerName}, ${tail}`;
   });
-  return [headline, ...lines, "근거 업무와 업데이트 ID를 함께 보관했습니다."].join("\n");
+  const teamLines = intent.params?.isSelf && teamReferenceItems.length
+    ? teamReferenceItems.slice(0, 2).map((item) => `참고 팀 업무: ${item.taskTitle} (${item.ownerName || "담당자 미상"}, ${item.status || "상태 미상"})`)
+    : [];
+  return [headline, ...personalLines, ...lines, ...teamLines, "근거 업무와 업데이트 ID를 함께 보관했습니다."].join("\n");
 }
 
 export function buildTaskDraftReply(intent) {
@@ -227,7 +281,7 @@ export function buildTaskDraftReply(intent) {
   };
 }
 
-function localEvidenceForIntent(intent, { tasks = [], people = [], today }) {
+function localEvidenceForIntent(intent, { briefingItems = [], currentPerson = null, memoByPage = {}, tasks = [], people = [], today }) {
   const base = {
     tasks,
     people,
@@ -239,7 +293,16 @@ function localEvidenceForIntent(intent, { tasks = [], people = [], today }) {
     return buildReportEvidence({ ...base, reportType: intent.params.reportType });
   }
   if (intent.kind === "person-work-status") {
-    return buildPersonWorkStatusEvidence({ ...base, personId: intent.params.personId, personName: intent.params.person });
+    const evidence = buildPersonWorkStatusEvidence({ ...base, personId: intent.params.personId, personName: intent.params.person });
+    if (intent.params.isSelf && currentPerson?.id) {
+      const teamEvidence = buildReportEvidence({ ...base, reportType: "monthly" });
+      return {
+        ...evidence,
+        personalContext: personalContextFrom({ briefingItems, currentPersonId: currentPerson.id, memoByPage }),
+        teamReferenceItems: teamEvidence.items.filter((item) => item.ownerId !== currentPerson.id && item.signals?.length).slice(0, 3)
+      };
+    }
+    return evidence;
   }
   if (intent.kind === "workstream-issues") {
     return buildWorkstreamIssuesEvidence({ ...base, workstream: intent.params.workstream });
@@ -250,10 +313,10 @@ function localEvidenceForIntent(intent, { tasks = [], people = [], today }) {
   return buildTopicSearchEvidence({ ...base, query: intent.params.query });
 }
 
-export function buildLocalAssistantReply({ prompt, tasks = [], people = [], today = new Date().toISOString().slice(0, 10) } = {}) {
-  const intent = classifyAssistantPrompt(prompt, { people, today });
+export function buildLocalAssistantReply({ briefingItems = [], currentPerson = null, memoByPage = {}, prompt, tasks = [], people = [], today = new Date().toISOString().slice(0, 10) } = {}) {
+  const intent = classifyAssistantPrompt(prompt, { people, today, currentPerson });
   if (intent.kind === "task-draft") return buildTaskDraftReply(intent);
-  const evidence = localEvidenceForIntent(intent, { tasks, people, today });
+  const evidence = localEvidenceForIntent(intent, { briefingItems, currentPerson, memoByPage, tasks, people, today });
   return {
     intent,
     evidence,

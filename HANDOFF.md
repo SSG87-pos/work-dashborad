@@ -27,7 +27,7 @@ Last updated: 2026-06-26
 - Package manager: `/Users/seulgi/Library/pnpm/bin/pnpm`.
 - Build command: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
 - GitHub remote: `https://github.com/SSG87-pos/work-dashborad.git`.
-- Current backend branch: `codex/supabase-integration`.
+- Current working branch: `codex/llm-wiki-architecture`.
 - Persistence is hybrid during the transition:
   - localStorage key `research-strategy-dashboard:v1` remains the prototype fallback.
   - Supabase is active when `.env.local` contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
@@ -37,6 +37,20 @@ Last updated: 2026-06-26
 
 Key product decisions now in the prototype:
 
+- AI assistant UX is now available from both the POSLAB entry screen and the main dashboard:
+  - The POSLAB entry screen keeps the AI assistant as the primary help surface below `대시보드로 들어가기`.
+  - The entry assistant uses the prompt `무엇을 도와드릴까요?!`, a compact gradient chat input, a collapsed `질문 예시` section, and a more readable answer card with an `AI 답변` badge, lead sentence, bullet points, and source rows.
+  - The main dashboard top bar now has a compact `🤖 AI` button. Clicking it opens a floating AI widget that can stay visible while the user works in the dashboard.
+  - The floating widget header also reads `무엇을 도와드릴까요?!`, hides the duplicate inner assistant header/icon, and can be dragged by its header while staying inside the viewport.
+  - The assistant is current-user-aware for self-reference prompts such as `내 진행 업무와 개인 메모를 정리해줘`: it prioritizes the signed-in/selected user's tasks, personal inbox records, and personal memo, then can add team context below when relevant.
+  - The old top-bar `로컬 저장` backend-status badge and adjacent database-management icon were removed because they were not useful in the normal dashboard working view.
+  - Verification: `git diff --check` and production build passed. Browser re-check could not be completed in the current sandbox because starting a local Vite server was blocked by port-binding policy, but source search confirmed the removed top-bar labels/classes are gone.
+- Reusable login entry kit is now extracted:
+  - `src/features/auth/LoginScreen.jsx` owns the POSLAB-style login/entry UI, but receives brand text, visual content, profile emoji picker, and assistant panel as props.
+  - `src/features/auth/authAdapters.js` contains `authenticateWithDashboardStore`, a password-auth helper for stores that expose `auth.signInWithPassword`, `auth.signUpWithPassword`, and `read()`.
+  - `src/features/auth/README.md` documents how another project can reuse the screen while replacing the POSLAB lanyard, AI panel, or auth backend.
+  - `src/App.jsx` now injects the existing POSLAB lanyard, shared lazy emoji picker, and entry AI panel into the reusable screen, so the current visual behavior is preserved without coupling the login component to dashboard internals.
+  - Verification: `git diff --check` passed, production build passed with the bundled Node path added to `PATH`, and a local Vite server on `http://127.0.0.1:5175/` returned `200 OK`. Playwright browser automation was not available because this environment has no `npx`/`playwright`.
 - AI database assistant Phase 1 is started on branch `codex/ai-agent-db-assistant`:
   - `src/aiEvidence.js` defines deterministic evidence builders for `report-evidence`, `person-work-status`, `topic-search`, `workstream-issues`, and `recent-updates`.
   - `src/aiAssistant.js` classifies first-page prompts, maps them to FastAPI AI read paths, summarizes evidence, and keeps task-registration requests in a draft/approval path.

@@ -2,6 +2,26 @@
 
 ## Now
 
+- [x] Polish entry/dashboard AI assistant and clean the top bar.
+  - Branch: `codex/llm-wiki-architecture`.
+  - Files: `src/App.jsx`, `src/aiAssistant.js`, `src/styles.css`, `HANDOFF.md`, `TODO.md`.
+  - Done: entry AI assistant now uses the clearer `무엇을 도와드릴까요?!` prompt, a larger header mark, a gradient chat input, collapsed useful question examples, and a more readable answer surface.
+  - Done: personal/self-reference prompts now prioritize the current signed-in/selected user's own tasks, personal inbox records, and personal memo before adding team context.
+  - Done: dashboard top bar now includes a compact `🤖 AI` button that opens a persistent floating AI widget. The widget can be moved by dragging its header and stays constrained inside the viewport.
+  - Done: dashboard widget header text was changed to `무엇을 도와드릴까요?!`, while the duplicate inner assistant header/icon is hidden inside the floating widget.
+  - Done: removed the nonessential top-bar `로컬 저장` backend-status badge and the adjacent database-management icon from the normal dashboard view.
+  - Verified: `git diff --check` passed; production build passed with `PATH=/Users/seulgi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
+  - QA note: browser re-check was blocked because this sandbox could not bind a local Vite port; source search confirmed `로컬 저장`, `backend-status`, `data-menu-wrap`, and the `데이터 관리` icon surface are no longer present.
+
+- [x] Extract reusable login entry kit.
+  - Files: `src/features/auth/LoginScreen.jsx`, `src/features/auth/authAdapters.js`, `src/features/auth/README.md`, `src/App.jsx`, `TODO.md`, `HANDOFF.md`.
+  - Done: moved the POSLAB login/entry UI out of `src/App.jsx` into a reusable `LoginScreen` component with brand text, visual content, profile emoji picker, and assistant panel passed as props.
+  - Done: added `authenticateWithDashboardStore` so the password-auth flow depends on a store adapter (`auth.signInWithPassword`, `auth.signUpWithPassword`, `read`) instead of being embedded in the entry screen.
+  - Done: kept the current POSLAB lanyard, entry AI panel, and lazy emoji picker behavior by injecting them from `App.jsx`; future projects can replace those slots without copying dashboard internals.
+  - Guardrail: authorization remains a server/API concern; the reusable login kit is only the entry UI and auth handoff layer.
+  - Verified: `git diff --check` passed; production build passed with `env PATH="/Users/seulgi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH" CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
+  - QA note: local Vite was started on `http://127.0.0.1:5175/` and returned `200 OK` through curl. Playwright browser automation was not run because this environment currently has no `npx`/`playwright` available.
+
 - [x] Add automatic LLM-Wiki draft recommendations.
   - Branch: `codex/llm-wiki-architecture`.
   - Files: `backend/app/api/routes_wiki.py`, `backend/app/schemas/wiki.py`, `backend/tests/test_ai_wiki.py`, `src/App.jsx`, `src/apiStore.js`, `src/styles.css`, `scripts/check-api-store.mjs`, `docs/llm-wiki-architecture-plan.md`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.

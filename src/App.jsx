@@ -27,7 +27,6 @@ import {
   LayoutDashboard,
   Link2,
   ListChecks,
-  LogIn,
   LogOut,
   MessageSquareText,
   Network,
@@ -35,6 +34,7 @@ import {
   PanelRightOpen,
   Plus,
   Search,
+  Send,
   ShieldCheck,
   Sparkles,
   Tag,
@@ -43,7 +43,6 @@ import {
   UserCog,
   SmilePlus,
   RotateCcw,
-  Upload,
   X
 } from "lucide-react";
 import { TODAY, assignerTypes, categories, initialCalendarEvents, initialTasks, mindmapSampleTasks, people, statuses, tagOptions } from "./data.js";
@@ -60,6 +59,8 @@ import {
 } from "./aiAssistant.js";
 import { summaryFilterLabels, summaryFilterMatches } from "./summaryFilters.js";
 import { collectWorkstreams, groupTasksByWorkstream, recommendWorkstream } from "./workstreams.js";
+import { authenticateWithDashboardStore } from "./features/auth/authAdapters.js";
+import { LoginScreen } from "./features/auth/LoginScreen.jsx";
 
 const MindmapView = lazy(() => import("./MindmapView.jsx").then((module) => ({ default: module.MindmapView })));
 const SharedCanvasView = lazy(() => import("./SharedCanvasView.jsx").then((module) => ({ default: module.SharedCanvasView })));
@@ -2325,10 +2326,11 @@ function App() {
   const syncNoticeTimerRef = useRef(null);
   const autoRecurringGenerationRef = useRef(new Set());
   const [syncNotice, setSyncNotice] = useState("");
-  const [assistantPrompt, setAssistantPrompt] = useState(defaultAiAssistantPrompts[0]);
+  const [assistantPrompt, setAssistantPrompt] = useState("");
   const [assistantResult, setAssistantResult] = useState(null);
   const [assistantStatus, setAssistantStatus] = useState("idle");
   const [assistantError, setAssistantError] = useState("");
+  const [isDashboardAiOpen, setIsDashboardAiOpen] = useState(false);
   const [wikiDraftTaskId, setWikiDraftTaskId] = useState("");
   const [wikiReviewDrafts, setWikiReviewDrafts] = useState([]);
   const [wikiReviewStatus, setWikiReviewStatus] = useState("idle");
@@ -3096,9 +3098,10 @@ function App() {
     setAssistantStatus("loading");
     setAssistantError("");
 
-    const intent = classifyAssistantPrompt(cleanPrompt, { people: directory, today: TODAY });
+    const assistantContext = { briefingItems, currentPerson: selectedPerson, memoByPage, people: directory, today: TODAY };
+    const intent = classifyAssistantPrompt(cleanPrompt, assistantContext);
     if (intent.kind === "task-draft") {
-      setAssistantResult(buildLocalAssistantReply({ prompt: cleanPrompt, tasks, people: directory, today: TODAY }));
+      setAssistantResult(buildLocalAssistantReply({ ...assistantContext, prompt: cleanPrompt, tasks }));
       setAssistantStatus("idle");
       return;
     }
@@ -3107,10 +3110,23 @@ function App() {
     if (canReadFromApi) {
       try {
         const evidence = await remoteDashboardStore.ai.readEvidence(intent);
+        const enrichedEvidence = intent.params?.isSelf
+          ? {
+            ...evidence,
+            personalContext: {
+              memo: typeof memoByPage?.my === "string" ? memoByPage.my.trim() : "",
+              inboxItems: briefingItems
+                .filter((item) => item && !item.deletedAt && item.scope !== "team")
+                .filter((item) => item.ownerId === selectedPerson?.id || (!item.ownerId && item.authorId === selectedPerson?.id))
+                .slice(0, 5),
+              hasPrivateContext: Boolean((typeof memoByPage?.my === "string" && memoByPage.my.trim()) || briefingItems.some((item) => item && !item.deletedAt && item.scope !== "team" && (item.ownerId === selectedPerson?.id || (!item.ownerId && item.authorId === selectedPerson?.id))))
+            }
+          }
+          : evidence;
         setAssistantResult({
           intent,
-          evidence,
-          answer: summarizeAssistantEvidence(evidence, intent),
+          evidence: enrichedEvidence,
+          answer: summarizeAssistantEvidence(enrichedEvidence, intent),
           sources: []
         });
         setAssistantStatus("idle");
@@ -3121,7 +3137,7 @@ function App() {
       }
     }
 
-    setAssistantResult(buildLocalAssistantReply({ prompt: cleanPrompt, tasks, people: directory, today: TODAY }));
+    setAssistantResult(buildLocalAssistantReply({ ...assistantContext, prompt: cleanPrompt, tasks }));
     setAssistantStatus("idle");
   }
 
@@ -3964,42 +3980,18 @@ function App() {
   }
 
   async function authenticateWithSupabase(payload) {
-    if (!isSupabaseReady) return;
-    setAuthStatus("submitting");
-    setAuthMessage("");
-    try {
-      if (payload.mode === "signup") {
-        await remoteDashboardStore.auth.signUpWithPassword({
-          email: payload.email,
-          password: payload.password,
-          name: payload.name,
-          profileEmoji: payload.profileEmoji
-        });
-        setAuthMessage("회원가입 요청이 완료됐습니다. 이메일 확인이 켜져 있다면 메일 인증 후 로그인해 주세요.");
-      } else {
-        await remoteDashboardStore.auth.signInWithPassword(payload.email, payload.password);
-      }
-      const snapshot = await remoteDashboardStore.read();
-      if (snapshot?.isAuthenticated) {
-        applySupabaseSnapshot(
-          {
-            ...snapshot,
-            activePage: snapshot.activePage || "team",
-            activeView: snapshot.activeView || "board"
-          },
-          { preservePrototypeTasks: true }
-        );
-        setIsAuthenticated(true);
-        setAuthStatus("signed-in");
+    await authenticateWithDashboardStore({
+      applySnapshot: applySupabaseSnapshot,
+      dashboardStore: remoteDashboardStore,
+      isReady: isSupabaseReady,
+      onHydrated: () => {
         supabaseHydratedRef.current = true;
-        return;
-      }
-      setIsAuthenticated(false);
-      setAuthStatus("signed-out");
-    } catch (error) {
-      setAuthStatus("signed-out");
-      setAuthMessage(error.message || "로그인 처리 중 문제가 생겼습니다.");
-    }
+      },
+      payload,
+      setAuthMessage,
+      setAuthStatus,
+      setIsAuthenticated
+    });
   }
 
   function loginAs(personId) {
@@ -4419,22 +4411,39 @@ function App() {
   if (!hasEnteredDashboard || !isAuthenticated) {
     return (
       <LoginScreen
+        accounts={orderedAccounts(directory)}
         authMessage={authMessage}
         authStatus={authStatus}
         isAlreadyAuthenticated={isAuthenticated}
-        isSupabaseReady={isSupabaseReady}
-        assistantError={assistantError}
-        assistantPrompt={assistantPrompt}
-        assistantResult={assistantResult}
-        assistantStatus={assistantStatus}
-        isAssistantRemoteReady={isApiReady && isAuthenticated && authStatus === "signed-in"}
-        onAssistantAsk={askAiAssistant}
-        onAssistantDraftTask={enterDashboardWithAssistantDraft}
-        onAssistantPromptChange={setAssistantPrompt}
+        isAuthReady={isSupabaseReady}
+        onAuthSubmit={authenticateWithSupabase}
         onEnterDashboard={() => setHasEnteredDashboard(true)}
-        onLogin={enterDashboardAs}
-        onSupabaseAuth={authenticateWithSupabase}
-        people={directory}
+        onLocalLogin={enterDashboardAs}
+        renderAssistantPanel={({ selectedLocalAccount }) => (
+          <AiAssistantPanel
+            className="entry-ai-panel"
+            error={assistantError}
+            onAsk={askAiAssistant}
+            onCreateDraftTask={() => enterDashboardWithAssistantDraft(isAuthenticated ? undefined : selectedLocalAccount?.id)}
+            onPromptChange={setAssistantPrompt}
+            prompt={assistantPrompt}
+            result={assistantResult}
+            status={assistantStatus}
+          />
+        )}
+        renderProfileEmojiPicker={({ value, onChange }) => (
+          <EmojiPopover
+            selectedEmoji={value}
+            onSelect={onChange}
+            triggerLabel="가입 프로필 이모지 선택"
+            triggerClassName="profile-emoji-trigger"
+          />
+        )}
+        visual={(
+          <Suspense fallback={<div className="poslab-lanyard-fallback" />}>
+            <PoslabLanyard />
+          </Suspense>
+        )}
       />
     );
   }
@@ -4621,6 +4630,16 @@ function App() {
               <Bell size={18} />
             </button>
             <button
+              aria-expanded={isDashboardAiOpen}
+              className={`dashboard-ai-button ${isDashboardAiOpen ? "active" : ""}`}
+              onClick={() => setIsDashboardAiOpen((current) => !current)}
+              type="button"
+              title="AI에게 대시보드 내용 물어보기"
+            >
+              <span aria-hidden="true">🤖</span>
+              <strong>AI</strong>
+            </button>
+            <button
               aria-pressed={displayDensity === "comfortable"}
               className={`view-density-button ${displayDensity === "comfortable" ? "active" : ""}`}
               onClick={() => setDisplayDensity((current) => current === "comfortable" ? "standard" : "comfortable")}
@@ -4639,52 +4658,6 @@ function App() {
             >
               <House size={18} />
             </button>
-            <span
-              className={`backend-status ${isSupabaseReady ? "connected" : "local"}`}
-              title={
-                isSupabaseReady
-                  ? authStatus === "signed-in"
-                    ? `${backendLabel}에 로그인되어 실데이터를 사용합니다.`
-                    : `${backendLabel} 환경변수가 설정되어 있습니다.`
-                  : "백엔드 환경변수가 없어 로컬 프로토타입 저장소를 사용합니다."
-              }
-            >
-              <Database size={14} />
-              {isSupabaseReady ? (authStatus === "signed-in" ? `${backendLabel} 연결` : `${backendLabel} 준비`) : "로컬 저장"}
-            </span>
-            <div className="data-menu-wrap">
-              <button
-                className={`icon-button ${isDataMenuOpen ? "active" : ""}`}
-                onClick={() => setIsDataMenuOpen((current) => !current)}
-                type="button"
-                title="데이터 관리"
-              >
-                <Database size={18} />
-              </button>
-              {isDataMenuOpen && (
-                <div className="data-menu" role="menu" aria-label="데이터 관리">
-                  <button onClick={exportDashboardData} type="button">
-                    <Download size={16} />
-                    JSON 내보내기
-                  </button>
-                  <button onClick={() => importInputRef.current?.click()} type="button">
-                    <Upload size={16} />
-                    JSON 가져오기
-                  </button>
-                  <button className="danger" onClick={resetDashboardData} type="button">
-                    <RotateCcw size={16} />
-                    데이터 초기화
-                  </button>
-                </div>
-              )}
-              <input
-                accept="application/json,.json"
-                className="data-import-input"
-                onChange={importDashboardData}
-                ref={importInputRef}
-                type="file"
-              />
-            </div>
             <button className="account-button" onClick={() => setIsAccountOpen(true)} type="button" title="계정 및 프로필">
               <span className="profile-emoji" style={avatarStyle(selectedPerson)}>
                 {selectedPerson.emoji}
@@ -5057,6 +5030,17 @@ function App() {
           people={directory}
         />
       )}
+      <DashboardAiWidget
+        error={assistantError}
+        isOpen={isDashboardAiOpen}
+        onAsk={askAiAssistant}
+        onClose={() => setIsDashboardAiOpen(false)}
+        onCreateDraftTask={() => enterDashboardWithAssistantDraft(selectedPersonId)}
+        onPromptChange={setAssistantPrompt}
+        prompt={assistantPrompt}
+        result={assistantResult}
+        status={assistantStatus}
+      />
     </div>
   );
 }
@@ -5065,6 +5049,128 @@ function orderedAccounts(accounts) {
   const admins = accounts.filter((person) => person.permissionRole === "admin");
   const adminIds = new Set(admins.map((person) => person.id));
   return [...admins, ...teamCompositionOrder(teamAssignablePeople(accounts).filter((person) => !adminIds.has(person.id)))];
+}
+
+function DashboardAiWidget({
+  error,
+  isOpen,
+  onAsk,
+  onClose,
+  onCreateDraftTask,
+  onPromptChange,
+  prompt,
+  result,
+  status
+}) {
+  const windowRef = useRef(null);
+  const dragStateRef = useRef(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+
+  const clampFloatingAiPosition = (left, top, width, height) => {
+    if (typeof window === "undefined") {
+      return { left, top };
+    }
+
+    const margin = 12;
+    return {
+      left: Math.min(Math.max(left, margin), Math.max(margin, window.innerWidth - width - margin)),
+      top: Math.min(Math.max(top, margin), Math.max(margin, window.innerHeight - height - margin))
+    };
+  };
+
+  const startDragging = (event) => {
+    const dragTarget = event.target;
+    if (event.button !== 0 || (dragTarget instanceof Element && dragTarget.closest("button"))) {
+      return;
+    }
+
+    const rect = windowRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startOffset: dragOffset,
+      startRect: rect
+    };
+    setIsDragging(true);
+  };
+
+  const dragWindow = (event) => {
+    const dragState = dragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const nextLeft = dragState.startRect.left + event.clientX - dragState.startX;
+    const nextTop = dragState.startRect.top + event.clientY - dragState.startY;
+    const clampedPosition = clampFloatingAiPosition(
+      nextLeft,
+      nextTop,
+      dragState.startRect.width,
+      dragState.startRect.height
+    );
+
+    setDragOffset({
+      x: dragState.startOffset.x + clampedPosition.left - dragState.startRect.left,
+      y: dragState.startOffset.y + clampedPosition.top - dragState.startRect.top
+    });
+  };
+
+  const stopDragging = (event) => {
+    if (dragStateRef.current?.pointerId === event.pointerId) {
+      dragStateRef.current = null;
+      setIsDragging(false);
+    }
+  };
+
+  return (
+    <div
+      className={`floating-ai-widget ${isOpen ? "is-open" : ""}`}
+      aria-live="polite"
+    >
+      {isOpen && (
+        <motion.aside
+          ref={windowRef}
+          animate={{ opacity: 1, scale: 1, x: dragOffset.x, y: dragOffset.y }}
+          aria-label="대시보드 AI 질문 창"
+          className={`floating-ai-window ${isDragging ? "is-dragging" : ""}`}
+          initial={{ opacity: 0, scale: 0.96, x: 0, y: 14 }}
+          transition={isDragging ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
+        >
+          <div
+            className="floating-ai-header"
+            onPointerCancel={stopDragging}
+            onPointerDown={startDragging}
+            onPointerMove={dragWindow}
+            onPointerUp={stopDragging}
+          >
+            <div className="floating-ai-title">
+              <strong>무엇을 도와드릴까요?!</strong>
+            </div>
+            <button className="icon-button" onClick={onClose} type="button" aria-label="AI 창 닫기">
+              <X size={17} />
+            </button>
+          </div>
+          <AiAssistantPanel
+            className="dashboard-floating-ai-panel"
+            error={error}
+            onAsk={onAsk}
+            onCreateDraftTask={onCreateDraftTask}
+            onPromptChange={onPromptChange}
+            prompt={prompt}
+            result={result}
+            status={status}
+          />
+        </motion.aside>
+      )}
+    </div>
+  );
 }
 
 function EmojiPopover({ onSelect, selectedEmoji, triggerLabel = "이모지 선택", triggerClassName = "" }) {
@@ -5228,191 +5334,6 @@ function insertEmojiAtCursor(textareaRef, currentValue, emoji, onChange) {
     const nextCursor = start + emoji.length;
     textarea.setSelectionRange(nextCursor, nextCursor);
   });
-}
-
-function LoginScreen({
-  assistantError,
-  assistantPrompt,
-  assistantResult,
-  assistantStatus,
-  authMessage,
-  authStatus,
-  isAlreadyAuthenticated,
-  isAssistantRemoteReady,
-  isSupabaseReady,
-  onAssistantAsk,
-  onAssistantDraftTask,
-  onAssistantPromptChange,
-  onEnterDashboard,
-  onLogin,
-  onSupabaseAuth,
-  people
-}) {
-  const [mode, setMode] = useState("signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [profileEmoji, setProfileEmoji] = useState("🌿");
-  const localAccounts = useMemo(() => orderedAccounts(people), [people]);
-  const [selectedLocalPersonId, setSelectedLocalPersonId] = useState(() => localAccounts[0]?.id ?? "");
-  const selectedLocalPerson = localAccounts.find((person) => person.id === selectedLocalPersonId) ?? localAccounts[0];
-  const isSubmitting = authStatus === "submitting" || authStatus === "checking";
-
-  useEffect(() => {
-    if (!localAccounts.length) return;
-    if (!localAccounts.some((person) => person.id === selectedLocalPersonId)) {
-      setSelectedLocalPersonId(localAccounts[0].id);
-    }
-  }, [localAccounts, selectedLocalPersonId]);
-
-  function submit(event) {
-    event.preventDefault();
-    if (!isSupabaseReady) return;
-    onSupabaseAuth({
-      mode,
-      email: email.trim(),
-      password,
-      name: name.trim() || email.split("@")[0] || "새 사용자",
-      profileEmoji
-    });
-  }
-
-  return (
-    <main className="login-screen poslab-entry-screen">
-      <div className="poslab-entry-gradient" aria-hidden="true" />
-      <section className="poslab-entry-shell" aria-label="POSLAB Work Hub 시작">
-        <div className="poslab-entry-visual">
-          <div className="poslab-brand-kicker">
-            <span className="poslab-mark" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
-            <span>연구기획그룹-전략</span>
-          </div>
-          <Suspense fallback={<div className="poslab-lanyard-fallback" />}>
-            <PoslabLanyard />
-          </Suspense>
-        </div>
-
-        <div className="poslab-entry-panel">
-          <div className="poslab-entry-heading">
-            <span className="panel-label">POSCO</span>
-            <h1>
-              <span>POSLAB</span>
-              <span className="hub-gradient-text">Work Hub</span>
-            </h1>
-            <p>함께 보는 업무, 함께 만드는 흐름, 함께 성장하는 팀</p>
-          </div>
-
-          {isSupabaseReady && !isAlreadyAuthenticated ? (
-            <form className="auth-form poslab-auth-form" onSubmit={submit}>
-              <div className="auth-mode-tabs" role="tablist" aria-label="로그인 방식">
-                <button className={mode === "signin" ? "active" : ""} onClick={() => setMode("signin")} type="button">
-                  로그인
-                </button>
-                <button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")} type="button">
-                  권한 요청
-                </button>
-              </div>
-
-              {mode === "signup" && (
-                <label className="auth-field">
-                  <span>이름</span>
-                  <input autoComplete="name" onChange={(event) => setName(event.target.value)} placeholder="예: 장형민" value={name} />
-                </label>
-              )}
-
-              <label className="auth-field">
-                <span>회사 이메일</span>
-                <input autoComplete="email" onChange={(event) => setEmail(event.target.value)} placeholder="seulgis@posco.com" type="email" value={email} />
-              </label>
-
-              <label className="auth-field">
-                <span>비밀번호</span>
-                <input autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={6} onChange={(event) => setPassword(event.target.value)} placeholder="6자 이상" type="password" value={password} />
-              </label>
-
-              {mode === "signup" && (
-                <div className="auth-emoji-row">
-                  <span>프로필 이모지</span>
-                  <EmojiPopover
-                    selectedEmoji={profileEmoji}
-                    onSelect={setProfileEmoji}
-                    triggerLabel="가입 프로필 이모지 선택"
-                    triggerClassName="profile-emoji-trigger"
-                  />
-                </div>
-              )}
-
-              {authMessage && <p className="auth-message">{authMessage}</p>}
-
-              <button className="primary-button auth-submit poslab-enter-button" disabled={isSubmitting || !email.trim() || !password} type="submit">
-                <LogIn size={17} />
-                {isSubmitting ? "확인 중" : mode === "signup" ? "권한 요청 보내기" : "로그인"}
-              </button>
-            </form>
-          ) : (
-            <div className="poslab-local-entry">
-              <button
-                className="primary-button poslab-enter-button"
-                disabled={!isAlreadyAuthenticated && !selectedLocalPerson}
-                onClick={() => {
-                  if (isAlreadyAuthenticated) {
-                    onEnterDashboard();
-                    return;
-                  }
-                  if (selectedLocalPerson) onLogin(selectedLocalPerson.id);
-                }}
-                type="button"
-              >
-                <LogIn size={17} />
-                대시보드로 들어가기
-              </button>
-              {!isAlreadyAuthenticated && (
-                <div className="login-account-grid poslab-account-grid" aria-label="로그인 계정 선택">
-                  {localAccounts.map((person) => (
-                    <button
-                      aria-pressed={person.id === selectedLocalPersonId}
-                      className={`login-account-card role-${person.permissionRole} ${person.id === selectedLocalPersonId ? "selected" : ""}`}
-                      key={person.id}
-                      onClick={() => setSelectedLocalPersonId(person.id)}
-                      type="button"
-                    >
-                      <span className="profile-emoji" style={avatarStyle(person)}>
-                        {person.emoji}
-                      </span>
-                      <span>
-                        <strong>{person.name}</strong>
-                        <small>{roleLine(person)}</small>
-                      </span>
-                      {person.id === selectedLocalPersonId ? <Check size={16} /> : <LogIn size={16} />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {(!isSupabaseReady || isAlreadyAuthenticated) && (
-            <AiAssistantPanel
-              className="entry-ai-panel"
-              error={assistantError}
-              isRemoteReady={isAssistantRemoteReady}
-              onAsk={onAssistantAsk}
-              onCreateDraftTask={() => onAssistantDraftTask(isAlreadyAuthenticated ? undefined : selectedLocalPerson?.id)}
-              onPromptChange={onAssistantPromptChange}
-              prompt={assistantPrompt}
-              result={assistantResult}
-              status={assistantStatus}
-            />
-          )}
-
-          <p className="auth-footnote">회사 로그인 연동이 확정되면 이 진입 화면은 SSO 시작 화면으로 전환할 수 있습니다.</p>
-        </div>
-      </section>
-    </main>
-  );
 }
 
 function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onCreateWikiDraftFromRecommendation, onDeletePostCategory, onDeletePreset, onDeleteTag, onLoadWorkstreamSuggestions, onMoveTagToPreset, onRefreshWikiDrafts, onRefreshWikiRecommendations, onRejectWikiDraft, onRenameTag, onRenameWorkstream, onSavePostCategory, onSavePreset, onUpdateUserAdministration, onUpdateWikiDraft, people, postCategories, presets, tags, tasks, wikiDraftError = "", wikiDraftStatus = "idle", wikiDrafts = [], wikiDraftsReady = false, wikiRecommendationError = "", wikiRecommendationStatus = "idle", wikiRecommendations = [] }) {
@@ -6715,7 +6636,6 @@ function InsightStrip({ activeFilter, onSelect, summary }) {
 function AiAssistantPanel({
   className = "",
   error,
-  isRemoteReady,
   onAsk,
   onCreateDraftTask,
   onPromptChange,
@@ -6726,6 +6646,13 @@ function AiAssistantPanel({
   const isLoading = status === "loading";
   const evidenceItems = result?.evidence?.items ?? [];
   const isDraft = result?.intent?.kind === "task-draft";
+  const [isPromptOpen, setIsPromptOpen] = useState(false);
+  const answerLines = String(result?.answer ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const answerLead = answerLines[0] ?? "";
+  const answerDetails = answerLines.slice(1).map((line) => line.replace(/^[-•]\s*/, ""));
 
   function submit(event) {
     event.preventDefault();
@@ -6741,59 +6668,100 @@ function AiAssistantPanel({
     >
       <div className="ai-assistant-head">
         <div>
-          <span className="panel-label">AI 업무 에이전트</span>
+          <span className="ai-agent-label">
+            <span className="atlas-spinner mini" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+            무엇을 도와드릴까요?!
+          </span>
         </div>
-        <span className={`ai-source-chip ${isRemoteReady ? "remote" : "local"}`}>
-          <Database size={14} />
-          {isRemoteReady ? "회사 DB 기준" : "현재 화면 기준"}
-        </span>
       </div>
 
-      <form className="ai-assistant-form" onSubmit={submit}>
-        <label className="ai-assistant-input">
-          <MessageSquareText size={17} />
-          <textarea
-            aria-label="무엇을 도와드릴까요?!"
-            onChange={(event) => onPromptChange(event.target.value)}
-            placeholder="무엇을 도와드릴까요?!"
-            rows={2}
-            value={prompt}
-          />
-        </label>
-        <button className="primary-button" disabled={isLoading || !prompt.trim()} type="submit">
-          <span className={`atlas-spinner ${isLoading ? "spinning" : ""}`} aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
-          {isLoading ? "읽는 중" : "물어보기"}
-        </button>
+      <form className="ai-assistant-form gradient-ai-chat-input" onSubmit={submit}>
+        <div className="gradient-ai-chat-inner">
+          <div className="ai-chat-top-row">
+            <label className="ai-assistant-input">
+              <textarea
+                aria-label="무엇을 도와드릴까요?!"
+                onChange={(event) => onPromptChange(event.target.value)}
+                placeholder="무엇을 도와드릴까요?!"
+                rows={2}
+                value={prompt}
+              />
+            </label>
+            <button className="ai-send-button" disabled={isLoading || !prompt.trim()} type="submit">
+              {isLoading ? (
+                <span className="atlas-spinner spinning mini" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              ) : (
+                <Send size={16} aria-hidden="true" />
+              )}
+              <span className="visually-hidden">{isLoading ? "읽는 중" : "물어보기"}</span>
+            </button>
+          </div>
+        </div>
       </form>
 
-      <div className="ai-prompt-row" aria-label="추천 질문">
-        {defaultAiAssistantPrompts.slice(0, 5).map((item) => (
-          <button
-            className={prompt === item ? "active" : ""}
-            key={item}
-            onClick={() => {
-              onPromptChange(item);
-              onAsk(item);
-            }}
-            type="button"
-          >
-            {item}
-          </button>
-        ))}
-      </div>
+      <button
+        aria-expanded={isPromptOpen}
+        className="ai-prompt-toggle"
+        onClick={() => setIsPromptOpen((current) => !current)}
+        type="button"
+      >
+        <span>질문 예시</span>
+        <ChevronDown size={14} aria-hidden="true" />
+      </button>
+
+      {isPromptOpen && (
+        <div className="ai-prompt-row" aria-label="추천 질문">
+          {defaultAiAssistantPrompts.slice(0, 5).map((item) => (
+            <button
+              className={prompt === item ? "active" : ""}
+              key={item}
+              onClick={() => {
+                onPromptChange(item);
+                onAsk(item);
+              }}
+              type="button"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
 
       {(result || error) && (
-        <div className="ai-answer-surface">
+        <motion.div
+          animate={{ opacity: 1, y: 0 }}
+          className="ai-answer-surface"
+          initial={{ opacity: 0, y: 8 }}
+          key={`${result?.intent?.label ?? "answer"}-${answerLead}-${error ?? ""}`}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+        >
+          <div className="ai-answer-header">
+            <span className="ai-answer-badge">
+              <Sparkles size={13} aria-hidden="true" />
+              AI 답변
+            </span>
+            {result?.intent?.label && <span className="ai-answer-context">{result.intent.label}</span>}
+          </div>
+
           {error && <p className="ai-answer-warning">{error}</p>}
-          {result?.answer && (
+          {answerLines.length > 0 && (
             <div className="ai-answer-copy">
-              {result.answer.split("\n").map((line, index) => (
-                <p key={`${line}-${index}`}>{line}</p>
-              ))}
+              {answerLead && <p className="ai-answer-lead">{answerLead}</p>}
+              {answerDetails.length > 0 && (
+                <ul className="ai-answer-points">
+                  {answerDetails.map((line, index) => (
+                    <li key={`${line}-${index}`}>{line}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
@@ -6806,7 +6774,7 @@ function AiAssistantPanel({
 
           {!isDraft && evidenceItems.length > 0 && (
             <div className="ai-source-list" aria-label="AI 답변 근거">
-              <span className="panel-label">근거 업무 {evidenceItems.length}건</span>
+              <span className="ai-source-heading">근거 업무 {evidenceItems.length}건</span>
               {evidenceItems.slice(0, 4).map((item) => (
                 <div className="ai-source-row" key={`${item.taskId}-${item.taskTitle}`}>
                   <strong>{item.taskTitle}</strong>
@@ -6818,7 +6786,7 @@ function AiAssistantPanel({
               ))}
             </div>
           )}
-        </div>
+        </motion.div>
       )}
     </motion.section>
   );
