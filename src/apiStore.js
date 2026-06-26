@@ -712,6 +712,10 @@ async function saveCanvasState(state) {
   });
 }
 
+async function readWorkstreamSuggestions() {
+  return apiRequest("/workstreams/suggestions");
+}
+
 async function readAiEvidence(intent) {
   const path = buildAiReadPath(intent);
   if (!path) return { skipped: true, reason: "unsupported-ai-intent" };
@@ -858,6 +862,9 @@ export const apiDashboardStore = {
   canvas: {
     read: readCanvasState,
     save: saveCanvasState
+  },
+  workstreams: {
+    suggestions: readWorkstreamSuggestions
   },
   ai: {
     readEvidence: readAiEvidence,

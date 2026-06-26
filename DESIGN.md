@@ -63,7 +63,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - `사람 관리` owns roster add/edit, permission role, team display, and active-state controls.
 - `태그 관리` should use a compact tree/editor layout: Category folders on the left, tag-file rows under each folder, and a right-side editor for the selected Category or tag.
 - Admins can collapse/expand Category folders, click tags to rename/delete them, and drag tags between Category folders to keep the tag dictionary scannable as the list grows.
-- `업무흐름 관리` should use the same compact tree/editor pattern: current `상위 업무흐름` labels on the left, selected-flow details on the right, and similar-flow review candidates inside the selected detail panel. Renaming a flow can intentionally merge tasks under one label.
+- `업무흐름 관리` should use the same compact tree/editor pattern: current `상위 업무흐름` labels on the left, selected-flow details on the right, and similar-flow review candidates inside the selected detail panel. In FastAPI mode, DB-evidence suggestions can use title, description, tags, updates, and 업무 노트 as supporting signals. Renaming a flow can intentionally merge tasks under one label.
 - `게시글 유형 관리` owns the type/category labels used on task posts, such as `결정사항`, `기억할 점`, `리스크`, `회의록`, `중요문서`, `참고자료`, and `다음 확인`. Admins can rename labels, choose a tone color, and hide a type from the write dialog without deleting existing posts.
 - Non-admin users must not see the `관리자` tab, and stale persisted admin routes should return to a normal workflow view.
 

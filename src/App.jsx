@@ -3159,6 +3159,13 @@ function App() {
     return remoteDashboardStore.ai.wiki.readPage(pageId);
   }
 
+  async function loadWorkstreamSuggestionCandidates() {
+    if (!isApiReady || authStatus !== "signed-in" || !isAuthenticated || !remoteDashboardStore.workstreams?.suggestions) {
+      throw new Error("업무흐름 추천은 FastAPI 로그인 상태에서 사용할 수 있습니다.");
+    }
+    return remoteDashboardStore.workstreams.suggestions();
+  }
+
   function enterDashboardWithAssistantDraft(personId = selectedPersonId) {
     const nextPerson = directory.find((person) => person.id === personId) ?? selectedPerson;
     const creatorId = nextPerson?.id ?? selectedPersonId;
@@ -3504,9 +3511,20 @@ function App() {
     setTasks((current) =>
       current.map((task) => (matchedTaskIds.has(task.id) ? { ...task, workstream: cleanNextLabel } : task))
     );
+    if (isApiReady && authStatus === "signed-in" && isAuthenticated) {
+      tasks
+        .filter((task) => matchedTaskIds.has(task.id) && isUuidLike(task.id))
+        .forEach((task) => {
+          remoteDashboardStore.tasks.save({ ...task, workstream: cleanNextLabel }).catch((error) => {
+            console.warn("업무흐름 DB 반영에 실패했습니다.", error);
+          });
+        });
+    }
     showSyncNotice(
-      isSupabaseReady
-        ? "업무흐름 이름은 화면에 반영됐습니다. Supabase 공유 저장은 tasks.workstream 마이그레이션 후 적용됩니다."
+      isApiReady && authStatus === "signed-in" && isAuthenticated
+        ? `${cleanOldLabel} 업무흐름을 ${cleanNextLabel}(으)로 수정하고 FastAPI 반영을 요청했습니다.`
+        : isSupabaseReady
+          ? "업무흐름 이름은 화면에 반영됐습니다. Supabase 공유 저장은 tasks.workstream 마이그레이션 후 적용됩니다."
         : `${cleanOldLabel} 업무흐름을 ${cleanNextLabel}(으)로 수정했습니다.`
     );
   }
@@ -4839,6 +4857,7 @@ function App() {
                 onRejectWikiDraft={rejectWikiReviewDraft}
                 onSavePostCategory={saveTaskPostCategory}
                 onDeletePostCategory={deleteTaskPostCategory}
+                onLoadWorkstreamSuggestions={loadWorkstreamSuggestionCandidates}
                 onSavePreset={saveTagGroup}
                 onUpdateWikiDraft={updateWikiReviewDraft}
                 onUpdateUserAdministration={updateUserAdministration}
@@ -5252,7 +5271,7 @@ function LoginScreen({
   );
 }
 
-function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePostCategory, onDeletePreset, onDeleteTag, onMoveTagToPreset, onRefreshWikiDrafts, onRejectWikiDraft, onRenameTag, onRenameWorkstream, onSavePostCategory, onSavePreset, onUpdateUserAdministration, onUpdateWikiDraft, people, postCategories, presets, tags, tasks, wikiDraftError = "", wikiDraftStatus = "idle", wikiDrafts = [], wikiDraftsReady = false }) {
+function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePostCategory, onDeletePreset, onDeleteTag, onLoadWorkstreamSuggestions, onMoveTagToPreset, onRefreshWikiDrafts, onRejectWikiDraft, onRenameTag, onRenameWorkstream, onSavePostCategory, onSavePreset, onUpdateUserAdministration, onUpdateWikiDraft, people, postCategories, presets, tags, tasks, wikiDraftError = "", wikiDraftStatus = "idle", wikiDrafts = [], wikiDraftsReady = false }) {
   const [activeAdminTab, setActiveAdminTab] = useState("people");
   const activeTasks = useMemo(() => (tasks ?? []).filter((task) => task && !isDeletedTask(task)), [tasks]);
   const workstreamGroups = useMemo(
@@ -5315,6 +5334,7 @@ function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePost
       {activeAdminTab === "workstreams" && (
         <AdminWorkstreamsPanel
           groups={workstreamGroups}
+          onLoadSuggestions={onLoadWorkstreamSuggestions}
           onRenameWorkstream={onRenameWorkstream}
           people={people}
         />
@@ -6114,11 +6134,35 @@ function countStatusLabels(tasks) {
     .map((status) => ({ status, count: counts[status] }));
 }
 
-function AdminWorkstreamsPanel({ groups, onRenameWorkstream, people }) {
+function AdminWorkstreamsPanel({ groups, onLoadSuggestions, onRenameWorkstream, people }) {
   const [editingLabel, setEditingLabel] = useState("");
   const [nextLabel, setNextLabel] = useState("");
   const [selectedLabel, setSelectedLabel] = useState(groups.find((group) => group.label)?.label ?? groups[0]?.label ?? "");
-  const candidates = similarWorkstreamCandidates(groups);
+  const [apiCandidates, setApiCandidates] = useState([]);
+  const [suggestionStatus, setSuggestionStatus] = useState("idle");
+  const [suggestionError, setSuggestionError] = useState("");
+  const localCandidates = similarWorkstreamCandidates(groups).map((candidate) => ({
+    labels: candidate.labels,
+    count: candidate.count,
+    source: "화면",
+    score: null,
+    terms: [],
+    reason: "업무흐름 이름의 핵심 문구가 일부 겹칩니다.",
+    tasks: []
+  }));
+  const apiCandidateRows = apiCandidates.map((candidate) => ({
+    labels: [candidate.primary_label, candidate.candidate_label].filter(Boolean),
+    count: candidate.task_count ?? 0,
+    source: "DB",
+    score: candidate.score,
+    terms: candidate.shared_terms ?? [],
+    reason: candidate.reason,
+    tasks: candidate.tasks ?? []
+  }));
+  const candidates = [...apiCandidateRows, ...localCandidates].filter((candidate, index, rows) => {
+    const key = [...candidate.labels].sort().join("|");
+    return candidate.labels.length === 2 && rows.findIndex((row) => [...row.labels].sort().join("|") === key) === index;
+  });
   const labeledGroups = groups.filter((group) => group.label);
   const selectedGroup = groups.find((group) => group.label === selectedLabel) ?? labeledGroups[0] ?? groups[0] ?? null;
   const selectedCandidates = candidates.filter((candidate) => selectedGroup && candidate.labels.includes(selectedGroup.label));
@@ -6142,6 +6186,25 @@ function AdminWorkstreamsPanel({ groups, onRenameWorkstream, people }) {
     setNextLabel(label);
   }
 
+  async function loadSuggestions() {
+    if (!onLoadSuggestions) {
+      setSuggestionError("FastAPI 로그인 상태에서 DB 근거 추천을 사용할 수 있습니다.");
+      return;
+    }
+    setSuggestionStatus("loading");
+    setSuggestionError("");
+    try {
+      const suggestions = await onLoadSuggestions();
+      setApiCandidates(Array.isArray(suggestions) ? suggestions : []);
+      setSuggestionStatus("idle");
+    } catch (error) {
+      console.warn("업무흐름 추천을 불러오지 못했습니다.", error);
+      setApiCandidates([]);
+      setSuggestionError(error.message || "업무흐름 추천을 불러오지 못했습니다.");
+      setSuggestionStatus("error");
+    }
+  }
+
   return (
     <section className="admin-panel">
       <div className="admin-panel-heading">
@@ -6152,8 +6215,15 @@ function AdminWorkstreamsPanel({ groups, onRenameWorkstream, people }) {
           </span>
           <h3>상위 업무흐름 정리</h3>
         </div>
-        <p>업무명에서 자동 추천된 흐름을 검토하고, 비슷한 흐름은 이름을 맞춰 묶습니다.</p>
+        <div className="admin-heading-actions">
+          <p>업무명에서 자동 추천된 흐름을 검토하고, 비슷한 흐름은 이름을 맞춰 묶습니다.</p>
+          <button className="secondary-button small" disabled={suggestionStatus === "loading"} onClick={loadSuggestions} type="button">
+            <Sparkles size={13} />
+            {suggestionStatus === "loading" ? "추천 중" : "DB 근거 추천"}
+          </button>
+        </div>
       </div>
+      {suggestionError && <div className="inline-warning">{suggestionError}</div>}
       <div className="admin-tree-manager workstream-tree-manager">
         <section className="admin-tree-pane">
           <div className="admin-tree-head">
@@ -6232,22 +6302,29 @@ function AdminWorkstreamsPanel({ groups, onRenameWorkstream, people }) {
               <div className="admin-similar-compact">
                 <div className="admin-editor-head slim">
                   <strong>비슷한 흐름 후보</strong>
-                  <small>{selectedCandidates.length}개</small>
+                  <small>{selectedCandidates.length}개 · DB {apiCandidateRows.length}개</small>
                 </div>
                 {selectedCandidates.map((candidate) => {
                   const mergeTarget = candidate.labels.find((label) => label !== selectedGroup.label) ?? candidate.labels[0];
                   return (
                     <button
-                      className="admin-similar-compact-row"
-                      key={candidate.labels.join("|")}
+                      className={`admin-similar-compact-row ${candidate.source === "DB" ? "api-suggested" : ""}`}
+                      key={`${candidate.source}-${candidate.labels.join("|")}`}
                       onClick={() => {
                         setEditingLabel(selectedGroup.label);
                         setNextLabel(mergeTarget);
                       }}
                       type="button"
                     >
-                      <span>{candidate.labels.join(" ↔ ")}</span>
-                      <small>{candidate.count}개 업무 · 이름 맞추기</small>
+                      <span>
+                        {candidate.labels.join(" ↔ ")}
+                        <em>{candidate.source}</em>
+                      </span>
+                      <small>
+                        {candidate.score ? `유사도 ${Math.round(candidate.score * 100)}% · ` : ""}
+                        {candidate.count}개 업무 · 이름 맞추기
+                      </small>
+                      {candidate.terms.length > 0 && <small>공통 근거: {candidate.terms.slice(0, 5).join(", ")}</small>}
                     </button>
                   );
                 })}

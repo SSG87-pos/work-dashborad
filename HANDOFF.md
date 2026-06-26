@@ -207,6 +207,8 @@ Key product decisions now in the prototype:
   - each task has one workstream label used for mindmap and performance grouping
   - blank workstream values are recommended from the task title first and tags only as secondary evidence
   - admin cleanup now starts in `관리자 > 업무흐름 관리`, where similar names can be reviewed and labels can be renamed to intentionally merge tasks under one flow.
+  - FastAPI mode now adds admin-only DB-evidence candidates through `GET /api/v1/workstreams/suggestions`; it scores shared terms from task title, description, tags, updates, task posts, and attachment OCR/vision text, then the admin still confirms the merge through rename.
+  - FastAPI-mode workstream rename now PATCHes matched UUID-backed tasks so confirmed cleanup is persisted through the API.
 - Profile/login/admin are prototype-level:
   - account selection screen after logout
   - admin account exists for permission/admin flow
@@ -225,7 +227,7 @@ Key product decisions now in the prototype:
   - current FastAPI implementation milestone is present: `backend/` has FastAPI health/db endpoints, PostgreSQL session config, Alembic migrations through `20260625_0010`, `.env.example`, and first-admin seed CLI.
   - auth/roster/profile APIs are present: `POST /api/v1/auth/login`, JWT access tokens, `GET/PATCH /api/v1/me`, and admin-only `GET/POST/PATCH /api/v1/admin/roster`.
   - task APIs are present: `GET/POST/PATCH/DELETE /api/v1/tasks`, task enum types, owner/creator links, progress validation, manager-only update checks, recurring rule persistence, and future recurring instance cleanup.
-  - operating endpoints are present: subtasks add/list/update, update logs add/list/edit/delete, tags add/list/edit/delete, tag groups save/list/delete, calendar events add/list/update/delete, briefing items add/list/update, preferences, page memos, task history note edit/delete, archive/restore, links add/list/delete, post categories add/list/edit/deactivate, task posts add/list/edit/delete, Highlights workstream post rollups, and Canvas state read/save.
+  - operating endpoints are present: subtasks add/list/update, update logs add/list/edit/delete, tags add/list/edit/delete, tag groups save/list/delete, workstream similarity suggestions, calendar events add/list/update/delete, briefing items add/list/update, preferences, page memos, task history note edit/delete, archive/restore, links add/list/delete, post categories add/list/edit/deactivate, task posts add/list/edit/delete, Highlights workstream post rollups, and Canvas state read/save.
   - frontend integration is present: `src/apiStore.js` uses FastAPI mode when `VITE_API_BASE_URL` is set and keeps `src/storage.js` as the local fallback boundary.
   - current important boundary: live company PostgreSQL apply/smoke, browser QA against the company URL, deeper role-specific filtering, and Teams/realtime/AI production integrations remain next.
   - first backend route before the Docker constraint changed: Supabase/Postgres

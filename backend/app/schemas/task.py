@@ -249,6 +249,23 @@ class WorkstreamPostRollup(BaseModel):
     posts: list[TaskPostRead]
 
 
+class WorkstreamSuggestionTask(BaseModel):
+    id: UUID
+    title: str
+    workstream: str
+    matched_terms: list[str] = Field(default_factory=list)
+
+
+class WorkstreamSuggestionRead(BaseModel):
+    primary_label: str
+    candidate_label: str
+    score: float
+    shared_terms: list[str] = Field(default_factory=list)
+    task_count: int
+    reason: str
+    tasks: list[WorkstreamSuggestionTask] = Field(default_factory=list)
+
+
 class CanvasTabRead(BaseModel):
     id: str
     label: str

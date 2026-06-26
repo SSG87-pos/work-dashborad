@@ -2,6 +2,14 @@
 
 ## Now
 
+- [x] Add DB-evidence workstream similarity suggestions.
+  - Branch: `codex/llm-wiki-architecture`.
+  - Files: `backend/app/api/routes_workstreams.py`, `backend/app/schemas/task.py`, `backend/app/main.py`, `backend/tests/test_workstreams.py`, `src/App.jsx`, `src/apiStore.js`, `src/styles.css`, `scripts/check-api-store.mjs`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added admin-only FastAPI `GET /api/v1/workstreams/suggestions` for similar `상위 업무흐름` candidates using DB-backed evidence from task title, description, tags, updates, task posts, and attachment OCR/vision text.
+  - Done: kept the existing title-based local candidate logic as a fallback, then added a `DB 근거 추천` action in `관리자 > 업무흐름 관리` that shows DB/source badges, score, task count, and common terms before a human chooses a merge label.
+  - Done: in FastAPI mode, workstream rename now also PATCHes matched UUID-backed tasks so admin cleanup is reflected in the backend instead of only the screen state.
+  - Guardrail: suggestions are review-only; no OpenAI/HERmes call or automatic task rewrite is performed.
+
 - [x] Implement LLM-Wiki backend Phase 1 from the AI database assistant branch.
   - Branch: `codex/llm-wiki-architecture`.
   - Files: `backend/app/models/wiki.py`, `backend/app/schemas/wiki.py`, `backend/app/api/routes_wiki.py`, `backend/alembic/versions/20260625_0011_llm_wiki.py`, `backend/tests/test_ai_wiki.py`, `src/App.jsx`, `src/apiStore.js`, `src/styles.css`, `scripts/check-api-store.mjs`, `docs/llm-wiki-architecture-plan.md`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.

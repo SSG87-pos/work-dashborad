@@ -628,9 +628,10 @@ create index notifications_unread_idx on notifications (recipient_user_id, read_
 | PATCH | `/tags/{tag_id}` | admin | 태그명/톤 수정 |
 | DELETE | `/tags/{tag_id}` | admin | 태그 삭제 또는 비활성 |
 | GET | `/workstreams` | user | 업무흐름 목록과 포함 업무 수 |
+| GET | `/workstreams/suggestions` | admin | 제목/설명/태그/업데이트/업무 노트/첨부 판독 텍스트 기반 유사 업무흐름 후보 |
 | PATCH | `/workstreams/{name}` | admin | 업무흐름 rename/merge |
 
-업무흐름은 별도 테이블 없이 `tasks.workstream` 기반으로 시작할 수 있습니다. 여러 그룹 확장 시 `workstreams` 테이블을 추가합니다.
+업무흐름은 별도 테이블 없이 `tasks.workstream` 기반으로 시작할 수 있습니다. 유사 업무흐름 추천은 자동 병합이 아니라 관리자 검토용 후보만 반환하고, 실제 병합은 rename/merge 액션으로 확정합니다. 여러 그룹 확장 시 `workstreams` 테이블을 추가합니다.
 
 ### 6.6 Calendar
 
