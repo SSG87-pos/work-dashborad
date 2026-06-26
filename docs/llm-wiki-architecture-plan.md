@@ -13,7 +13,7 @@ Status 2026-06-26:
 - Backend routes live in `backend/app/api/routes_wiki.py` under `/api/v1/ai/wiki/...`.
 - Tests live in `backend/tests/test_ai_wiki.py`.
 - Task detail has a first `Wiki로 정리` button that creates a pending Wiki draft from a signed-in FastAPI task.
-- Admin has a first `Wiki 초안` review tab for listing, approving, and rejecting pending drafts.
+- Admin has a first `Wiki 초안` review tab for DB-backed recommendation candidates plus listing, approving, and rejecting pending drafts.
 - No OpenAI/HERmes model call is implemented yet. AI-generated changes still enter through a draft/approval path.
 
 ## What We Mean By LLM-Wiki
@@ -180,6 +180,7 @@ Start with read and draft tools only.
 | `wiki_read(page_id)` | Read one structured Wiki page with citations. |
 | `wiki_follow_links(page_id, relation_type?)` | Traverse related pages for multi-hop questions. |
 | `wiki_sources(page_id)` | Return underlying task/update/post/report evidence. |
+| `wiki_recommendations()` | Recommend dashboard tasks that should become Wiki drafts without publishing them automatically. |
 | `wiki_draft_from_dashboard(source_scope)` | Propose a new or updated Wiki page from dashboard records. |
 | `wiki_record_error(question, correction, target?)` | Add a correction to the Error Book. |
 
@@ -189,6 +190,7 @@ Possible FastAPI paths:
 - `GET /api/v1/ai/wiki/pages/{page_id}`
 - `GET /api/v1/ai/wiki/pages/{page_id}/links`
 - `GET /api/v1/ai/wiki/pages/{page_id}/sources`
+- `GET /api/v1/ai/wiki/recommendations`
 - `GET /api/v1/ai/wiki/drafts`
 - `POST /api/v1/ai/wiki/drafts`
 - `POST /api/v1/ai/wiki/drafts/from-dashboard`
@@ -204,7 +206,7 @@ Recommended first UI surfaces:
 - Task detail: `Wiki로 정리` creates a draft page/update from selected task, updates, and 업무 노트. Status: first button is implemented for signed-in FastAPI-backed tasks.
 - Highlights: `업무흐름 Wiki` shows the page connected to the selected workstream. Status: first Highlights `Wiki` tab is implemented for published workstream Wiki search/read/source review.
 - Entry AI assistant: answers by combining live dashboard evidence and Wiki pages.
-- Admin/review: pending AI Wiki drafts can be listed, edited, approved, or rejected. Status: first review tab is implemented.
+- Admin/review: the system recommends tasks for Wiki drafting when work is completed, has decisions/risks/important documents, includes image OCR/summary evidence, has many updates, or has stale/missing Wiki source links. Pending AI Wiki drafts can then be listed, edited, approved, or rejected. Status: recommendation candidates and the first review tab are implemented.
 
 업무 노트 이미지 rule:
 
@@ -269,7 +271,7 @@ Status: implemented for schema, read endpoints, task-based draft creation, appro
 - Create AI or deterministic draft proposals from task/update/post evidence.
 - Require human approval before publish.
 
-Status: task-detail draft action, Highlights published Wiki search/read UI, and admin pending-draft review/edit/approve/reject UI are implemented. Model-assisted draft enrichment remains later work.
+Status: task-detail draft action, Highlights published Wiki search/read UI, admin recommendation candidates, and admin pending-draft review/edit/approve/reject UI are implemented. Model-assisted draft enrichment remains later work.
 
 ### Phase 3: AI Tool Calling
 

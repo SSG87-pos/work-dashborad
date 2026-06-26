@@ -2333,6 +2333,9 @@ function App() {
   const [wikiReviewDrafts, setWikiReviewDrafts] = useState([]);
   const [wikiReviewStatus, setWikiReviewStatus] = useState("idle");
   const [wikiReviewError, setWikiReviewError] = useState("");
+  const [wikiRecommendations, setWikiRecommendations] = useState([]);
+  const [wikiRecommendationStatus, setWikiRecommendationStatus] = useState("idle");
+  const [wikiRecommendationError, setWikiRecommendationError] = useState("");
 
   const directory = useMemo(
     () => {
@@ -2939,6 +2942,7 @@ function App() {
   useEffect(() => {
     if (activeView !== "admin" || !isSelectedAdmin) return;
     loadWikiReviewDrafts();
+    loadWikiRecommendations();
   }, [activeView, authStatus, isApiReady, isAuthenticated, isSelectedAdmin]);
 
   useEffect(() => {
@@ -3161,6 +3165,8 @@ function App() {
       });
       const title = draft?.proposed_title || taskWorkstreamLabel(task) || displayTaskTitle(task);
       showSyncNotice(`Wiki 초안 "${title}"을 만들었습니다. 관리자 승인 후 Wiki page로 발행됩니다.`);
+      loadWikiReviewDrafts();
+      loadWikiRecommendations();
     } catch (error) {
       console.warn("Wiki 초안 생성에 실패했습니다.", error);
       showSyncNotice("Wiki 초안 생성을 FastAPI에 반영하지 못했습니다.");
@@ -3187,6 +3193,39 @@ function App() {
       setWikiReviewError("Wiki 초안 목록을 FastAPI에서 불러오지 못했습니다.");
       setWikiReviewStatus("error");
     }
+  }
+
+  async function loadWikiRecommendations() {
+    if (!isSelectedAdmin) return;
+    if (!isApiReady || authStatus !== "signed-in" || !isAuthenticated || !remoteDashboardStore.ai?.wiki?.recommendations) {
+      setWikiRecommendations([]);
+      setWikiRecommendationError("Wiki 추천 후보는 FastAPI 로그인 상태에서 사용할 수 있습니다.");
+      return;
+    }
+    setWikiRecommendationStatus("loading");
+    setWikiRecommendationError("");
+    try {
+      const recommendations = await remoteDashboardStore.ai.wiki.recommendations();
+      setWikiRecommendations(Array.isArray(recommendations) ? recommendations : []);
+      setWikiRecommendationStatus("idle");
+    } catch (error) {
+      console.warn("Wiki 추천 후보를 불러오지 못했습니다.", error);
+      setWikiRecommendationError("Wiki 추천 후보를 FastAPI에서 불러오지 못했습니다.");
+      setWikiRecommendationStatus("error");
+    }
+  }
+
+  async function createWikiDraftFromRecommendation(recommendation) {
+    const taskId = recommendation?.task_id;
+    if (!taskId) return;
+    const task = tasks.find((item) => item.id === taskId) ?? {
+      id: taskId,
+      title: recommendation.task_title,
+      workstream: recommendation.workstream,
+      status: recommendation.status
+    };
+    await createWikiDraftFromTask(task);
+    loadWikiRecommendations();
   }
 
   async function updateWikiReviewDraft(draftId, patch) {
@@ -4958,6 +4997,8 @@ function App() {
                 onSavePostCategory={saveTaskPostCategory}
                 onDeletePostCategory={deleteTaskPostCategory}
                 onLoadWorkstreamSuggestions={loadWorkstreamSuggestionCandidates}
+                onCreateWikiDraftFromRecommendation={createWikiDraftFromRecommendation}
+                onRefreshWikiRecommendations={loadWikiRecommendations}
                 onSavePreset={saveTagGroup}
                 onUpdateWikiDraft={updateWikiReviewDraft}
                 onUpdateUserAdministration={updateUserAdministration}
@@ -4970,6 +5011,9 @@ function App() {
                 wikiDraftStatus={wikiReviewStatus}
                 wikiDrafts={wikiReviewDrafts}
                 wikiDraftsReady={isApiReady && authStatus === "signed-in" && isAuthenticated}
+                wikiRecommendationError={wikiRecommendationError}
+                wikiRecommendationStatus={wikiRecommendationStatus}
+                wikiRecommendations={wikiRecommendations}
               />
             )}
           </div>
@@ -5371,7 +5415,7 @@ function LoginScreen({
   );
 }
 
-function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePostCategory, onDeletePreset, onDeleteTag, onLoadWorkstreamSuggestions, onMoveTagToPreset, onRefreshWikiDrafts, onRejectWikiDraft, onRenameTag, onRenameWorkstream, onSavePostCategory, onSavePreset, onUpdateUserAdministration, onUpdateWikiDraft, people, postCategories, presets, tags, tasks, wikiDraftError = "", wikiDraftStatus = "idle", wikiDrafts = [], wikiDraftsReady = false }) {
+function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onCreateWikiDraftFromRecommendation, onDeletePostCategory, onDeletePreset, onDeleteTag, onLoadWorkstreamSuggestions, onMoveTagToPreset, onRefreshWikiDrafts, onRefreshWikiRecommendations, onRejectWikiDraft, onRenameTag, onRenameWorkstream, onSavePostCategory, onSavePreset, onUpdateUserAdministration, onUpdateWikiDraft, people, postCategories, presets, tags, tasks, wikiDraftError = "", wikiDraftStatus = "idle", wikiDrafts = [], wikiDraftsReady = false, wikiRecommendationError = "", wikiRecommendationStatus = "idle", wikiRecommendations = [] }) {
   const [activeAdminTab, setActiveAdminTab] = useState("people");
   const activeTasks = useMemo(() => (tasks ?? []).filter((task) => task && !isDeletedTask(task)), [tasks]);
   const workstreamGroups = useMemo(
@@ -5383,7 +5427,7 @@ function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePost
     { id: "tags", label: "태그 관리", count: tags.length },
     { id: "workstreams", label: "업무흐름 관리", count: workstreamGroups.filter((group) => group.label).length },
     { id: "postTypes", label: "게시글 유형 관리", count: normalizeTaskPostCategories(postCategories).filter((category) => category.active).length },
-    { id: "wikiDrafts", label: "Wiki 초안", count: wikiDrafts.length }
+    { id: "wikiDrafts", label: "Wiki 초안", count: wikiDrafts.length + wikiRecommendations.length }
   ];
 
   return (
@@ -5452,9 +5496,14 @@ function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePost
           error={wikiDraftError}
           isReady={wikiDraftsReady}
           onApprove={onApproveWikiDraft}
+          onCreateRecommendationDraft={onCreateWikiDraftFromRecommendation}
           onRefresh={onRefreshWikiDrafts}
+          onRefreshRecommendations={onRefreshWikiRecommendations}
           onReject={onRejectWikiDraft}
           onUpdate={onUpdateWikiDraft}
+          recommendationError={wikiRecommendationError}
+          recommendationStatus={wikiRecommendationStatus}
+          recommendations={wikiRecommendations}
           status={wikiDraftStatus}
         />
       )}
@@ -5462,7 +5511,7 @@ function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePost
   );
 }
 
-function AdminWikiDraftsPanel({ drafts, error, isReady, onApprove, onRefresh, onReject, onUpdate, status }) {
+function AdminWikiDraftsPanel({ drafts, error, isReady, onApprove, onCreateRecommendationDraft, onRefresh, onRefreshRecommendations, onReject, onUpdate, recommendationError, recommendationStatus, recommendations, status }) {
   return (
     <section className="admin-panel wiki-drafts-panel">
       <div className="admin-panel-heading">
@@ -5476,23 +5525,42 @@ function AdminWikiDraftsPanel({ drafts, error, isReady, onApprove, onRefresh, on
         <p>업무 상세에서 만든 Wiki 초안을 사람이 승인해야 팀 Wiki page로 발행합니다.</p>
       </div>
       <div className="wiki-drafts-toolbar">
-        <span>{isReady ? `검토 대기 ${drafts.length}건` : "FastAPI 로그인 필요"}</span>
-        <button className="secondary-button small" disabled={!isReady || status === "loading" || status === "saving"} onClick={onRefresh} type="button">
-          <RotateCcw size={13} />
-          새로고침
-        </button>
+        <span>{isReady ? `검토 대기 ${drafts.length}건 · 추천 후보 ${recommendations.length}건` : "FastAPI 로그인 필요"}</span>
+        <div className="wiki-drafts-toolbar-actions">
+          <button className="secondary-button small" disabled={!isReady || recommendationStatus === "loading" || status === "saving"} onClick={onRefreshRecommendations} type="button">
+            <Sparkles size={13} />
+            추천 후보
+          </button>
+          <button className="secondary-button small" disabled={!isReady || status === "loading" || status === "saving"} onClick={onRefresh} type="button">
+            <RotateCcw size={13} />
+            새로고침
+          </button>
+        </div>
       </div>
       {error && <div className="inline-warning">{error}</div>}
+      {recommendationError && <div className="inline-warning">{recommendationError}</div>}
       {!isReady && (
         <div className="empty-state compact">
           <strong>회사 DB 연결 후 사용할 수 있습니다.</strong>
           <p>Wiki 초안 검토는 FastAPI 로그인과 관리자 권한이 필요합니다.</p>
         </div>
       )}
+      {isReady && recommendations.length > 0 && (
+        <div className="wiki-recommendation-list" aria-label="Wiki 정리 추천 후보">
+          {recommendations.map((recommendation) => (
+            <WikiRecommendationCard
+              key={recommendation.task_id}
+              onCreateDraft={onCreateRecommendationDraft}
+              recommendation={recommendation}
+              status={status}
+            />
+          ))}
+        </div>
+      )}
       {isReady && drafts.length === 0 && (
         <div className="empty-state compact">
           <strong>검토 대기 초안 없음</strong>
-          <p>업무 상세의 `Wiki로 정리` 버튼으로 초안을 만들면 여기에 표시됩니다.</p>
+          <p>{recommendations.length > 0 ? "추천 후보에서 초안을 만들면 여기에 표시됩니다." : "업무 상세의 `Wiki로 정리` 버튼이나 추천 후보에서 초안을 만들면 여기에 표시됩니다."}</p>
         </div>
       )}
       {isReady && drafts.length > 0 && (
@@ -5510,6 +5578,48 @@ function AdminWikiDraftsPanel({ drafts, error, isReady, onApprove, onRefresh, on
         </div>
       )}
     </section>
+  );
+}
+
+function WikiRecommendationCard({ onCreateDraft, recommendation, status }) {
+  const evidence = recommendation.evidence_counts ?? {};
+  const score = Math.round((Number(recommendation.score) || 0) * 100);
+  const latestEvidenceLabel = recommendation.latest_evidence_at ? formatDate(String(recommendation.latest_evidence_at).slice(0, 10)) : "";
+  const evidenceLabels = [
+    evidence.updates ? `업데이트 ${evidence.updates}` : "",
+    evidence.important_posts ? `중요기록 ${evidence.important_posts}` : "",
+    evidence.image_evidence_posts ? `이미지근거 ${evidence.image_evidence_posts}` : "",
+    recommendation.stale_existing_wiki ? "Wiki 갱신 필요" : ""
+  ].filter(Boolean);
+
+  return (
+    <article className="wiki-recommendation-card">
+      <div className="wiki-recommendation-head">
+        <div>
+          <span>
+            <Sparkles size={12} />
+            추천 {score}%
+          </span>
+          <strong>{recommendation.task_title}</strong>
+          <small>{recommendation.workstream || "상위 업무흐름 미지정"} · {recommendation.status}</small>
+        </div>
+        <button className="secondary-button small" disabled={status === "saving"} onClick={() => onCreateDraft(recommendation)} type="button">
+          <NotebookPen size={13} />
+          초안 만들기
+        </button>
+      </div>
+      <div className="wiki-recommendation-reasons">
+        {(recommendation.reasons ?? []).slice(0, 4).map((reason) => (
+          <span key={reason}>{reason}</span>
+        ))}
+      </div>
+      <div className="wiki-recommendation-meta">
+        {evidenceLabels.map((label) => (
+          <small key={label}>{label}</small>
+        ))}
+        {latestEvidenceLabel && <small>최근 근거 {latestEvidenceLabel}</small>}
+      </div>
+    </article>
   );
 }
 

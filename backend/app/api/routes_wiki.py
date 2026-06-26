@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_db
 from app.core.security import get_current_user, require_admin
-from app.models.task import Task, TaskPost, TaskUpdateLog
+from app.models.task import Task, TaskPost, TaskStatus, TaskUpdateLog
 from app.models.user import User
 from app.models.wiki import AiWikiDraft, WikiErrorBookEntry, WikiLink, WikiPage, WikiRevision, WikiSourceLink
 from app.schemas.wiki import (
@@ -25,6 +25,7 @@ from app.schemas.wiki import (
     WikiLinkRead,
     WikiPageRead,
     WikiPageSummary,
+    WikiRecommendationRead,
     WikiSearchResponse,
     WikiSourceLinkInput,
     WikiSourceLinkRead,
@@ -253,6 +254,128 @@ def post_wiki_line(post: TaskPost) -> str:
     if attachment["text"]:
         parts.append(f"[이미지 판독] {attachment['text']}")
     return f"- {post.posted_at}: [{post.scope}] {post.title} - {' / '.join(part for part in parts if part)}"
+
+
+def pending_draft_task_ids(db: Session) -> set[UUID]:
+    drafts = db.scalars(select(AiWikiDraft).where(AiWikiDraft.status == "pending")).all()
+    result: set[UUID] = set()
+    for draft in drafts:
+        evidence = draft.source_evidence_json if isinstance(draft.source_evidence_json, dict) else {}
+        if evidence.get("source_type") != "task" or not evidence.get("source_id"):
+            continue
+        try:
+            result.add(UUID(str(evidence["source_id"])))
+        except ValueError:
+            continue
+    return result
+
+
+def latest_task_evidence_at(task: Task) -> datetime | None:
+    moments = [item for item in [task.updated_at, task.created_at] if item]
+    moments.extend(item for update in task.updates for item in [update.updated_at, update.created_at] if item)
+    moments.extend(item for post in task.posts for item in [post.updated_at, post.created_at] if item)
+    return max(moments) if moments else None
+
+
+def timestamp_or_zero(value: datetime | None) -> float:
+    if value is None:
+        return 0
+    return value.timestamp()
+
+
+IMPORTANT_WIKI_POST_LABELS = {"결정사항", "리스크", "중요문서", "회의록", "참고자료"}
+
+
+def wiki_recommendation_for_task(task: Task, pending_task_ids: set[UUID], source_links_by_task: dict[UUID, list[WikiSourceLink]]) -> WikiRecommendationRead | None:
+    has_pending_draft = task.id in pending_task_ids
+    source_links = source_links_by_task.get(task.id, [])
+    latest_evidence_at = latest_task_evidence_at(task)
+    has_published_source = bool(source_links)
+    stale_existing_wiki = bool(
+        source_links
+        and latest_evidence_at
+        and any(link.created_at and latest_evidence_at > link.created_at for link in source_links)
+    )
+    important_posts = [
+        post
+        for post in task.posts
+        if (post.category and post.category.label in IMPORTANT_WIKI_POST_LABELS) or post.scope in IMPORTANT_WIKI_POST_LABELS
+    ]
+    attachment_posts = [post for post in task.posts if any(post_attachment_evidence(post).values())]
+    reasons: list[str] = []
+    score = 0.0
+
+    if task.status == TaskStatus.done:
+        score += 0.35
+        reasons.append("완료된 업무")
+    if important_posts:
+        score += 0.25
+        reasons.append("결정/리스크/중요문서 기록 포함")
+    if attachment_posts:
+        score += 0.2
+        reasons.append("이미지 OCR/요약 근거 포함")
+    if len(task.updates) >= 3:
+        score += 0.15
+        reasons.append("업데이트 로그 누적")
+    if not has_published_source:
+        score += 0.2
+        reasons.append("아직 발행된 Wiki 출처 없음")
+    if stale_existing_wiki:
+        score += 0.2
+        reasons.append("기존 Wiki보다 업무 기록이 최신")
+    if has_pending_draft:
+        reasons.append("검토 대기 초안 존재")
+
+    score = min(round(score, 2), 1.0)
+    if has_pending_draft or score < 0.35:
+        return None
+
+    return WikiRecommendationRead(
+        task_id=task.id,
+        task_title=task.title,
+        workstream=task.workstream,
+        status=task.status.value,
+        score=score,
+        reasons=reasons,
+        evidence_counts={
+            "updates": len(task.updates),
+            "posts": len(task.posts),
+            "important_posts": len(important_posts),
+            "image_evidence_posts": len(attachment_posts),
+            "wiki_sources": len(source_links),
+        },
+        latest_evidence_at=latest_evidence_at,
+        has_pending_draft=has_pending_draft,
+        has_published_source=has_published_source,
+        stale_existing_wiki=stale_existing_wiki,
+    )
+
+
+@router.get("/recommendations", response_model=list[WikiRecommendationRead])
+def list_wiki_recommendations(
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> list[WikiRecommendationRead]:
+    tasks = db.scalars(
+        select(Task)
+        .options(
+            selectinload(Task.updates),
+            selectinload(Task.posts).selectinload(TaskPost.category),
+        )
+        .order_by(Task.updated_at.desc(), Task.created_at.desc())
+    ).all()
+    pending_task_ids = pending_draft_task_ids(db)
+    source_links_by_task: dict[UUID, list[WikiSourceLink]] = {}
+    source_links = db.scalars(select(WikiSourceLink).where(WikiSourceLink.source_type == "task")).all()
+    for link in source_links:
+        source_links_by_task.setdefault(link.source_id, []).append(link)
+
+    recommendations = [
+        recommendation
+        for task in tasks
+        if (recommendation := wiki_recommendation_for_task(task, pending_task_ids, source_links_by_task)) is not None
+    ]
+    return sorted(recommendations, key=lambda item: (item.score, timestamp_or_zero(item.latest_evidence_at)), reverse=True)[:20]
 
 
 @router.get("/search", response_model=WikiSearchResponse)

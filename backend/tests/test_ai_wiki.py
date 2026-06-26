@@ -177,6 +177,59 @@ def test_admin_can_list_and_reject_ai_wiki_draft() -> None:
     assert [item["id"] for item in rejected_response.json()] == [draft["id"]]
 
 
+def test_admin_gets_ai_wiki_recommendations_and_pending_drafts_are_skipped() -> None:
+    client, session_factory = build_test_client()
+    seed_admin(session_factory)
+    token = login_admin(client)
+    task_id = seed_wiki_source_task(client, token)
+
+    client.patch(
+        f"/api/v1/tasks/{task_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"status": "완료", "progress": 100},
+    )
+    client.post(
+        f"/api/v1/tasks/{task_id}/updates",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"body": "완료 후 담당자 리뷰 반영", "update_type": "note"},
+    )
+    client.post(
+        f"/api/v1/tasks/{task_id}/updates",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"body": "운영 Wiki 초안화 필요", "update_type": "note"},
+    )
+
+    recommendation_response = client.get(
+        "/api/v1/ai/wiki/recommendations",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert recommendation_response.status_code == 200
+    recommendations = recommendation_response.json()
+    assert [item["task_id"] for item in recommendations] == [task_id]
+    recommendation = recommendations[0]
+    assert recommendation["score"] >= 0.9
+    assert "완료된 업무" in recommendation["reasons"]
+    assert "결정/리스크/중요문서 기록 포함" in recommendation["reasons"]
+    assert "이미지 OCR/요약 근거 포함" in recommendation["reasons"]
+    assert recommendation["evidence_counts"]["updates"] == 3
+    assert recommendation["evidence_counts"]["important_posts"] == 1
+    assert recommendation["has_pending_draft"] is False
+
+    draft_response = client.post(
+        "/api/v1/ai/wiki/drafts/from-dashboard",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"source_type": "task", "source_id": task_id, "proposed_page_type": "workstream"},
+    )
+    assert draft_response.status_code == 201
+
+    skipped_response = client.get(
+        "/api/v1/ai/wiki/recommendations",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert skipped_response.status_code == 200
+    assert skipped_response.json() == []
+
+
 def test_ai_wiki_requires_authentication() -> None:
     client, _session_factory = build_test_client()
 

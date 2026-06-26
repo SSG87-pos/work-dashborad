@@ -135,6 +135,20 @@ class WikiSearchResponse(BaseModel):
     items: list[WikiPageSummary] = Field(default_factory=list)
 
 
+class WikiRecommendationRead(BaseModel):
+    task_id: UUID
+    task_title: str
+    workstream: str | None = None
+    status: str
+    score: float
+    reasons: list[str] = Field(default_factory=list)
+    evidence_counts: dict[str, int] = Field(default_factory=dict)
+    latest_evidence_at: datetime | None = None
+    has_pending_draft: bool = False
+    has_published_source: bool = False
+    stale_existing_wiki: bool = False
+
+
 class WikiErrorBookCreate(BaseModel):
     question: str
     wrong_or_incomplete_answer: str = ""

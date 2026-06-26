@@ -762,6 +762,10 @@ async function listAiWikiDrafts({ status = "pending" } = {}) {
   return apiRequest(`/ai/wiki/drafts${suffix}`);
 }
 
+async function listAiWikiRecommendations() {
+  return apiRequest("/ai/wiki/recommendations");
+}
+
 async function createAiWikiDraftFromDashboard(payload) {
   return apiRequest("/ai/wiki/drafts/from-dashboard", {
     method: "POST",
@@ -883,6 +887,7 @@ export const apiDashboardStore = {
       search: searchAiWiki,
       readPage: readAiWikiPage,
       readSources: readAiWikiSources,
+      recommendations: listAiWikiRecommendations,
       listDrafts: listAiWikiDrafts,
       createDraft: createAiWikiDraft,
       createDraftFromDashboard: createAiWikiDraftFromDashboard,

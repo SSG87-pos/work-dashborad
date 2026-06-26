@@ -2,6 +2,14 @@
 
 ## Now
 
+- [x] Add automatic LLM-Wiki draft recommendations.
+  - Branch: `codex/llm-wiki-architecture`.
+  - Files: `backend/app/api/routes_wiki.py`, `backend/app/schemas/wiki.py`, `backend/tests/test_ai_wiki.py`, `src/App.jsx`, `src/apiStore.js`, `src/styles.css`, `scripts/check-api-store.mjs`, `docs/llm-wiki-architecture-plan.md`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added admin-only `GET /api/v1/ai/wiki/recommendations` that recommends tasks for Wiki drafting when they are completed, contain decision/risk/important-document posts, include image OCR/vision evidence, have accumulated updates, or have stale/missing Wiki source links.
+  - Done: admin `Wiki 초안` now shows recommendation candidates with score, reasons, evidence counts, and a `초안 만들기` action that enters the existing human approval flow.
+  - Guardrail: recommendations do not publish Wiki pages and skip tasks that already have a pending draft.
+  - Verified: `/private/tmp/work-dashboard-backend-venv312/bin/python -m pytest backend/tests` passed with `39 passed`; `check:api-store`, production build, and `git diff --check` passed.
+
 - [x] Add DB-backed dashboard insight filters.
   - Branch: `codex/llm-wiki-architecture`.
   - Files: `backend/app/api/routes_dashboard.py`, `backend/app/schemas/dashboard.py`, `backend/app/main.py`, `backend/tests/test_dashboard_insights.py`, `src/App.jsx`, `src/apiStore.js`, `src/summaryFilters.js`, `src/styles.css`, `scripts/check-api-store.mjs`, `scripts/check-summary-filter.mjs`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/fastapi-postgres-backend-spec.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
