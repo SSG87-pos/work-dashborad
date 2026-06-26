@@ -266,7 +266,7 @@ Status: implemented for schema, read endpoints, task-based draft creation, appro
 - Create AI or deterministic draft proposals from task/update/post evidence.
 - Require human approval before publish.
 
-Status: task-detail draft action and admin pending-draft review/approve/reject UI are implemented. Workstream Highlights controls, inline draft editing, and model-assisted draft enrichment remain later work.
+Status: task-detail draft action and admin pending-draft review/edit/approve/reject UI are implemented. Workstream Highlights controls and model-assisted draft enrichment remain later work.
 
 ### Phase 3: AI Tool Calling
 

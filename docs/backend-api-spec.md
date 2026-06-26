@@ -506,11 +506,12 @@ These endpoints make the LLM-Wiki layer usable from the backend without giving a
 | GET | `/ai/wiki/drafts` | admin | List pending, rejected, approved, or all Wiki drafts for human review. |
 | POST | `/ai/wiki/drafts` | user | Create a pending Wiki draft manually or from a future AI tool. |
 | POST | `/ai/wiki/drafts/from-dashboard` | user | Create a deterministic pending Wiki draft from a dashboard task, its updates, and 업무 노트. |
+| PATCH | `/ai/wiki/drafts/{draft_id}` | admin | Edit a pending draft's title, slug, page type, summary, or body before approval. |
 | POST | `/ai/wiki/drafts/{draft_id}/approve` | admin | Publish a pending draft into `wiki_pages`, append `wiki_revisions`, and create source/link rows. |
 | POST | `/ai/wiki/drafts/{draft_id}/reject` | admin | Reject a pending draft and optionally preserve a reject reason in the draft evidence JSON. |
 | POST | `/ai/wiki/error-book` | user | Record a correction when an AI/Wiki answer was wrong or incomplete. |
 
-Status 2026-06-26: FastAPI Phase 1 endpoints are implemented under `/api/v1/ai/wiki/...`, including admin draft list/approve/reject. OpenAI/HERmes tool calling is not implemented yet; use the draft/approval path for any generated Wiki changes.
+Status 2026-06-26: FastAPI Phase 1 endpoints are implemented under `/api/v1/ai/wiki/...`, including admin draft list/edit/approve/reject. OpenAI/HERmes tool calling is not implemented yet; use the draft/approval path for any generated Wiki changes.
 
 ## Permission Enforcement
 

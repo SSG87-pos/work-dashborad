@@ -80,6 +80,21 @@ def test_ai_wiki_draft_approve_search_read_sources_and_error_book() -> None:
     assert pending_response.status_code == 200
     assert [item["id"] for item in pending_response.json()] == [draft["id"]]
 
+    update_response = client.patch(
+        f"/api/v1/ai/wiki/drafts/{draft['id']}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "proposed_title": "AI 업무 에이전트 운영 지식",
+            "proposed_summary": "관리자가 검토 중 보강한 Wiki 초안입니다.",
+            "proposed_body_markdown": f"{draft['proposed_body_markdown']}\n\n## 관리자 보강\n- 발행 전 제목과 요약을 조정했습니다.",
+        },
+    )
+    assert update_response.status_code == 200
+    updated_draft = update_response.json()
+    assert updated_draft["proposed_title"] == "AI 업무 에이전트 운영 지식"
+    assert updated_draft["proposed_summary"] == "관리자가 검토 중 보강한 Wiki 초안입니다."
+    assert "관리자 보강" in updated_draft["proposed_body_markdown"]
+
     approve_response = client.post(
         f"/api/v1/ai/wiki/drafts/{draft['id']}/approve",
         headers={"Authorization": f"Bearer {token}"},
@@ -87,7 +102,9 @@ def test_ai_wiki_draft_approve_search_read_sources_and_error_book() -> None:
     )
     assert approve_response.status_code == 200
     page = approve_response.json()
-    assert page["title"] == "AI 업무 에이전트"
+    assert page["title"] == "AI 업무 에이전트 운영 지식"
+    assert page["summary"] == "관리자가 검토 중 보강한 Wiki 초안입니다."
+    assert "관리자 보강" in page["body_markdown"]
     assert page["status"] == "published"
     assert page["latest_revision_number"] == 1
     assert len(page["sources"]) == 3

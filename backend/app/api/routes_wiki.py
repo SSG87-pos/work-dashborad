@@ -18,6 +18,7 @@ from app.schemas.wiki import (
     WikiDraftFromDashboardCreate,
     WikiDraftRead,
     WikiDraftReject,
+    WikiDraftUpdate,
     WikiErrorBookCreate,
     WikiErrorBookRead,
     WikiLinkInput,
@@ -421,6 +422,29 @@ def create_wiki_draft_from_dashboard(
         requested_by_user_id=current_user.id,
     )
     db.add(draft)
+    db.commit()
+    db.refresh(draft)
+    return draft
+
+
+@router.patch("/drafts/{draft_id}", response_model=WikiDraftRead)
+def update_wiki_draft(
+    draft_id: UUID,
+    payload: WikiDraftUpdate,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> AiWikiDraft:
+    draft = db.get(AiWikiDraft, draft_id)
+    if draft is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="wiki_draft_not_found")
+    if draft.status != "pending":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="wiki_draft_not_pending")
+
+    for field in ["proposed_title", "proposed_slug", "proposed_page_type", "proposed_summary", "proposed_body_markdown"]:
+        value = getattr(payload, field)
+        if value is not None:
+            setattr(draft, field, value)
+
     db.commit()
     db.refresh(draft)
     return draft

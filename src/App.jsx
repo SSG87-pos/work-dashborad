@@ -3089,6 +3089,24 @@ function App() {
     }
   }
 
+  async function updateWikiReviewDraft(draftId, patch) {
+    if (!draftId || !remoteDashboardStore.ai?.wiki?.updateDraft) return null;
+    setWikiReviewStatus("saving");
+    setWikiReviewError("");
+    try {
+      const updatedDraft = await remoteDashboardStore.ai.wiki.updateDraft(draftId, patch);
+      setWikiReviewDrafts((current) => current.map((draft) => draft.id === draftId ? { ...draft, ...updatedDraft } : draft));
+      setWikiReviewStatus("idle");
+      showSyncNotice("Wiki 초안을 수정했습니다. 승인하면 수정본이 발행됩니다.");
+      return updatedDraft;
+    } catch (error) {
+      console.warn("Wiki 초안 수정에 실패했습니다.", error);
+      setWikiReviewError("Wiki 초안 수정을 FastAPI에 반영하지 못했습니다.");
+      setWikiReviewStatus("error");
+      return null;
+    }
+  }
+
   async function approveWikiReviewDraft(draftId) {
     if (!draftId || !remoteDashboardStore.ai?.wiki?.approveDraft) return;
     setWikiReviewStatus("saving");
@@ -4805,6 +4823,7 @@ function App() {
                 onSavePostCategory={saveTaskPostCategory}
                 onDeletePostCategory={deleteTaskPostCategory}
                 onSavePreset={saveTagGroup}
+                onUpdateWikiDraft={updateWikiReviewDraft}
                 onUpdateUserAdministration={updateUserAdministration}
                 people={directory}
                 postCategories={taskPostCategories}
@@ -5216,7 +5235,7 @@ function LoginScreen({
   );
 }
 
-function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePostCategory, onDeletePreset, onDeleteTag, onMoveTagToPreset, onRefreshWikiDrafts, onRejectWikiDraft, onRenameTag, onRenameWorkstream, onSavePostCategory, onSavePreset, onUpdateUserAdministration, people, postCategories, presets, tags, tasks, wikiDraftError = "", wikiDraftStatus = "idle", wikiDrafts = [], wikiDraftsReady = false }) {
+function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePostCategory, onDeletePreset, onDeleteTag, onMoveTagToPreset, onRefreshWikiDrafts, onRejectWikiDraft, onRenameTag, onRenameWorkstream, onSavePostCategory, onSavePreset, onUpdateUserAdministration, onUpdateWikiDraft, people, postCategories, presets, tags, tasks, wikiDraftError = "", wikiDraftStatus = "idle", wikiDrafts = [], wikiDraftsReady = false }) {
   const [activeAdminTab, setActiveAdminTab] = useState("people");
   const activeTasks = useMemo(() => (tasks ?? []).filter((task) => task && !isDeletedTask(task)), [tasks]);
   const workstreamGroups = useMemo(
@@ -5298,6 +5317,7 @@ function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePost
           onApprove={onApproveWikiDraft}
           onRefresh={onRefreshWikiDrafts}
           onReject={onRejectWikiDraft}
+          onUpdate={onUpdateWikiDraft}
           status={wikiDraftStatus}
         />
       )}
@@ -5305,7 +5325,7 @@ function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onDeletePost
   );
 }
 
-function AdminWikiDraftsPanel({ drafts, error, isReady, onApprove, onRefresh, onReject, status }) {
+function AdminWikiDraftsPanel({ drafts, error, isReady, onApprove, onRefresh, onReject, onUpdate, status }) {
   return (
     <section className="admin-panel wiki-drafts-panel">
       <div className="admin-panel-heading">
@@ -5341,35 +5361,125 @@ function AdminWikiDraftsPanel({ drafts, error, isReady, onApprove, onRefresh, on
       {isReady && drafts.length > 0 && (
         <div className="wiki-draft-list">
           {drafts.map((draft) => (
-            <article className="wiki-draft-card" key={draft.id}>
-              <div className="wiki-draft-card-head">
-                <div>
-                  <span>{draft.proposed_page_type}</span>
-                  <strong>{draft.proposed_title}</strong>
-                </div>
-                <small>{draft.created_by_ai_model}</small>
-              </div>
-              <p>{draft.proposed_summary || "요약 없음"}</p>
-              <pre>{String(draft.proposed_body_markdown || "").slice(0, 900)}</pre>
-              <div className="wiki-draft-meta">
-                <span>출처 {draft.proposed_source_links?.length ?? 0}건</span>
-                <span>{String(draft.created_at || "").slice(0, 10)}</span>
-              </div>
-              <div className="wiki-draft-actions">
-                <button className="primary-button small" disabled={status === "saving"} onClick={() => onApprove?.(draft.id)} type="button">
-                  <Check size={13} />
-                  승인 발행
-                </button>
-                <button className="secondary-button small danger-text" disabled={status === "saving"} onClick={() => onReject?.(draft.id)} type="button">
-                  <X size={13} />
-                  거절
-                </button>
-              </div>
-            </article>
+            <WikiDraftReviewCard
+              draft={draft}
+              key={draft.id}
+              onApprove={onApprove}
+              onReject={onReject}
+              onUpdate={onUpdate}
+              status={status}
+            />
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+function WikiDraftReviewCard({ draft, onApprove, onReject, onUpdate, status }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftPatch, setDraftPatch] = useState({
+    proposed_title: draft.proposed_title || "",
+    proposed_page_type: draft.proposed_page_type || "workstream",
+    proposed_summary: draft.proposed_summary || "",
+    proposed_body_markdown: draft.proposed_body_markdown || ""
+  });
+
+  useEffect(() => {
+    setDraftPatch({
+      proposed_title: draft.proposed_title || "",
+      proposed_page_type: draft.proposed_page_type || "workstream",
+      proposed_summary: draft.proposed_summary || "",
+      proposed_body_markdown: draft.proposed_body_markdown || ""
+    });
+  }, [draft.id, draft.proposed_body_markdown, draft.proposed_page_type, draft.proposed_summary, draft.proposed_title]);
+
+  async function submitDraftUpdate(event) {
+    event.preventDefault();
+    const proposedTitle = draftPatch.proposed_title.trim();
+    if (!proposedTitle) return;
+    const updatedDraft = await onUpdate?.(draft.id, {
+      proposed_title: proposedTitle,
+      proposed_page_type: draftPatch.proposed_page_type.trim() || "topic",
+      proposed_summary: draftPatch.proposed_summary.trim(),
+      proposed_body_markdown: draftPatch.proposed_body_markdown.trim()
+    });
+    if (updatedDraft) setIsEditing(false);
+  }
+
+  return (
+    <article className="wiki-draft-card">
+      <div className="wiki-draft-card-head">
+        <div>
+          <span>{draft.proposed_page_type}</span>
+          <strong>{draft.proposed_title}</strong>
+        </div>
+        <small>{draft.created_by_ai_model}</small>
+      </div>
+      <p>{draft.proposed_summary || "요약 없음"}</p>
+      <pre>{String(draft.proposed_body_markdown || "").slice(0, 900)}</pre>
+      <div className="wiki-draft-meta">
+        <span>출처 {draft.proposed_source_links?.length ?? 0}건</span>
+        <span>{String(draft.created_at || "").slice(0, 10)}</span>
+      </div>
+      {isEditing && (
+        <form className="wiki-draft-edit-form" onSubmit={submitDraftUpdate}>
+          <label>
+            제목
+            <input
+              onChange={(event) => setDraftPatch((current) => ({ ...current, proposed_title: event.target.value }))}
+              value={draftPatch.proposed_title}
+            />
+          </label>
+          <label>
+            유형
+            <input
+              onChange={(event) => setDraftPatch((current) => ({ ...current, proposed_page_type: event.target.value }))}
+              value={draftPatch.proposed_page_type}
+            />
+          </label>
+          <label>
+            요약
+            <textarea
+              onChange={(event) => setDraftPatch((current) => ({ ...current, proposed_summary: event.target.value }))}
+              rows={2}
+              value={draftPatch.proposed_summary}
+            />
+          </label>
+          <label>
+            본문
+            <textarea
+              onChange={(event) => setDraftPatch((current) => ({ ...current, proposed_body_markdown: event.target.value }))}
+              rows={8}
+              value={draftPatch.proposed_body_markdown}
+            />
+          </label>
+          <div className="wiki-draft-actions">
+            <button className="primary-button small" disabled={status === "saving" || !draftPatch.proposed_title.trim()} type="submit">
+              <Check size={13} />
+              수정 저장
+            </button>
+            <button className="secondary-button small" disabled={status === "saving"} onClick={() => setIsEditing(false)} type="button">
+              취소
+            </button>
+          </div>
+        </form>
+      )}
+      <div className="wiki-draft-actions">
+        <button className="secondary-button small" disabled={status === "saving"} onClick={() => setIsEditing((current) => !current)} type="button">
+          <Edit3 size={13} />
+          {isEditing ? "수정 닫기" : "수정"}
+        </button>
+        <button className="primary-button small" disabled={status === "saving" || isEditing} onClick={() => onApprove?.(draft.id)} type="button">
+          <Check size={13} />
+          승인 발행
+        </button>
+        <button className="secondary-button small danger-text" disabled={status === "saving"} onClick={() => onReject?.(draft.id)} type="button">
+          <X size={13} />
+          거절
+        </button>
+      </div>
+    </article>
   );
 }
 

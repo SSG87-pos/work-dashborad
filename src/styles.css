@@ -2201,6 +2201,39 @@ h1 {
   word-break: keep-all;
 }
 
+.wiki-draft-edit-form {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #dbe7fb;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 10px;
+}
+
+.wiki-draft-edit-form label {
+  display: grid;
+  gap: 5px;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.wiki-draft-edit-form input,
+.wiki-draft-edit-form textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d5e3f4;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 8px 9px;
+  resize: vertical;
+  word-break: keep-all;
+}
+
 .wiki-draft-actions {
   justify-content: flex-end;
 }

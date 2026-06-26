@@ -757,6 +757,14 @@ async function createAiWikiDraftFromDashboard(payload) {
   });
 }
 
+async function updateAiWikiDraft(draftId, payload = {}) {
+  if (!isUuid(draftId)) return { skipped: true, reason: "requires-wiki-draft-id" };
+  return apiRequest(`/ai/wiki/drafts/${draftId}`, {
+    method: "PATCH",
+    body: body(payload)
+  });
+}
+
 async function approveAiWikiDraft(draftId, payload = {}) {
   if (!isUuid(draftId)) return { skipped: true, reason: "requires-wiki-draft-id" };
   return apiRequest(`/ai/wiki/drafts/${draftId}/approve`, {
@@ -860,6 +868,7 @@ export const apiDashboardStore = {
       listDrafts: listAiWikiDrafts,
       createDraft: createAiWikiDraft,
       createDraftFromDashboard: createAiWikiDraftFromDashboard,
+      updateDraft: updateAiWikiDraft,
       approveDraft: approveAiWikiDraft,
       rejectDraft: rejectAiWikiDraft,
       recordError: recordAiWikiError

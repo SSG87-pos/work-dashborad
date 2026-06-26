@@ -35,6 +35,14 @@ class WikiDraftCreate(BaseModel):
     created_by_ai_model: str = "manual"
 
 
+class WikiDraftUpdate(BaseModel):
+    proposed_title: str | None = None
+    proposed_slug: str | None = None
+    proposed_page_type: str | None = None
+    proposed_summary: str | None = None
+    proposed_body_markdown: str | None = None
+
+
 class WikiDraftFromDashboardCreate(BaseModel):
     source_type: str = "task"
     source_id: UUID
