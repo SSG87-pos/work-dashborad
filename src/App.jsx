@@ -716,6 +716,10 @@ function eventRangeLabel(event) {
   return start === end ? formatDate(start) : `${formatDate(start)} - ${formatDate(end)}`;
 }
 
+function dateWithWeekdayLabel(value) {
+  return new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", weekday: "short" }).format(toDate(value));
+}
+
 function compactDate(value) {
   const [, month, day] = value.split("-");
   return `${Number(month)}/${Number(day)}`;
@@ -5308,7 +5312,7 @@ function App() {
           ))}
         </div>
 
-        {!["performance", "canvas", "admin"].includes(activeView) && <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />}
+        {!fullPageViews.includes(activeView) && <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />}
 
         <section className={`dashboard-grid ${activeView === "timeline" ? "timeline-layout" : ""} ${fullPageViews.includes(activeView) ? "calendar-layout" : ""} ${activeView === "admin" ? "admin-layout" : ""} ${isWorkflowDetailContext ? "workflow-detail-mode" : ""} ${isBriefingDetailContext ? "briefing-detail-mode" : ""}`}>
           <div className="main-column">
@@ -5820,7 +5824,7 @@ function DashboardAiWidget({
           >
             <div className="floating-ai-title">
               <span className="floating-ai-bot-icon" aria-hidden="true">🤖</span>
-              <strong>무엇을 도와드릴까요?!</strong>
+              <strong>Work-Hub AI</strong>
             </div>
             <button className="icon-button" onClick={onClose} type="button" aria-label="AI 창 닫기">
               <X size={17} />
@@ -7349,7 +7353,7 @@ function AiAssistantPanel({
         <div>
           <span className="ai-agent-label">
             <span className="floating-ai-bot-icon" aria-hidden="true">🤖</span>
-            무엇을 도와드릴까요?!
+            Work-Hub AI
           </span>
         </div>
       </div>
@@ -7374,7 +7378,7 @@ function AiAssistantPanel({
           <div className="ai-chat-top-row">
             <label className="ai-assistant-input">
               <textarea
-                aria-label="무엇을 도와드릴까요?!"
+                aria-label="Work-Hub AI에게 질문하기"
                 onChange={(event) => onPromptChange(event.target.value)}
                 placeholder={activeMode.placeholder}
                 rows={2}
@@ -9109,6 +9113,7 @@ function CalendarView({
   });
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [selectedCalendarItem, setSelectedCalendarItem] = useState(null);
+  const [weekAnchor, setWeekAnchor] = useState(`${month}-01`);
   const calendarNoteRef = useRef(null);
   const [year, monthValue] = month.split("-").map(Number);
   const monthDays = daysInMonth(year, monthValue);
@@ -9134,10 +9139,36 @@ function CalendarView({
       ? visibleEvents.find((event) => event.id === selectedCalendarItem.id) ?? selectedCalendarItem.event
       : null;
   const hasSelectedCalendarDetail = Boolean(selectedTask || selectedEvent);
+  const weekRange = periodRange("week", weekAnchor);
+  const weekDates = Array.from({ length: 7 }, (_, index) => {
+    const date = toDate(weekRange.start);
+    date.setDate(date.getDate() + index);
+    return toISODate(date);
+  });
+  const weekDisplayTasks = tasksWithRecurringInstances(tasks, weekRange.start, weekRange.end);
+
+  useEffect(() => {
+    setWeekAnchor((current) => current.startsWith(month) ? current : `${month}-01`);
+  }, [month]);
 
   function changeMonth(direction) {
     const next = new Date(year, monthValue - 1 + direction, 1);
-    onMonthChange(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`);
+    const nextAnchor = toISODate(next);
+    setWeekAnchor(nextAnchor);
+    onMonthChange(nextAnchor.slice(0, 7));
+  }
+
+  function changeWeek(direction) {
+    const next = toDate(weekAnchor);
+    next.setDate(next.getDate() + direction * 7);
+    const nextAnchor = toISODate(next);
+    setWeekAnchor(nextAnchor);
+    onMonthChange(nextAnchor.slice(0, 7));
+  }
+
+  function returnToToday() {
+    setWeekAnchor(TODAY);
+    onMonthChange(TODAY.slice(0, 7));
   }
 
   function submitEvent(event) {
@@ -9172,6 +9203,48 @@ function CalendarView({
     setIsEventFormOpen(false);
   }
 
+  function selectCalendarTask(task) {
+    const selectedId = onSelectTask(task) || task.id;
+    setSelectedCalendarItem({ type: "task", id: selectedId, task });
+  }
+
+  function renderTaskCalendarButton(task, key) {
+    const taskTitle = displayTaskTitle(task);
+    const tooltip = `${task.recurring ? "반복 업무 · " : ""}${taskTitle} · ${personName(task.ownerId)} · ${task.status} · ${formatDate(task.dueDate)} 마감`;
+    return (
+      <button
+        className={`calendar-event task-due ${selectedCalendarItem?.type === "task" && selectedCalendarItem.id === task.id ? "selected" : ""}`}
+        data-tooltip={tooltip}
+        key={key}
+        onClick={() => selectCalendarTask(task)}
+        title={tooltip}
+        type="button"
+      >
+        <i />
+        <b>{task.recurring ? `🔁 ${taskTitle}` : taskTitle}</b>
+      </button>
+    );
+  }
+
+  function renderEventCalendarButton(event, key) {
+    const eventTitle = event.scope === "personal" ? `${personName(event.ownerId)} · ${event.title}` : event.title;
+    const tooltip = `${eventTitle} · ${eventRangeLabel(event)}${event.note ? ` · ${event.note}` : ""}`;
+    return (
+      <button
+        className={`calendar-event ${event.scope} ${selectedCalendarItem?.type === "event" && selectedCalendarItem.id === event.id ? "selected" : ""}`}
+        data-tooltip={tooltip}
+        key={key}
+        onClick={() => setSelectedCalendarItem({ type: "event", id: event.id, event })}
+        title={tooltip}
+        type="button"
+      >
+        <i />
+        <b>{eventTitle}</b>
+        {eventStartDate(event) !== eventEndDate(event) && <em>({eventCompactRangeLabel(event)})</em>}
+      </button>
+    );
+  }
+
   return (
     <section className="calendar-view">
       <div className="calendar-toolbar">
@@ -9188,7 +9261,7 @@ function CalendarView({
           <button onClick={() => changeMonth(1)} type="button" title="다음 달">
             <ChevronRight size={17} />
           </button>
-          <button className="today-button" onClick={() => onMonthChange(TODAY.slice(0, 7))} type="button">
+          <button className="today-button" onClick={returnToToday} type="button">
             오늘
           </button>
         </div>
@@ -9311,6 +9384,40 @@ function CalendarView({
         <small className="calendar-legend-note">ⓘ 업무 일정은 계획된 업무 종료일 기준입니다.</small>
       </div>
       <div className={`calendar-body ${hasSelectedCalendarDetail ? "has-calendar-detail" : ""}`}>
+        <div className="calendar-week-list" aria-label={`${weekRange.label} 주간 일정`}>
+          <div className="calendar-week-list-head">
+            <span className="panel-label">{weekRange.start <= TODAY && TODAY <= weekRange.end ? "이번 주" : "선택 주"}</span>
+            <div className="calendar-week-switcher" aria-label={`${weekRange.label} 주간 이동`}>
+              <button aria-label="이전 주" onClick={() => changeWeek(-1)} type="button" title="이전 주">
+                <ChevronLeft size={15} />
+              </button>
+              <strong>{weekRange.label}</strong>
+              <button aria-label="다음 주" onClick={() => changeWeek(1)} type="button" title="다음 주">
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+          <div className="calendar-week-days">
+            {weekDates.map((date) => {
+              const taskDueItems = weekDisplayTasks.filter((task) => !task.archived && task.dueDate === date);
+              const dayEvents = visibleEvents.filter((event) => eventSpansDate(event, date));
+              const isToday = date === TODAY;
+              return (
+                <section className={`calendar-week-day ${isToday ? "today" : ""}`} key={date}>
+                  <div className="calendar-week-date">
+                    <strong>{dateWithWeekdayLabel(date)}</strong>
+                    {isToday && <span>오늘</span>}
+                  </div>
+                  <div className="calendar-week-items">
+                    {taskDueItems.map((task) => renderTaskCalendarButton(task, `week-task-${date}-${task.id}`))}
+                    {dayEvents.map((event) => renderEventCalendarButton(event, `week-event-${date}-${event.id}`))}
+                    {!taskDueItems.length && !dayEvents.length && <p>등록된 일정 없음</p>}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </div>
         <div className="calendar-board">
           <div className="calendar-weekdays" aria-hidden="true">
             {["일", "월", "화", "수", "목", "금", "토"].map((day, index) => (
@@ -9337,33 +9444,8 @@ function CalendarView({
                 <div className={`calendar-cell ${date === TODAY ? "today" : ""} ${date ? "" : "empty"} ${day === 0 || day === 6 ? "holiday" : ""}`} key={date ?? `blank-${index}`}>
                   {date && <strong>{Number(date.slice(8, 10))}</strong>}
                   <div className="calendar-events">
-                    {taskDueItems.map((task) => (
-                      <button
-                        className={`calendar-event task-due ${selectedCalendarItem?.type === "task" && selectedCalendarItem.id === task.id ? "selected" : ""}`}
-                        key={`${date}-${task.id}`}
-                        onClick={() => {
-                          const selectedId = onSelectTask(task) || task.id;
-                          setSelectedCalendarItem({ type: "task", id: selectedId });
-                        }}
-                        type="button"
-                      >
-                        <i />
-                        <b>{task.recurring ? `🔁 ${displayTaskTitle(task)}` : displayTaskTitle(task)}</b>
-                      </button>
-                    ))}
-                    {dayEvents.map((event) => (
-                      <button
-                        className={`calendar-event ${event.scope} ${selectedCalendarItem?.type === "event" && selectedCalendarItem.id === event.id ? "selected" : ""}`}
-                        key={`${date}-${event.id}`}
-                        onClick={() => setSelectedCalendarItem({ type: "event", id: event.id, event })}
-                        title={`${event.scope === "personal" ? `${personName(event.ownerId)} · ` : ""}${event.title} · ${eventRangeLabel(event)}`}
-                        type="button"
-                      >
-                        <i />
-                        <b>{event.scope === "personal" ? `${personName(event.ownerId)} · ${event.title}` : event.title}</b>
-                        {eventStartDate(event) !== eventEndDate(event) && <em>({eventCompactRangeLabel(event)})</em>}
-                      </button>
-                    ))}
+                    {taskDueItems.map((task) => renderTaskCalendarButton(task, `month-task-${date}-${task.id}`))}
+                    {dayEvents.map((event) => renderEventCalendarButton(event, `month-event-${date}-${event.id}`))}
                     {date && hiddenItemCount > 5 && (
                       <small>+ 더보기</small>
                     )}
@@ -9961,9 +10043,23 @@ function ArchiveView({ isTeamScope, onFillDemo, onRestore, onSelect, people: arc
 function UpdatesView({ initialScope = "mine", onAddUpdate, onSelect, selectedPersonId, tasks }) {
   const [draftUpdates, setDraftUpdates] = useState({});
   const [scope, setScope] = useState(initialScope);
+  const [collapsedSections, setCollapsedSections] = useState(() => {
+    const isNarrow = typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches;
+    return { assignments: isNarrow, logs: isNarrow };
+  });
   useEffect(() => {
     setScope(initialScope);
   }, [initialScope]);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const query = window.matchMedia("(max-width: 639px)");
+    const syncCollapsedState = () => {
+      setCollapsedSections({ assignments: query.matches, logs: query.matches });
+    };
+    syncCollapsedState();
+    query.addEventListener?.("change", syncCollapsedState);
+    return () => query.removeEventListener?.("change", syncCollapsedState);
+  }, [scope]);
 
   const updatedTasks = tasks
     .map((task) => ({
@@ -9990,6 +10086,11 @@ function UpdatesView({ initialScope = "mine", onAddUpdate, onSelect, selectedPer
     })
     .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "") || displayTaskTitle(a).localeCompare(displayTaskTitle(b), "ko-KR"));
   const scopeCopy = scope === "team" ? "Team" : "My";
+  const isLogsCollapsed = collapsedSections.logs;
+  const isAssignmentsCollapsed = collapsedSections.assignments;
+  const toggleUpdatesSection = (sectionKey) => {
+    setCollapsedSections((current) => ({ ...current, [sectionKey]: !current[sectionKey] }));
+  };
 
   return (
     <section className="updates-view">
@@ -10026,11 +10127,19 @@ function UpdatesView({ initialScope = "mine", onAddUpdate, onSelect, selectedPer
       {updatedTasks.length || newAssignmentTasks.length ? (
         <div className="updates-content-grid">
           <div className="updates-column">
-            <div className="updates-section-title">
+            <button
+              aria-expanded={!isLogsCollapsed}
+              className="updates-section-title updates-section-toggle"
+              onClick={() => toggleUpdatesSection("logs")}
+              type="button"
+            >
               <strong>로그 업데이트</strong>
-              <span>{updatedTasks.length}건</span>
-            </div>
-            {updatedTasks.length ? (
+              <span>
+                {updatedTasks.length}건
+                <ChevronDown size={15} aria-hidden="true" />
+              </span>
+            </button>
+            {!isLogsCollapsed && updatedTasks.length ? (
               <div className="update-task-grid update-log-grid">
                 {updatedTasks.map((task) => {
                   const statusMeta = reportStatusMeta(task);
@@ -10045,15 +10154,19 @@ function UpdatesView({ initialScope = "mine", onAddUpdate, onSelect, selectedPer
                           >
                             {initials(personName(task.ownerId))}
                           </span>
-                          <strong>{displayTaskTitle(task)}</strong>
-                          <span className={`update-status-badge report-${statusMeta.tone}`}>{statusMeta.label}</span>
+                          <span className="update-title-copy">
+                            <strong>{displayTaskTitle(task)}</strong>
+                            <span className="update-card-meta">
+                              <span className={`update-status-badge report-${statusMeta.tone}`}>{statusMeta.label}</span>
+                              <span className="update-task-meta">{task.latestUpdate.date}</span>
+                            </span>
+                          </span>
                           <span className="update-tag-line">
                             {taskTags(task).slice(0, 3).map((tag) => (
                               <em className={`tag-tone-${tagTone(tag)}`} key={`${task.id}-${tag}`}>{tag}</em>
                             ))}
                           </span>
                         </span>
-                        <span className="update-task-meta">{task.latestUpdate.date}</span>
                       </button>
                       <div className="update-log-stack">
                         {task.sortedUpdates.slice(0, 3).map((update, index) => (
@@ -10091,16 +10204,24 @@ function UpdatesView({ initialScope = "mine", onAddUpdate, onSelect, selectedPer
                   );
                 })}
               </div>
-            ) : (
+            ) : !isLogsCollapsed ? (
               <p className="empty-note">최근 7일 안에 표시할 업데이트가 없습니다.</p>
-            )}
+            ) : null}
           </div>
           <div className="updates-column">
-            <div className="updates-section-title">
+            <button
+              aria-expanded={!isAssignmentsCollapsed}
+              className="updates-section-title updates-section-toggle"
+              onClick={() => toggleUpdatesSection("assignments")}
+              type="button"
+            >
               <strong>새로 배정된 업무</strong>
-              <span>{newAssignmentTasks.length}건</span>
-            </div>
-            {newAssignmentTasks.length ? (
+              <span>
+                {newAssignmentTasks.length}건
+                <ChevronDown size={15} aria-hidden="true" />
+              </span>
+            </button>
+            {!isAssignmentsCollapsed && newAssignmentTasks.length ? (
               <div className="new-assignment-grid">
                 {newAssignmentTasks.map((task) => (
                   <TaskCard
@@ -10119,9 +10240,9 @@ function UpdatesView({ initialScope = "mine", onAddUpdate, onSelect, selectedPer
                   />
                 ))}
               </div>
-            ) : (
+            ) : !isAssignmentsCollapsed ? (
               <p className="empty-note">최근 3일 안에 새로 배정된 업무가 없습니다.</p>
-            )}
+            ) : null}
           </div>
         </div>
       ) : (

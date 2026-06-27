@@ -2,6 +2,22 @@
 
 ## Now
 
+- [x] Refine tablet/phone Calendar and dashboard AI chat placement.
+  - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
+  - Done: Calendar schedule registration now stays collapsed behind `일정등록` through portrait-tablet and phone widths, not only phone widths.
+  - Done: portrait-tablet and phone Calendar now switches from the horizontal month grid to a vertical selected-week day list, with previous/next week controls and task/event selection still opening the existing common calendar detail flow.
+  - Done: changing the Calendar month now resets the portrait-tablet/phone weekly list to the first week containing that displayed month's first day, so moving from June to July shows July's first week instead of the old current-week list.
+  - Done: calendar task and event chips now expose full context through hover title text when the visible chip truncates.
+  - Done: top insight cards now render only on My Desk/Team Flow workflow surfaces, not on Calendar and other full-page views.
+  - Done: dashboard floating AI header now reads `Work-Hub AI`, and the floating dashboard chat places the answer thread above a bottom-held prompt input.
+  - Done: follow-up adjusted the dashboard floating AI thread so message rows stay content-sized instead of stretching into a tall empty conversation box.
+  - Done: follow-up changed the portrait-tablet/phone week switcher so the selected week range is centered between previous/next arrow buttons, while the `오늘` action remains only in the month toolbar.
+  - Done: follow-up refined phone-width `Updates` page log cards so the owner initials stay at left, the task title can use up to two readable lines, and status plus latest log date sit together on one compact metadata row. `업무자료 > 로그` date chips remain stacked safely as well.
+  - Done: follow-up right-aligned the phone-width `My`/`Team` toggle with a visible divider, and made `로그 업데이트` plus `새로 배정된 업무` start as collapsed one-line count headers on narrow screens.
+  - Verified: `git diff --check` passed; production build passed with bundled Node on PATH after the first attempt showed `node: not found`; browser QA on local fallback Vite `http://192.168.55.223:5177/` covered 768x1024, 390x844, and 1366x768. It verified collapsed `일정등록` on tablet/phone, current-week vertical Calendar with 7 days, no phone horizontal overflow, hover title text on truncated chips, desktop month grid/form preserved, `Work-Hub AI` floating header, and answer thread above the sticky bottom prompt input.
+  - Follow-up verification: `git diff --check` and production build passed after the AI thread compaction. In-app Browser could load the entry screen on `http://192.168.55.223:5177/`, but entry-screen clicks did not fire in this QA session, so rendered post-fix dashboard interaction could not be re-entered from a clean tab.
+  - Latest verification: `git diff --check` and production build passed. Browser QA at 393x852 on `http://localhost:5177/` used DOM click fallback to enter the dashboard, verified Calendar has no insight strip, My Desk still has the insight strip, `다음 주` changes the week list from 6/1-6/7 to 6/8-6/14, and `다음 달` changes the top month to 2026년 7월 with the week list at 6/29-7/5.
+
 - [x] Add a task-by-task `업무자료` workflow tab.
   - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
   - Done: added `업무자료` in the workflow tab row, ordered as `보드 → 리스트 → 타임라인 → 업무자료 → 마인드맵 → 반복 업무 → 보관함`. It now offers `업무별 노트`, `유형별`, and `로그` views over the currently filtered tasks, and opens the existing workflow-side task detail through a compact `상세` action.
