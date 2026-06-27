@@ -23,6 +23,7 @@ Last updated: 2026-06-28
   - `docs/ai-agent-readiness.md`
   - `docs/llm-wiki-architecture-plan.md`
   - `docs/personal-notification-inbox-plan.md`
+  - `docs/company-backend-apply-handoff.md`
   - `TODO.md`
 - Package manager: `/Users/seulgi/Library/pnpm/bin/pnpm`.
 - Build command: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
@@ -250,12 +251,14 @@ Key product decisions now in the prototype:
   - team composition order is `그룹장 -> 팀장 -> 가나다순`.
 - Backend direction is now approved at the architecture level:
   - current company backend route: FastAPI + PostgreSQL without Docker
-  - current operating branch for this route: `release/company-fastapi-postgres`
+  - current company apply branch for this route: `codex/llm-wiki-architecture`
+  - previous backend baseline branch: `release/company-fastapi-postgres`
+  - final company apply handoff: `docs/company-backend-apply-handoff.md`
   - implementation spec: `docs/fastapi-postgres-backend-spec.md`
   - beginner company setup/runbook: `docs/company-fastapi-postgres-beginner-runbook.md`
   - Supabase/self-hosted Supabase is no longer the active operating target because the company backend environment cannot install the Supabase Docker stack.
   - previous Supabase migrations and docs remain schema/permission reference material only.
-  - current FastAPI implementation milestone is present: `backend/` has FastAPI health/db endpoints, PostgreSQL session config, Alembic migrations through `20260625_0010`, `.env.example`, and first-admin seed CLI.
+  - current FastAPI implementation milestone is present: `backend/` has FastAPI health/db endpoints, PostgreSQL session config, Alembic migrations through `20260625_0012`, `.env.example`, and first-admin seed CLI.
   - auth/roster/profile APIs are present: `POST /api/v1/auth/login`, JWT access tokens, `GET/PATCH /api/v1/me`, and admin-only `GET/POST/PATCH /api/v1/admin/roster`.
   - task APIs are present: `GET/POST/PATCH/DELETE /api/v1/tasks`, task enum types, owner/creator links, progress validation, manager-only update checks, recurring rule persistence, and future recurring instance cleanup.
   - operating endpoints are present: subtasks add/list/update, update logs add/list/edit/delete, tags add/list/edit/delete, tag groups save/list/delete, dashboard insight filters, workstream similarity suggestions, calendar events add/list/update/delete, briefing items add/list/update, preferences, page memos, task history note edit/delete, archive/restore, links add/list/delete, post categories add/list/edit/deactivate, task posts add/list/edit/delete, Highlights workstream post rollups, and Canvas state read/save.
@@ -285,7 +288,7 @@ Key product decisions now in the prototype:
   - `docs/local-linux-supabase-runbook.md` documents the practical route for running this dashboard against a local Supabase CLI stack on a company Linux computer.
   - `docs/company-self-hosted-supabase-guide.md` documents the earlier internal self-hosted Supabase path for reference only.
   - `release/company-self-hosted` remains the previous Supabase/self-hosted transfer baseline; do not use it as the active backend implementation branch unless the Docker constraint changes.
-  - `release/company-fastapi-postgres` is the active company backend branch. Company clones for real backend work should use this branch.
+  - `codex/llm-wiki-architecture` is the active company apply branch. Company clones for real backend work should use this branch. `release/company-fastapi-postgres` remains the older FastAPI/PostgreSQL backend baseline.
   - `docs/multi-workspace-expansion-plan.md` documents the future expansion path after our-team stabilization: 30-person groups and 10+ groups should use workspace separation, optional unit separation, visibility scopes, and workspace-admin-managed tags/workstreams/post categories. In FastAPI/PostgreSQL mode these are API permission and schema rules, not Supabase RLS rules.
   - The future app should switch into API mode from `VITE_API_BASE_URL`; empty values keep the local fallback/demo store.
   - `docs/personal-notification-inbox-plan.md` documents the per-user notification inbox. Phase 1 is implemented in FastAPI mode: `notifications` migration/model/API, recipient-only query/update checks, unread/read state, top bell badge, notification panel, read/all-read actions, click-through to task detail, dedupe, and high-signal personal creation for new assignment, overdue owned work, and logs/notes/risk notes left by someone else on the user's work. Teams/realtime/mobile push, due-soon rows, dismiss UI, and company PostgreSQL apply/smoke remain later scope.

@@ -6,7 +6,7 @@
 
 ## 0. 먼저 꼭 알아야 하는 현재 상태
 
-현재 GitHub 브랜치 `release/company-fastapi-postgres`에는 다음이 들어 있습니다.
+현재 회사 적용 기준 GitHub 브랜치는 `codex/llm-wiki-architecture`입니다. 이 브랜치는 기존 `release/company-fastapi-postgres` backend 기준선 위에 LLM-Wiki, 알림, AI-read API, 모바일/대시보드 개선까지 올라간 최신 검증본입니다.
 
 - 지금까지 만든 React/Vite 대시보드 화면
 - POSLAB 랜딩/대시보드 UI
@@ -43,7 +43,7 @@
 
 따라서 회사 PC에서 바로 할 일은 실제 PostgreSQL 적용과 운영 검증입니다.
 
-1. 먼저 `release/company-fastapi-postgres` 브랜치를 받는다.
+1. 먼저 `codex/llm-wiki-architecture` 브랜치를 받는다.
 2. PostgreSQL과 `.env`를 준비한 뒤 backend를 실행/검증한다.
 
 이 문서는 두 과정을 모두 설명합니다.
@@ -57,7 +57,7 @@
 | FastAPI | Python으로 API 서버를 만드는 도구입니다. 브라우저 화면과 DB 사이에서 중간 역할을 합니다. |
 | PostgreSQL | 실제 업무 데이터가 저장되는 데이터베이스입니다. |
 | API | 프론트가 백엔드에게 요청하는 주소 묶음입니다. 예: `/api/v1/tasks`. |
-| Branch | Git에서 작업 기준선을 나눠둔 것입니다. 이번 backend 기준은 `release/company-fastapi-postgres`입니다. |
+| Branch | Git에서 작업 기준선을 나눠둔 것입니다. 이번 회사 적용 기준은 `codex/llm-wiki-architecture`입니다. |
 | `.env` | 비밀번호, DB 주소, API 주소처럼 환경마다 달라지는 값을 적는 파일입니다. Git에 올리면 안 됩니다. |
 
 최종 구조:
@@ -93,7 +93,7 @@ git status
 
 ```bash
 git fetch origin
-git checkout release/company-fastapi-postgres
+git checkout codex/llm-wiki-architecture
 git pull
 pnpm install
 ```
@@ -105,7 +105,7 @@ pnpm install
 기존 데모 폴더를 남겨두고 새 폴더에 받는 방법입니다. 가장 안전합니다.
 
 ```bash
-git clone -b release/company-fastapi-postgres https://github.com/SSG87-pos/work-dashborad.git work-dashboard-fastapi
+git clone -b codex/llm-wiki-architecture https://github.com/SSG87-pos/work-dashborad.git work-dashboard-fastapi
 cd work-dashboard-fastapi
 pnpm install
 ```
@@ -373,7 +373,7 @@ docs/company-fastapi-postgres-beginner-runbook.md,
 docs/fastapi-postgres-backend-spec.md를 먼저 읽고 진행해줘.
 
 목표는 이 대시보드를 회사 내부 FastAPI + PostgreSQL backend로 실제 검증하는 거야.
-backend에는 auth/roster/profile/task/subtask/update/tag/tag group/calendar/preferences/memo/briefing/task lifecycle/post/post rollup/Canvas state API와 VITE_API_BASE_URL frontend apiStore가 있으니 release/company-fastapi-postgres 브랜치 기준으로 운영 검증을 이어서 진행해줘.
+backend에는 auth/roster/profile/task/subtask/update/tag/tag group/calendar/preferences/memo/briefing/task lifecycle/post/post rollup/Canvas state, notifications, deterministic AI read, LLM-Wiki API와 VITE_API_BASE_URL frontend apiStore가 있으니 codex/llm-wiki-architecture 브랜치 기준으로 운영 검증을 이어서 진행해줘.
 
 범위:
 - 회사 PostgreSQL 실서버에서 alembic upgrade head와 curl smoke 검증
@@ -843,12 +843,12 @@ git fetch origin
 git branch -r
 ```
 
-`origin/release/company-fastapi-postgres`가 보이는지 확인합니다.
+`origin/codex/llm-wiki-architecture`가 보이는지 확인합니다.
 
 그 다음:
 
 ```bash
-git checkout release/company-fastapi-postgres
+git checkout codex/llm-wiki-architecture
 ```
 
 ### 13.2 `Your local changes would be overwritten`
@@ -964,7 +964,7 @@ $ADMIN journalctl -u work-dashboard-api -n 100
 새 폴더로 받기:
 
 ```bash
-git clone -b release/company-fastapi-postgres https://github.com/SSG87-pos/work-dashborad.git work-dashboard-fastapi
+git clone -b codex/llm-wiki-architecture https://github.com/SSG87-pos/work-dashborad.git work-dashboard-fastapi
 cd work-dashboard-fastapi
 pnpm install
 ```

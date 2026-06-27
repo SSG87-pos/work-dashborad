@@ -91,18 +91,18 @@ VITE_API_BASE_URL=http://<company-server-ip>:18080/api/v1
 FastAPI/PostgreSQL 운영 작업 기준 브랜치:
 
 ```text
-release/company-fastapi-postgres
+codex/llm-wiki-architecture
 ```
 
 회사 PC에서 새로 받을 때:
 
 ```bash
-git clone -b release/company-fastapi-postgres https://github.com/SSG87-pos/work-dashborad.git
+git clone -b codex/llm-wiki-architecture https://github.com/SSG87-pos/work-dashborad.git
 cd work-dashborad
 pnpm install
 ```
 
-기존 `release/company-self-hosted` 브랜치는 Supabase/self-hosted 검토 이력으로 남깁니다. Docker 기반 Supabase 설치가 다시 가능해지는 경우가 아니라면 새 backend 구현은 `release/company-fastapi-postgres`에서 이어갑니다.
+기존 `release/company-fastapi-postgres`는 FastAPI/PostgreSQL backend 기준선이고, `release/company-self-hosted`는 Supabase/self-hosted 검토 이력입니다. 회사 적용은 최신 검증본인 `codex/llm-wiki-architecture`에서 진행합니다. Docker 기반 Supabase 설치가 다시 가능해지는 경우가 아니라면 새 backend 운영 검증도 FastAPI/PostgreSQL 경로에서 이어갑니다.
 
 ## 4. 인증과 권한
 

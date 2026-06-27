@@ -2,6 +2,12 @@
 
 ## Now
 
+- [x] Add final company backend apply handoff.
+  - Files: `docs/company-backend-apply-handoff.md`, `docs/company-fastapi-postgres-beginner-runbook.md`, `docs/fastapi-postgres-backend-spec.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a company backend apply handoff that names the repo, branch `codex/llm-wiki-architecture`, latest verified commit, implemented backend/frontend scope, clone commands, PostgreSQL/FastAPI/frontend setup commands, smoke checks, completion criteria, risks, and a copy-ready prompt for the company-side implementer.
+  - Done: updated existing FastAPI/PostgreSQL runbook/spec branch guidance so company clone/apply instructions point to `codex/llm-wiki-architecture` instead of the older `release/company-fastapi-postgres` baseline.
+  - Next company-side validation: real PostgreSQL apply, `alembic upgrade head`, `work-dashboard-api seed-first-admin`, `/api/v1/health/db`, browser CRUD persistence, and role smoke with real accounts.
+
 - [x] Refine tablet/phone Calendar and dashboard AI chat placement.
   - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
   - Done: Calendar schedule registration now stays collapsed behind `일정등록` through portrait-tablet and phone widths, not only phone widths.
