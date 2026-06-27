@@ -75,14 +75,19 @@ const workKindOptions = [
 ];
 const displayDensityOptions = ["standard", "comfortable"];
 const taskPostToneOptions = ["blue", "green", "amber", "red", "violet", "slate"];
+const NOTE_OTHER_TASK_ID = "__other_reference__";
 const briefingItemTypes = [
-  { value: "mail", label: "메일" },
-  { value: "meeting", label: "회의" },
-  { value: "idea", label: "아이디어" },
-  { value: "risk", label: "리스크" },
-  { value: "reference", label: "참고" },
-  { value: "todo", label: "할일" },
-  { value: "note", label: "메모" }
+  { value: "메일", label: "메일" },
+  { value: "회의록", label: "회의록" },
+  { value: "아이디어", label: "아이디어" },
+  { value: "리스크", label: "리스크" },
+  { value: "참고자료", label: "참고자료" },
+  { value: "할일", label: "할일" },
+  { value: "메모", label: "메모" },
+  { value: "결정사항", label: "결정사항" },
+  { value: "중요문서", label: "중요문서" },
+  { value: "다음 확인", label: "다음 확인" },
+  { value: "기억할 점", label: "기억할 점" }
 ];
 const briefingItemStatuses = [
   { value: "new", label: "미처리" },
@@ -91,13 +96,17 @@ const briefingItemStatuses = [
   { value: "archived", label: "보관" }
 ];
 const defaultTaskPostCategories = [
-  { id: "decision", label: "결정사항", tone: "blue", active: true },
-  { id: "memory", label: "기억할 점", tone: "green", active: true },
-  { id: "risk", label: "리스크", tone: "red", active: true },
+  { id: "mail", label: "메일", tone: "blue", active: true },
   { id: "meeting", label: "회의록", tone: "slate", active: true },
-  { id: "important-doc", label: "중요문서", tone: "violet", active: true },
+  { id: "idea", label: "아이디어", tone: "green", active: true },
+  { id: "risk", label: "리스크", tone: "red", active: true },
   { id: "reference", label: "참고자료", tone: "slate", active: true },
-  { id: "followup", label: "다음 확인", tone: "amber", active: true }
+  { id: "todo", label: "할일", tone: "amber", active: true },
+  { id: "note", label: "메모", tone: "slate", active: true },
+  { id: "decision", label: "결정사항", tone: "blue", active: true },
+  { id: "important-doc", label: "중요문서", tone: "violet", active: true },
+  { id: "followup", label: "다음 확인", tone: "amber", active: true },
+  { id: "memory", label: "기억할 점", tone: "green", active: true }
 ];
 const UNASSIGNED_OWNER_ID = "unassigned";
 const unassignedPerson = {
@@ -132,9 +141,9 @@ const defaultTagFilterPresets = [
   { id: "preset:research", label: "조사/근거", tags: ["자료조사", "외부자료", "정책"], tone: "research" },
   { id: "preset:operations", label: "운영/KPI", tags: ["월간보고", "회의체", "운영", "KPI"], tone: "operations" }
 ];
-const viewOptions = ["board", "list", "timeline", "calendar", "recurring", "archive", "mindmap", "updates", "performance", "canvas", "admin"];
+const viewOptions = ["board", "list", "timeline", "calendar", "recurring", "archive", "mindmap", "knowledge", "updates", "performance", "canvas", "admin"];
 const fullPageViews = ["calendar", "updates", "performance", "canvas", "admin"];
-const workflowFilterViews = ["board", "list", "timeline", "recurring", "archive", "mindmap"];
+const workflowFilterViews = ["board", "list", "timeline", "recurring", "archive", "mindmap", "knowledge"];
 const pageOptions = ["my", "team"];
 const timelineModeOptions = ["month", "year"];
 const performanceModes = ["week", "month", "quarter", "year"];
@@ -285,7 +294,21 @@ function initialMemoByPageFrom(persistedState) {
 }
 
 function normalizeBriefingItemType(value) {
-  return briefingItemTypes.some((type) => type.value === value) ? value : "note";
+  const cleanValue = String(value ?? "").trim();
+  const legacyLabels = {
+    mail: "메일",
+    meeting: "회의록",
+    idea: "아이디어",
+    risk: "리스크",
+    reference: "참고자료",
+    todo: "할일",
+    note: "메모",
+    "회의": "회의록",
+    "참고": "참고자료"
+  };
+  const mappedValue = legacyLabels[cleanValue] || cleanValue;
+  const normalizedLabel = normalizeTaskPostCategoryLabel(mappedValue);
+  return briefingItemTypes.some((type) => type.value === normalizedLabel) ? normalizedLabel : "메모";
 }
 
 function normalizeBriefingItemStatus(value, kind = "inbox") {
@@ -294,7 +317,20 @@ function normalizeBriefingItemStatus(value, kind = "inbox") {
 }
 
 function briefingItemTypeLabel(value) {
-  return briefingItemTypes.find((type) => type.value === value)?.label ?? "메모";
+  return normalizeBriefingItemType(value);
+}
+
+function noteTypeOptionsFromCategories(categories = defaultTaskPostCategories) {
+  return normalizeTaskPostCategories(categories).filter((category) => category.active);
+}
+
+function noteTypeClass(value, categories = defaultTaskPostCategories) {
+  const label = briefingItemTypeLabel(value);
+  const meta = taskPostCategoryMeta(label, categories);
+  return String(meta.id || label)
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}-]+/gu, "-");
 }
 
 function briefingItemStatusLabel(value) {
@@ -305,7 +341,7 @@ function cleanBriefingItem(item, index) {
   const scope = item?.scope === "team" ? "team" : "my";
   const kind = item?.kind === "todo" || scope === "team" ? "todo" : "inbox";
   const body = persistedString(item?.body);
-  const fallbackTitle = body.split("\n").find(Boolean)?.slice(0, 48) || (kind === "todo" ? "팀 체크 항목" : "업무 인박스 항목");
+  const fallbackTitle = body.split("\n").find(Boolean)?.slice(0, 48) || (kind === "todo" ? "팀 체크 항목" : "업무 Note 항목");
   const title = persistedString(item?.title, fallbackTitle).trim() || fallbackTitle;
   const done = Boolean(item?.done || item?.status === "done");
   return {
@@ -1851,6 +1887,8 @@ function normalizeTaskPosts(posts, task, categories = defaultTaskPostCategories)
         taskTitle,
         ownerId: task.ownerId,
         workstream,
+        taskStatus: task.status,
+        taskArchived: Boolean(task.archived),
         url: String(post?.url ?? "").trim(),
         attachment: normalizePostAttachment(post?.attachment),
         createdAt: post?.createdAt || post?.date || TODAY,
@@ -1863,6 +1901,108 @@ function normalizeTaskPosts(posts, task, categories = defaultTaskPostCategories)
 function taskKnowledgePosts(task, categories = defaultTaskPostCategories) {
   if (!task || isDeletedTask(task)) return [];
   return normalizeTaskPosts(task.postItems, task, categories);
+}
+
+function briefingItemSearchText(item) {
+  return searchableText([
+    item?.id,
+    item?.title,
+    item?.body,
+    item?.url,
+    briefingItemTypeLabel(item?.type),
+    briefingItemStatusLabel(item?.status),
+    personName(item?.ownerId),
+    personName(item?.authorId),
+    item?.createdAt,
+    item?.updatedAt
+  ]);
+}
+
+function scopedKnowledgeBriefingItems(briefingItems, activePage, selectedPersonId) {
+  return (briefingItems ?? [])
+    .filter((item) => item && !item.deletedAt)
+    .filter((item) => {
+      if (activePage === "team") return item.scope === "team" && item.kind === "todo";
+      return item.scope !== "team" && item.kind === "inbox" && item.status !== "archived" && (
+        item.ownerId === selectedPersonId || (!item.ownerId && item.authorId === selectedPersonId)
+      );
+    });
+}
+
+function briefingItemMatchesTask(item, task) {
+  if (!item || !task) return false;
+  if (item.taskId && item.taskId === task.id) return true;
+  const haystack = briefingItemSearchText(item);
+  if (!haystack) return false;
+  const title = displayTaskTitle(task).toLowerCase();
+  if (title.length >= 6 && haystack.includes(title)) return true;
+  const ignoredTitleTerms = new Set(["업무", "자료", "조사", "보고", "회의", "정리", "검토", "계획"]);
+  const titleTerms = title
+    .split(/\s+/)
+    .map((term) => term.replace(/[^\p{L}\p{N}]/gu, ""))
+    .filter((term) => term.length >= 3 && !ignoredTitleTerms.has(term));
+  if (titleTerms.length && titleTerms.filter((term) => haystack.includes(term)).length >= Math.min(2, titleTerms.length)) {
+    return true;
+  }
+  const workstream = taskWorkstreamLabel(task).toLowerCase();
+  if (workstream && workstream !== "업무흐름 미지정" && workstream.length >= 3 && haystack.includes(workstream)) return true;
+  return taskTags(task).some((tag) => {
+    const normalizedTag = String(tag).trim().toLowerCase();
+    return normalizedTag.length >= 3 && haystack.includes(normalizedTag);
+  });
+}
+
+function taskKnowledgeSearchText(task, briefingItems, activePage, selectedPersonId, postCategories = defaultTaskPostCategories) {
+  const relatedBriefingItems = scopedKnowledgeBriefingItems(briefingItems, activePage, selectedPersonId)
+    .filter((item) => briefingItemMatchesTask(item, task));
+  return searchableText([
+    taskSearchText(task, postCategories),
+    relatedBriefingItems.map((item) => briefingItemSearchText(item))
+  ]);
+}
+
+function knowledgeRecordDate(record) {
+  return record?.updatedAt || record?.createdAt || record?.date || "";
+}
+
+function taskKnowledgeGroups(tasks, briefingItems, activePage, selectedPersonId, postCategories = defaultTaskPostCategories, query = "") {
+  const searchTerm = query.trim().toLowerCase();
+  const scopedItems = scopedKnowledgeBriefingItems(briefingItems, activePage, selectedPersonId)
+    .filter((item) => !searchTerm || briefingItemSearchText(item).includes(searchTerm));
+  const usedItemIds = new Set();
+  const groups = tasks
+    .map((task) => {
+      const posts = taskKnowledgePosts(task, postCategories)
+        .filter((post) => !searchTerm || searchableText([post.scope, post.title, post.body, post.url, attachmentEvidenceText(post.attachment), personName(post.authorId)]).includes(searchTerm))
+        .sort((a, b) => knowledgeRecordDate(b).localeCompare(knowledgeRecordDate(a)) || a.title.localeCompare(b.title, "ko-KR"));
+      const updates = (task.updates ?? [])
+        .filter((update) => update?.text)
+        .filter((update) => !searchTerm || searchableText([update.date, update.text, personName(update.authorId)]).includes(searchTerm))
+        .sort((a, b) => knowledgeRecordDate(b).localeCompare(knowledgeRecordDate(a)));
+      const inboxItems = scopedItems
+        .filter((item) => briefingItemMatchesTask(item, task))
+        .sort((a, b) => knowledgeRecordDate(b).localeCompare(knowledgeRecordDate(a)) || a.title.localeCompare(b.title, "ko-KR"));
+      inboxItems.forEach((item) => usedItemIds.add(item.id));
+      const latestDate = [posts[0], updates[0], inboxItems[0]]
+        .map(knowledgeRecordDate)
+        .filter(Boolean)
+        .sort()
+        .at(-1) || task.dueDate || task.createdAt || "";
+      return {
+        task,
+        posts,
+        updates,
+        inboxItems,
+        latestDate,
+        totalCount: posts.length + updates.length + inboxItems.length
+      };
+    })
+    .filter((group) => group.totalCount > 0)
+    .sort((a, b) => b.latestDate.localeCompare(a.latestDate) || displayTaskTitle(a.task).localeCompare(displayTaskTitle(b.task), "ko-KR"));
+  const unlinkedItems = scopedItems
+    .filter((item) => !usedItemIds.has(item.id))
+    .sort((a, b) => knowledgeRecordDate(b).localeCompare(knowledgeRecordDate(a)) || a.title.localeCompare(b.title, "ko-KR"));
+  return { groups, unlinkedItems };
 }
 
 function searchableText(parts) {
@@ -2533,7 +2673,7 @@ function App() {
     const title = String(draft?.title ?? "").trim();
     const body = String(draft?.body ?? "").trim();
     if (!title || !body) {
-      showSyncNotice("게시글 제목과 본문을 입력해 주세요.");
+      showSyncNotice("업무 Note 제목과 본문을 입력해 주세요.");
       return false;
     }
     const scope = String(draft?.scope ?? "").trim() || taskPostCategories.find((category) => category.active)?.label || "기억할 점";
@@ -2567,7 +2707,7 @@ function App() {
     if (isSupabaseReady && isAuthenticated && savedPost) {
       remoteDashboardStore.tasks.savePost(taskId, savedPost)
         .then((result) => {
-          handleSupabaseWriteResult(result, "업무 노트 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
+          handleSupabaseWriteResult(result, "업무 Note 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
           if (!result?.id || result.id === savedPost.id) return;
           setTasks((current) =>
             current.map((task) => {
@@ -2580,17 +2720,17 @@ function App() {
           );
         })
         .catch((error) => {
-          console.warn("Supabase 업무 노트 저장에 실패했습니다.", error);
-          showSyncNotice("업무 노트 저장을 Supabase에 반영하지 못했습니다. 화면에는 임시로 유지됩니다.");
+          console.warn("Supabase 업무 Note 저장에 실패했습니다.", error);
+          showSyncNotice("업무 Note 저장을 Supabase에 반영하지 못했습니다. 화면에는 임시로 유지됩니다.");
         });
     }
-    showSyncNotice("게시글을 저장했습니다.");
+    showSyncNotice("업무 Note를 저장했습니다.");
     return Boolean(savedPost);
   }
 
   function deleteTaskPost(taskId, postId) {
     if (!postId) return;
-    const confirmed = window.confirm("이 게시글을 삭제할까요?");
+    const confirmed = window.confirm("이 업무 Note를 삭제할까요?");
     if (!confirmed) return;
     setTasks((current) =>
       current.map((task) => {
@@ -2604,14 +2744,14 @@ function App() {
     if (isSupabaseReady && isAuthenticated) {
       remoteDashboardStore.tasks.deletePost(postId)
         .then((result) => {
-          handleSupabaseWriteResult(result, "업무 노트 공유 삭제는 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
+          handleSupabaseWriteResult(result, "업무 Note 공유 삭제는 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
         })
         .catch((error) => {
-          console.warn("Supabase 업무 노트 삭제에 실패했습니다.", error);
-          showSyncNotice("업무 노트 삭제를 Supabase에 반영하지 못했습니다. 화면에서는 삭제됐습니다.");
+          console.warn("Supabase 업무 Note 삭제에 실패했습니다.", error);
+          showSyncNotice("업무 Note 삭제를 Supabase에 반영하지 못했습니다. 화면에서는 삭제됐습니다.");
         });
     }
-    showSyncNotice("게시글을 삭제했습니다.");
+    showSyncNotice("업무 Note를 삭제했습니다.");
   }
 
   function saveTaskPostCategory(category) {
@@ -2647,21 +2787,21 @@ function App() {
     if (isSupabaseReady && isAuthenticated) {
       remoteDashboardStore.tasks.savePostCategory({ ...nextCategory, previousLabel: category.previousLabel })
         .then((result) => {
-          handleSupabaseWriteResult(result, "게시글 유형 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
+          handleSupabaseWriteResult(result, "Note 유형 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
         })
         .catch((error) => {
-          console.warn("Supabase 게시글 유형 저장에 실패했습니다.", error);
-          showSyncNotice("게시글 유형 저장을 Supabase에 반영하지 못했습니다. 화면에는 임시로 유지됩니다.");
+          console.warn("Supabase Note 유형 저장에 실패했습니다.", error);
+          showSyncNotice("Note 유형 저장을 Supabase에 반영하지 못했습니다. 화면에는 임시로 유지됩니다.");
         });
     }
-    showSyncNotice("게시글 유형을 저장했습니다.");
+    showSyncNotice("Note 유형을 저장했습니다.");
   }
 
   function deleteTaskPostCategory(categoryId) {
     if (!isSelectedAdmin) return;
     const target = taskPostCategories.find((category) => category.id === categoryId);
     if (!target) return;
-    const confirmed = window.confirm(`${target.label} 유형을 비활성화할까요? 기존 게시글은 유지됩니다.`);
+    const confirmed = window.confirm(`${target.label} 유형을 비활성화할까요? 기존 업무 Note는 유지됩니다.`);
     if (!confirmed) return;
     setTaskPostCategories((current) =>
       normalizeTaskPostCategories(current).map((category) =>
@@ -2671,14 +2811,24 @@ function App() {
     if (isSupabaseReady && isAuthenticated) {
       remoteDashboardStore.tasks.deactivatePostCategory(categoryId)
         .then((result) => {
-          handleSupabaseWriteResult(result, "게시글 유형 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
+          handleSupabaseWriteResult(result, "Note 유형 공유 저장은 020_task_posts 마이그레이션 적용 후 사용할 수 있습니다.");
         })
         .catch((error) => {
-          console.warn("Supabase 게시글 유형 비활성화에 실패했습니다.", error);
-          showSyncNotice("게시글 유형 비활성화를 Supabase에 반영하지 못했습니다. 화면에는 임시로 유지됩니다.");
+          console.warn("Supabase Note 유형 비활성화에 실패했습니다.", error);
+          showSyncNotice("Note 유형 비활성화를 Supabase에 반영하지 못했습니다. 화면에는 임시로 유지됩니다.");
         });
     }
-    showSyncNotice("게시글 유형을 비활성화했습니다.");
+    showSyncNotice("Note 유형을 비활성화했습니다.");
+  }
+
+  function noteLinkTaskIdFor(draftTaskId, personId = selectedPersonId) {
+    const cleanTaskId = String(draftTaskId ?? "").trim();
+    if (!cleanTaskId || cleanTaskId === NOTE_OTHER_TASK_ID) return "";
+    const task = tasks.find((item) => item.id === cleanTaskId);
+    if (!task || isDeletedTask(task) || task.archived) return "";
+    if (["완료", "보류"].includes(task.status)) return "";
+    if (task.ownerId !== personId) return "";
+    return task.id;
   }
 
   function addBriefingItem(scope, draft) {
@@ -2687,40 +2837,46 @@ function App() {
     const title = String(draft?.title ?? "").trim();
     const body = String(draft?.body ?? "").trim();
     if (!title && !body) {
-      showSyncNotice(cleanScope === "team" ? "팀 체크 항목을 입력해 주세요." : "업무 인박스 제목이나 내용을 입력해 주세요.");
+      showSyncNotice(cleanScope === "team" ? "팀 체크 항목을 입력해 주세요." : "업무 Note 제목이나 내용을 입력해 주세요.");
       return false;
     }
+    const draftTaskId = String(draft?.taskId ?? "").trim();
+    const linkedTaskId = cleanScope === "my" ? noteLinkTaskIdFor(draftTaskId) : "";
     const nextItem = cleanBriefingItem({
       id: `briefing-${cleanScope}-${Date.now().toString(36)}`,
       scope: cleanScope,
       kind,
-      type: kind === "todo" ? "todo" : draft?.type,
+      type: kind === "todo" ? "할일" : draft?.type,
       title: title || body.split("\n").find(Boolean)?.slice(0, 48),
       body,
       url: draft?.url,
       status: kind === "todo" ? "open" : draft?.status,
       done: false,
       ownerId: cleanScope === "my" ? selectedPersonId : "",
+      taskId: linkedTaskId,
       authorId: selectedPersonId,
       createdAt: TODAY
     }, briefingItems.length);
     setBriefingItems((current) => [nextItem, ...current]);
-    showSyncNotice(cleanScope === "team" ? "팀 체크 항목을 추가했습니다." : "업무 인박스에 저장했습니다.");
+    showSyncNotice(cleanScope === "team" ? "팀 체크 항목을 추가했습니다." : "업무 Note에 저장했습니다.");
     return true;
   }
 
   function updateBriefingItem(itemId, patch) {
     if (!itemId) return;
     setBriefingItems((current) =>
-      current.map((item) =>
-        item.id === itemId
-          ? cleanBriefingItem({
-              ...item,
-              ...patch,
-              updatedAt: TODAY
-            }, 0)
-          : item
-      )
+      current.map((item) => {
+        if (item.id !== itemId) return item;
+        const nextPatch = { ...patch };
+        if (Object.prototype.hasOwnProperty.call(nextPatch, "taskId")) {
+          nextPatch.taskId = item.scope === "team" ? "" : noteLinkTaskIdFor(nextPatch.taskId, item.ownerId || selectedPersonId);
+        }
+        return cleanBriefingItem({
+          ...item,
+          ...nextPatch,
+          updatedAt: TODAY
+        }, 0);
+      })
     );
   }
 
@@ -2742,10 +2898,10 @@ function App() {
   function deleteBriefingItem(itemId) {
     const target = briefingItems.find((item) => item.id === itemId);
     if (!target) return false;
-    const confirmed = window.confirm(target.kind === "todo" ? "이 팀 체크 항목을 삭제할까요?" : "이 업무 인박스 항목을 삭제할까요?");
+    const confirmed = window.confirm(target.kind === "todo" ? "이 팀 체크 항목을 삭제할까요?" : "이 업무 Note 항목을 삭제할까요?");
     if (!confirmed) return false;
     setBriefingItems((current) => current.filter((item) => item.id !== itemId));
-    showSyncNotice(target.kind === "todo" ? "팀 체크 항목을 삭제했습니다." : "업무 인박스 항목을 삭제했습니다.");
+    showSyncNotice(target.kind === "todo" ? "팀 체크 항목을 삭제했습니다." : "업무 Note 항목을 삭제했습니다.");
     return true;
   }
 
@@ -2761,10 +2917,29 @@ function App() {
       const byWorkKind = !workflowFilterViews.includes(activeView) || workKindFilter === "전체" || isSpotTask(task);
       const byOwner = !workflowFilterViews.includes(activeView) || ownerFilter === "전체" || task.ownerId === ownerFilter;
       const bySummary = activeView !== "board" || summaryFilterMatches(task, summaryFilter, TODAY);
-      const bySearch = !searchTerm || taskSearchText(task, taskPostCategories).includes(searchTerm);
+      const bySearch = !searchTerm || (
+        activeView === "knowledge"
+          ? taskKnowledgeSearchText(task, briefingItems, activePage, selectedPersonId, taskPostCategories).includes(searchTerm)
+          : taskSearchText(task, taskPostCategories).includes(searchTerm)
+      );
       return byScope && byCategory && byArchive && byPriority && byWorkKind && byOwner && bySummary && bySearch;
     });
-  }, [activePage, activeView, category, directory, ownerFilter, priorityFilter, query, selectedPersonId, summaryFilter, tagGroups, taskPostCategories, tasks, workKindFilter]);
+  }, [activePage, activeView, briefingItems, category, directory, ownerFilter, priorityFilter, query, selectedPersonId, summaryFilter, tagGroups, taskPostCategories, tasks, workKindFilter]);
+
+  const knowledgeTasks = useMemo(() => {
+    const searchTerm = query.trim().toLowerCase();
+    return tasks.filter((task) => {
+      if (isDeletedTask(task)) return false;
+      const tags = taskTags(task);
+      const byCategory = matchesTagFilter(tags, category, tagGroups);
+      const byScope = activePage === "team" || task.ownerId === selectedPersonId;
+      const byPriority = priorityFilter === "전체" || task.priority === priorityFilter;
+      const byWorkKind = workKindFilter === "전체" || isSpotTask(task);
+      const byOwner = ownerFilter === "전체" || task.ownerId === ownerFilter;
+      const bySearch = !searchTerm || taskKnowledgeSearchText(task, briefingItems, activePage, selectedPersonId, taskPostCategories).includes(searchTerm);
+      return byScope && byCategory && byPriority && byWorkKind && byOwner && bySearch;
+    });
+  }, [activePage, briefingItems, category, ownerFilter, priorityFilter, query, selectedPersonId, tagGroups, taskPostCategories, tasks, workKindFilter]);
 
   const mindmapTasks = useMemo(() => {
     const searchTerm = query.trim().toLowerCase();
@@ -4750,9 +4925,11 @@ function App() {
                 onSelectGroup={selectBriefingGroup}
                 onToggleBriefingTodo={toggleBriefingTodo}
                 onUpdateBriefingItem={updateBriefingItem}
+                postCategories={taskPostCategories}
                 selectedPerson={selectedPerson}
                 selectedBriefingKey={selectedBriefingKey}
                 selectedTaskId={selectedTaskId}
+                tasks={tasks}
                 todayAgenda={todayAgenda}
               />
             )}
@@ -4764,9 +4941,10 @@ function App() {
                     ["board", "보드", ListChecks],
                     ["list", "리스트", ClipboardList],
                     ["timeline", "타임라인", CalendarDays],
+                    ["knowledge", "업무자료", FileText],
+                    ["mindmap", "마인드맵", Network],
                     ["recurring", recurringCount ? `반복 업무 ${recurringCount}` : "반복 업무", Clock3],
-                    ["archive", `보관함 ${archiveCount}`, Archive],
-                    ["mindmap", "마인드맵", Network]
+                    ["archive", `보관함 ${archiveCount}`, Archive]
                   ].map(([key, label, Icon]) => (
                     <button
                       className={activeView === key ? "active" : ""}
@@ -4784,53 +4962,6 @@ function App() {
                     요약: {summaryFilterLabels[summaryFilter]}
                     <X size={13} />
                   </button>
-                )}
-                <div className={`filter-select tag-filter-select ${selectedTagFilters.length ? "is-filtered" : ""}`}>
-                  <Filter size={16} />
-                  <button
-                    aria-controls="tag-library-content"
-                    aria-expanded={isTagLibraryOpen}
-                    className="tag-filter-open-button"
-                    onClick={openTagFilterPanel}
-                    title={tagFilterTitle}
-                    type="button"
-                  >
-                    태그: {tagFilterLabel}
-                  </button>
-                </div>
-                {workflowFilterViews.includes(activeView) && (
-                  <label className={`filter-select owner-filter ${ownerFilter !== "전체" ? "is-filtered" : ""}`}>
-                    <select aria-label="담당자 필터" onChange={(event) => setOwnerFilter(event.target.value)} value={ownerFilter}>
-                      <option value="전체">사람: 전체</option>
-                      {ownerFilterOptions.map((person) => (
-                        <option key={person.id} value={person.id}>
-                          {person.id === UNASSIGNED_OWNER_ID ? "사람: 미지정" : `사람: ${person.name}`}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                {workflowFilterViews.includes(activeView) && (
-                  <label className={`filter-select priority-filter ${priorityFilter !== "전체" ? "is-filtered" : ""}`}>
-                    <select aria-label="중요도 필터" onChange={(event) => setPriorityFilter(event.target.value)} value={priorityFilter}>
-                      {priorityFilters.map((priority) => (
-                        <option key={priority} value={priority}>
-                          중요: {priority}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                {workflowFilterViews.includes(activeView) && (
-                  <label className={`filter-select work-kind-filter ${workKindFilter !== "전체" ? "is-filtered" : ""}`}>
-                    <select aria-label="스팟 업무 필터" onChange={(event) => setWorkKindFilter(event.target.value)} value={workKindFilter}>
-                      {workKindFilters.map((filter) => (
-                        <option key={filter} value={filter}>
-                          {filter === "전체" ? "스팟: 전체" : "스팟만"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
                 )}
               </div>
             )}
@@ -4850,6 +4981,51 @@ function App() {
                 onToggleOpen={setIsTagLibraryOpen}
                 presets={tagGroups}
                 libraryRef={tagLibraryRef}
+                filterControls={workflowFilterViews.includes(activeView) ? (
+                  <div className="workflow-filter-row" aria-label="워크플로 필터">
+                    <div className={`filter-select tag-filter-select ${selectedTagFilters.length ? "is-filtered" : ""}`}>
+                      <Filter size={16} />
+                      <button
+                        aria-controls="tag-library-content"
+                        aria-expanded={isTagLibraryOpen}
+                        className="tag-filter-open-button"
+                        onClick={openTagFilterPanel}
+                        title={tagFilterTitle}
+                        type="button"
+                      >
+                        태그: {tagFilterLabel}
+                      </button>
+                    </div>
+                    <label className={`filter-select owner-filter ${ownerFilter !== "전체" ? "is-filtered" : ""}`}>
+                      <select aria-label="담당자 필터" onChange={(event) => setOwnerFilter(event.target.value)} value={ownerFilter}>
+                        <option value="전체">사람: 전체</option>
+                        {ownerFilterOptions.map((person) => (
+                          <option key={person.id} value={person.id}>
+                            {person.id === UNASSIGNED_OWNER_ID ? "사람: 미지정" : `사람: ${person.name}`}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className={`filter-select priority-filter ${priorityFilter !== "전체" ? "is-filtered" : ""}`}>
+                      <select aria-label="중요도 필터" onChange={(event) => setPriorityFilter(event.target.value)} value={priorityFilter}>
+                        {priorityFilters.map((priority) => (
+                          <option key={priority} value={priority}>
+                            중요: {priority}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className={`filter-select work-kind-filter ${workKindFilter !== "전체" ? "is-filtered" : ""}`}>
+                      <select aria-label="스팟 업무 필터" onChange={(event) => setWorkKindFilter(event.target.value)} value={workKindFilter}>
+                        {workKindFilters.map((filter) => (
+                          <option key={filter} value={filter}>
+                            {filter === "전체" ? "스팟: 전체" : "스팟만"}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ) : null}
                 tags={availableTags}
               />
             )}
@@ -4985,6 +5161,25 @@ function App() {
                     tasks={mindmapTasks}
                   />
                 </Suspense>
+                {isWorkflowDetailContext && (
+                  <aside className="workflow-detail-column" ref={workflowDetailColumnRef}>
+                    {detailPanel}
+                  </aside>
+                )}
+              </section>
+            )}
+            {activeView === "knowledge" && (
+              <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`} ref={workflowSurfaceRef}>
+                <TaskKnowledgeView
+                  activePage={activePage}
+                  briefingItems={briefingItems}
+                  onSelectTask={(taskId) => selectTask(taskId, "workflow")}
+                  postCategories={taskPostCategories}
+                  query={query}
+                  selectedPerson={selectedPerson}
+                  selectedTaskId={isWorkflowDetailContext ? selectedTaskId : ""}
+                  tasks={knowledgeTasks}
+                />
                 {isWorkflowDetailContext && (
                   <aside className="workflow-detail-column" ref={workflowDetailColumnRef}>
                     {detailPanel}
@@ -5411,7 +5606,7 @@ function AdminView({ currentPersonId, onAddTag, onApproveWikiDraft, onCreateWiki
     { id: "people", label: "사람 관리", count: teamAssignablePeople(people).length },
     { id: "tags", label: "태그 관리", count: tags.length },
     { id: "workstreams", label: "업무흐름 관리", count: workstreamGroups.filter((group) => group.label).length },
-    { id: "postTypes", label: "게시글 유형 관리", count: normalizeTaskPostCategories(postCategories).filter((category) => category.active).length },
+    { id: "postTypes", label: "Note 유형 관리", count: normalizeTaskPostCategories(postCategories).filter((category) => category.active).length },
     { id: "wikiDrafts", label: "Wiki 초안", count: wikiDrafts.length + wikiRecommendations.length }
   ];
 
@@ -5735,7 +5930,7 @@ function AdminPostCategoriesPanel({ categories, onDelete, onSave }) {
 
   function addCategory() {
     const id = `post-type-${Date.now().toString(36)}`;
-    const next = { id, label: "새 게시글 유형", tone: "slate", active: true };
+    const next = { id, label: "새 Note 유형", tone: "slate", active: true };
     setSelectedId(id);
     setDraft(next);
   }
@@ -5746,16 +5941,16 @@ function AdminPostCategoriesPanel({ categories, onDelete, onSave }) {
         <div>
           <span className="panel-label">
             <MessageSquareText size={14} />
-            게시글 유형 관리
+            Note 유형 관리
           </span>
-          <h3>게시글 성격 구분</h3>
+          <h3>업무 Note 유형 구분</h3>
         </div>
-        <p>결정사항, 회의록, 중요문서처럼 나중에 찾기 쉬운 게시글 유형을 관리합니다.</p>
+        <p>메일, 회의록, 아이디어, 리스크처럼 오늘 기록과 업무 상세에서 함께 쓰는 Note 유형을 관리합니다.</p>
       </div>
       <div className="admin-tree-manager post-category-manager">
         <section className="admin-tree-pane">
           <div className="admin-tree-head">
-            <strong>게시글 유형</strong>
+            <strong>Note 유형</strong>
             <small>{normalizedCategories.filter((category) => category.active).length}개 사용</small>
           </div>
           <div className="admin-tree-list">
@@ -5780,7 +5975,7 @@ function AdminPostCategoriesPanel({ categories, onDelete, onSave }) {
         <section className="admin-editor-pane">
           <div className="admin-editor-head">
             <strong>유형 수정</strong>
-            <small>작성창 선택지와 게시글 칩에 반영</small>
+            <small>업무 Note 작성창 선택지와 칩에 반영</small>
           </div>
           <form className="admin-editor-form" onSubmit={submitCategory}>
             <label>
@@ -5818,7 +6013,7 @@ function AdminPostCategoriesPanel({ categories, onDelete, onSave }) {
                 비활성화
               </button>
             </div>
-            <p className="admin-editor-note">이름을 바꾸면 실제 저장된 게시글의 유형명도 함께 갱신됩니다.</p>
+            <p className="admin-editor-note">이름을 바꾸면 실제 저장된 업무 Note의 유형명도 함께 갱신됩니다.</p>
           </form>
         </section>
       </div>
@@ -6866,12 +7061,28 @@ function BriefingPanel({
   onSelectGroup,
   onToggleBriefingTodo,
   onUpdateBriefingItem,
+  postCategories = defaultTaskPostCategories,
   selectedBriefingKey,
   selectedPerson,
+  tasks = [],
   todayAgenda
 }) {
   const inboxBodyRef = useRef(null);
-  const [draft, setDraft] = useState({ type: "mail", title: "", body: "", url: "", status: "new" });
+  const activeNoteTypes = noteTypeOptionsFromCategories(postCategories);
+  const defaultNoteType = activeNoteTypes.find((type) => type.label === "메일")?.label || activeNoteTypes[0]?.label || "메모";
+  const noteLinkTasks = useMemo(() =>
+    (tasks ?? [])
+      .filter((task) => task && !isDeletedTask(task) && !task.archived)
+      .filter((task) => isTeam || task.ownerId === selectedPerson.id)
+      .filter((task) => !["완료", "보류"].includes(task.status))
+      .sort((a, b) => {
+        const dateCompare = String(a.dueDate || "").localeCompare(String(b.dueDate || ""));
+        return dateCompare || displayTaskTitle(a).localeCompare(displayTaskTitle(b), "ko-KR");
+      }),
+    [isTeam, selectedPerson.id, tasks]
+  );
+  const defaultNoteTaskId = noteLinkTasks[0]?.id || NOTE_OTHER_TASK_ID;
+  const [draft, setDraft] = useState({ type: defaultNoteType, taskId: defaultNoteTaskId, title: "", body: "", url: "", status: "new" });
   const [activeItemDialog, setActiveItemDialog] = useState(null);
   const itemCount = briefing.reduce((sum, group) => sum + group.tasks.length, 0);
   const briefingUnits = briefing.reduce((sum, group) => sum + Math.max(1, group.tasks.length), 0);
@@ -6905,8 +7116,8 @@ function BriefingPanel({
 
   function openWriteDialog() {
     setDraft(isTeam
-      ? { type: "todo", title: "", body: "", url: "", status: "open" }
-      : { type: "mail", title: "", body: "", url: "", status: "new" }
+      ? { type: "할일", taskId: "", title: "", body: "", url: "", status: "open" }
+      : { type: defaultNoteType, taskId: defaultNoteTaskId, title: "", body: "", url: "", status: "new" }
     );
     setActiveItemDialog({ mode: "write" });
   }
@@ -6922,7 +7133,8 @@ function BriefingPanel({
   function openEditDialog(item) {
     setDraft({
       id: item.id,
-      type: item.type || (item.kind === "todo" ? "todo" : "note"),
+      type: item.type || (item.kind === "todo" ? "할일" : "메모"),
+      taskId: item.taskId || NOTE_OTHER_TASK_ID,
       title: item.title || "",
       body: item.body || "",
       url: item.url || "",
@@ -6940,6 +7152,7 @@ function BriefingPanel({
     if (activeItemDialog?.mode === "edit" && draft.id) {
       onUpdateBriefingItem(draft.id, {
         type: isTeam ? "todo" : draft.type,
+        taskId: isTeam || draft.taskId === NOTE_OTHER_TASK_ID ? "" : draft.taskId,
         title: draft.title,
         body: draft.body,
         url: isTeam ? "" : draft.url,
@@ -6950,7 +7163,7 @@ function BriefingPanel({
     }
     const didSave = onAddBriefingItem(pageScope, draft);
     if (!didSave) return;
-    setDraft({ type: "mail", title: "", body: "", url: "", status: "new" });
+    setDraft({ type: defaultNoteType, taskId: defaultNoteTaskId, title: "", body: "", url: "", status: "new" });
     closeItemDialog();
   }
 
@@ -7006,7 +7219,7 @@ function BriefingPanel({
             </button>
           ))}
         </div>
-        <aside className="briefing-side" aria-label="오늘 일정과 업무 인박스">
+        <aside className="briefing-side" aria-label="오늘 일정과 업무 Note">
           <div className={`briefing-side-section today-agenda ${todayAgenda.length ? "" : "is-empty"}`}>
             <span className="panel-label">오늘 일정</span>
             {todayAgenda.length ? (
@@ -7029,7 +7242,7 @@ function BriefingPanel({
             <div className="briefing-capture-head">
               <span className="panel-label">
                 {isTeam ? <ListChecks size={14} /> : <NotebookPen size={14} />}
-                {isTeam ? "팀 체크" : "업무 인박스"}
+                {isTeam ? "팀 체크" : "업무 Note"}
               </span>
               <span className="briefing-capture-actions">
                 {olderItems.length > 0 && (
@@ -7045,7 +7258,7 @@ function BriefingPanel({
                 )}
                 <button className="briefing-capture-add" onClick={openWriteDialog} type="button">
                   <Plus size={13} />
-                  {isTeam ? "추가" : "기록"}
+                  {isTeam ? "추가" : "Note"}
                 </button>
               </span>
             </div>
@@ -7071,11 +7284,12 @@ function BriefingPanel({
                     <article className="work-inbox-item is-title-only" key={item.id}>
                       <button className="work-inbox-title-button" onClick={() => openReadDialog(item.id)} title={item.title} type="button">
                         <span className="work-inbox-title-line">
-                          <span className={`work-inbox-type type-${item.type}`}>{briefingItemTypeLabel(item.type)}</span>
+                          <span className={`work-inbox-type type-${noteTypeClass(item.type, postCategories)}`}>{briefingItemTypeLabel(item.type)}</span>
                           <strong>{item.title}</strong>
                         </span>
                         <small>
                           {briefingItemStatusLabel(item.status)}
+                          {item.taskId ? ` · ${displayTaskTitle(tasks.find((task) => task.id === item.taskId)) || "연결 업무"}` : " · 기타/참고"}
                           {item.body ? ` · ${item.body}` : item.url ? " · URL" : ""}
                         </small>
                       </button>
@@ -7083,19 +7297,19 @@ function BriefingPanel({
                   )
                 ))
               ) : (
-                <p className="briefing-capture-empty">{isTeam ? "팀 체크 항목 없음" : "아직 남긴 인박스 없음"}</p>
+                <p className="briefing-capture-empty">{isTeam ? "팀 체크 항목 없음" : "아직 남긴 업무 Note 없음"}</p>
               )}
             </div>
           </div>
         </aside>
       </div>
       {activeItemDialog && (
-        <div className="briefing-item-dialog-layer" role="dialog" aria-label={activeItemDialog.mode === "read" ? "브리핑 항목 상세" : activeItemDialog.mode === "edit" ? "브리핑 항목 수정" : activeItemDialog.mode === "list" ? "브리핑 항목 전체 보기" : isTeam ? "팀 체크 추가" : "업무 인박스 기록"}>
+        <div className="briefing-item-dialog-layer" role="dialog" aria-label={activeItemDialog.mode === "read" ? "브리핑 항목 상세" : activeItemDialog.mode === "edit" ? "브리핑 항목 수정" : activeItemDialog.mode === "list" ? "브리핑 항목 전체 보기" : isTeam ? "팀 체크 추가" : "업무 Note 기록"}>
           <button className="task-post-dialog-backdrop" onClick={closeItemDialog} type="button" aria-label="브리핑 항목 창 닫기" />
           <div className="briefing-item-dialog">
             <div className="task-post-dialog-head">
               <div>
-                <strong>{activeItemDialog.mode === "read" ? activeItem?.title : activeItemDialog.mode === "edit" ? (isTeam ? "팀 체크 수정" : "업무 인박스 수정") : activeItemDialog.mode === "list" ? (isTeam ? "팀 체크 전체 보기" : "업무 인박스 전체 보기") : isTeam ? "팀 체크 추가" : "업무 인박스 기록"}</strong>
+                <strong>{activeItemDialog.mode === "read" ? activeItem?.title : activeItemDialog.mode === "edit" ? (isTeam ? "팀 체크 수정" : "업무 Note 수정") : activeItemDialog.mode === "list" ? (isTeam ? "팀 체크 전체 보기" : "업무 Note 전체 보기") : isTeam ? "팀 체크 추가" : "업무 Note 기록"}</strong>
                 <small>
                   {activeItemDialog.mode === "read"
                     ? `${activeItem?.createdAt ?? TODAY} · ${personName(activeItem?.authorId)}${activeItem?.kind === "todo" ? ` · ${activeItem.done ? "완료" : "미완료"}` : ` · ${briefingItemStatusLabel(activeItem?.status)}`}`
@@ -7103,7 +7317,7 @@ function BriefingPanel({
                       ? `${listItems.length}개 항목을 리스트로 봅니다. 제목을 클릭하면 상세로 이동합니다.`
                     : activeItemDialog.mode === "edit"
                       ? "제목과 내용을 바로잡습니다."
-                      : isTeam ? "같이 확인할 작은 약속을 남깁니다." : "나중에 찾을 수 있는 근거 정보를 구조화해서 남깁니다."}
+                      : isTeam ? "같이 확인할 작은 약속을 남깁니다." : "업무와 기타 참고 맥락을 같은 Note 형식으로 남깁니다."}
                 </small>
               </div>
               <button className="icon-button" onClick={closeItemDialog} type="button" title="브리핑 항목 창 닫기">
@@ -7120,9 +7334,9 @@ function BriefingPanel({
                     title={item.title}
                     type="button"
                   >
-                    <span className={`work-inbox-type type-${item.type}`}>{item.kind === "todo" ? (item.done ? "완료" : "체크") : briefingItemTypeLabel(item.type)}</span>
+                    <span className={`work-inbox-type type-${noteTypeClass(item.type, postCategories)}`}>{item.kind === "todo" ? (item.done ? "완료" : "체크") : briefingItemTypeLabel(item.type)}</span>
                     <strong>{item.title}</strong>
-                    <small>{item.body || (item.kind === "todo" ? "메모 없음" : briefingItemStatusLabel(item.status))}</small>
+                    <small>{item.kind === "todo" ? item.body || "메모 없음" : `${item.taskId ? displayTaskTitle(tasks.find((task) => task.id === item.taskId)) || "연결 업무" : "기타/참고"} · ${item.body || briefingItemStatusLabel(item.status)}`}</small>
                   </button>
                 ))}
               </div>
@@ -7130,14 +7344,29 @@ function BriefingPanel({
               <form className="task-post-write-mockup briefing-item-write" onSubmit={submitCapture}>
                 {!isTeam && (
                   <label>
-                    <span>구분</span>
+                    <span>Note 유형</span>
                     <select
-                      aria-label="업무 인박스 분류"
+                      aria-label="업무 Note 유형"
                       onChange={(event) => updateDraft({ type: event.target.value })}
                       value={draft.type}
                     >
-                      {briefingItemTypes.map((type) => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
+                      {activeNoteTypes.map((type) => (
+                        <option key={type.id} value={type.label}>{type.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {!isTeam && (
+                  <label>
+                    <span>업무 연결</span>
+                    <select
+                      aria-label="업무 Note 업무 연결"
+                      onChange={(event) => updateDraft({ taskId: event.target.value })}
+                      value={draft.taskId || NOTE_OTHER_TASK_ID}
+                    >
+                      <option value={NOTE_OTHER_TASK_ID}>기타/참고</option>
+                      {noteLinkTasks.map((task) => (
+                        <option key={task.id} value={task.id}>{displayTaskTitle(task)}</option>
                       ))}
                     </select>
                   </label>
@@ -7145,7 +7374,7 @@ function BriefingPanel({
                 <label>
                   <span>{isTeam ? "체크 항목" : "제목"}</span>
                   <input
-                    aria-label={isTeam ? "팀 체크 항목" : "업무 인박스 제목"}
+                    aria-label={isTeam ? "팀 체크 항목" : "업무 Note 제목"}
                     onChange={(event) => updateDraft({ title: event.target.value })}
                     placeholder={isTeam ? "같이 확인할 항목" : "나중에 찾을 수 있는 제목"}
                     value={draft.title}
@@ -7155,16 +7384,16 @@ function BriefingPanel({
                   <span>{isTeam ? "메모" : "본문"}</span>
                   <div className="emoji-textarea-frame task-post-body-frame">
                     <textarea
-                      aria-label={isTeam ? "팀 체크 메모" : "업무 인박스 내용"}
+                      aria-label={isTeam ? "팀 체크 메모" : "업무 Note 내용"}
                       onChange={(event) => updateDraft({ body: event.target.value })}
-                      placeholder={isTeam ? "필요하면 간단한 설명을 남겨두세요." : "중요 메일, 기억할 내용, 판단 근거를 남겨두세요."}
+                      placeholder={isTeam ? "필요하면 간단한 설명을 남겨두세요." : "메일, 회의록, 아이디어, 리스크, 참고자료처럼 나중에 찾을 맥락을 남겨두세요."}
                       ref={inboxBodyRef}
                       rows={isTeam ? 5 : 10}
                       value={draft.body}
                     />
                     <EmojiPopover
                       onSelect={(emoji) => insertEmojiAtCursor(inboxBodyRef, draft.body, emoji, (value) => updateDraft({ body: value }))}
-                      triggerLabel={isTeam ? "팀 체크 메모에 이모지 넣기" : "업무 인박스에 이모지 넣기"}
+                      triggerLabel={isTeam ? "팀 체크 메모에 이모지 넣기" : "업무 Note에 이모지 넣기"}
                       triggerClassName="textarea-emoji-trigger"
                     />
                   </div>
@@ -7173,7 +7402,7 @@ function BriefingPanel({
                   <label>
                     <span>URL</span>
                     <input
-                      aria-label="업무 인박스 URL"
+                      aria-label="업무 Note URL"
                       onChange={(event) => updateDraft({ url: event.target.value })}
                       placeholder="https:// 또는 공유 문서 주소"
                       value={draft.url}
@@ -7236,7 +7465,7 @@ function BriefingPanel({
   );
 }
 
-function TagLibrary({ activeTags, canManageTags, isOpen, libraryRef, onAdd, onClearFilters, onDelete, onDeletePreset, onFilter, onRename, onSavePreset, onToggleOpen, presets, tags }) {
+function TagLibrary({ activeTags, canManageTags, filterControls = null, isOpen, libraryRef, onAdd, onClearFilters, onDelete, onDeletePreset, onFilter, onRename, onSavePreset, onToggleOpen, presets, tags }) {
   const [draftTag, setDraftTag] = useState("");
   const [editingValue, setEditingValue] = useState("");
   const [isAdding, setIsAdding] = useState(false);
@@ -7386,16 +7615,19 @@ function TagLibrary({ activeTags, canManageTags, isOpen, libraryRef, onAdd, onCl
           <small>{`Category ${presets.length} · 태그 ${tags.length}`}</small>
           {activeTags.length > 0 && <em>{activeTagLabel}</em>}
         </div>
-        <button
-          aria-controls="tag-library-content"
-          aria-expanded={isOpen}
-          className="tag-library-toggle"
-          onClick={toggleOpen}
-          type="button"
-        >
-          {isOpen ? "접기" : "펼치기"}
-          <ChevronDown size={15} />
-        </button>
+        <div className="tag-library-head-actions">
+          {filterControls}
+          <button
+            aria-controls="tag-library-content"
+            aria-expanded={isOpen}
+            className="tag-library-toggle"
+            onClick={toggleOpen}
+            type="button"
+          >
+            {isOpen ? "접기" : "펼치기"}
+            <ChevronDown size={15} />
+          </button>
+        </div>
       </div>
       {isOpen && (
         <div className="tag-library-content" id="tag-library-content">
@@ -9214,6 +9446,356 @@ function UpdatesView({ initialScope = "mine", onAddUpdate, onSelect, selectedPer
   );
 }
 
+function TaskKnowledgeView({ activePage, briefingItems, onSelectTask, postCategories, query, selectedPerson, selectedTaskId, tasks }) {
+  const [expandedTaskIds, setExpandedTaskIds] = useState({});
+  const [expandedStatusKeys, setExpandedStatusKeys] = useState({});
+  const [expandedTypeKeys, setExpandedTypeKeys] = useState({});
+  const [knowledgeMode, setKnowledgeMode] = useState("byTask");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [knowledgeSearch, setKnowledgeSearch] = useState("");
+  const { groups, unlinkedItems } = useMemo(
+    () => taskKnowledgeGroups(tasks, briefingItems, activePage, selectedPerson.id, postCategories, ""),
+    [activePage, briefingItems, postCategories, selectedPerson.id, tasks]
+  );
+  const noteTypeOptions = noteTypeOptionsFromCategories(postCategories);
+  const searchTerm = knowledgeSearch.trim().toLowerCase();
+  const statusSections = [
+    { key: "진행중", label: "진행" },
+    { key: "계획", label: "계획" },
+    { key: "완료", label: "완료" },
+    { key: "검토/대기", label: "검토" },
+    { key: "보류", label: "보류" },
+    { key: "other", label: "기타" },
+    { key: "archive", label: "보관" }
+  ];
+  const statusOptions = [{ key: "all", label: "전체" }, ...statusSections];
+  const modeOptions = [
+    { key: "byTask", label: "업무별 노트" },
+    { key: "byType", label: "유형별" },
+    { key: "updates", label: "로그" }
+  ];
+
+  const statusKeyForTask = (task) => task?.archived ? "archive" : task?.status || "other";
+  const statusLabelForKey = (key) => statusSections.find((section) => section.key === key)?.label || "기타";
+  const passesStatusFilter = (key) => statusFilter === "all" || statusFilter === key;
+  const toggleTask = (taskId) => {
+    setExpandedTaskIds((current) => ({ ...current, [taskId]: !(current[taskId] ?? false) }));
+  };
+  const toggleStatus = (statusKey) => {
+    setExpandedStatusKeys((current) => ({ ...current, [statusKey]: !(current[statusKey] ?? false) }));
+  };
+  const toggleType = (typeKey) => {
+    setExpandedTypeKeys((current) => ({ ...current, [typeKey]: !(current[typeKey] ?? false) }));
+  };
+
+  const noteFromBriefingItem = (item, task = null) => {
+    const typeLabel = activePage === "team" ? "할일" : briefingItemTypeLabel(item.type);
+    const statusKey = task ? statusKeyForTask(task) : "other";
+    return {
+      id: `briefing-${item.id}`,
+      rawId: item.id,
+      source: item.kind === "todo" ? "팀 체크" : "오늘 기록",
+      statusKey,
+      statusLabel: statusLabelForKey(statusKey),
+      typeLabel,
+      title: item.title,
+      body: item.body,
+      url: item.url,
+      date: knowledgeRecordDate(item),
+      authorId: item.authorId,
+      taskId: task?.id || item.taskId || "",
+      taskTitle: task ? displayTaskTitle(task) : "",
+      meta: activePage === "team" ? (item.done ? "완료" : "진행") : briefingItemStatusLabel(item.status)
+    };
+  };
+  const noteFromPost = (post, task) => {
+    const statusKey = statusKeyForTask(task);
+    return {
+      id: `post-${post.id}`,
+      rawId: post.id,
+      source: "업무 상세",
+      statusKey,
+      statusLabel: statusLabelForKey(statusKey),
+      typeLabel: post.scope,
+      title: post.title,
+      body: post.body,
+      url: post.url,
+      attachment: post.attachment,
+      date: post.date || knowledgeRecordDate(post),
+      authorId: post.authorId,
+      taskId: task?.id || post.taskId || "",
+      taskTitle: task ? displayTaskTitle(task) : post.taskTitle,
+      meta: post.attachment ? "이미지 근거" : post.url ? "URL" : "노트"
+    };
+  };
+  const noteMatchesSearch = (note) => !searchTerm || searchableText([
+    note.title,
+    note.body,
+    note.url,
+    note.typeLabel,
+    note.statusLabel,
+    note.source,
+    note.meta,
+    note.taskTitle,
+    personName(note.authorId),
+    note.date,
+    attachmentEvidenceText(note.attachment)
+  ]).includes(searchTerm);
+  const updateMatchesSearch = (update, task) => !searchTerm || searchableText([
+    update.date,
+    update.text,
+    personName(update.authorId),
+    displayTaskTitle(task),
+    task.status,
+    task.archived ? "보관" : "",
+    taskWorkstreamLabel(task),
+    personName(task.ownerId)
+  ]).includes(searchTerm);
+  const notesForGroup = (group) => [
+    ...group.inboxItems.map((item) => noteFromBriefingItem(item, group.task)),
+    ...group.posts.map((post) => noteFromPost(post, group.task))
+  ]
+    .filter((note) => passesStatusFilter(note.statusKey) && noteMatchesSearch(note))
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || a.title.localeCompare(b.title, "ko-KR"));
+  const preparedGroups = groups.map((group) => {
+    const statusKey = statusKeyForTask(group.task);
+    return {
+      ...group,
+      statusKey,
+      statusLabel: statusLabelForKey(statusKey),
+      isOpen: expandedTaskIds[group.task.id] ?? false,
+      notes: notesForGroup(group),
+      updates: group.updates.filter((update) => passesStatusFilter(statusKey) && updateMatchesSearch(update, group.task))
+    };
+  });
+  const linkedNoteGroups = preparedGroups
+    .filter((group) => knowledgeMode === "updates" ? group.updates.length > 0 : group.notes.length > 0);
+  const otherNotes = unlinkedItems
+    .map((item) => noteFromBriefingItem(item))
+    .filter((note) => passesStatusFilter(note.statusKey) && noteMatchesSearch(note));
+  const allNotes = [
+    ...linkedNoteGroups.flatMap((group) => group.notes),
+    ...otherNotes
+  ];
+  const noteTypeLabels = [
+    ...noteTypeOptions.map((type) => type.label),
+    ...allNotes.map((note) => note.typeLabel)
+  ].filter((label, index, list) => label && list.indexOf(label) === index);
+  const visibleTypeLabels = typeFilter === "all" ? noteTypeLabels : noteTypeLabels.filter((label) => label === typeFilter);
+  const typeSections = visibleTypeLabels
+    .map((label) => ({
+      key: label,
+      label,
+      records: allNotes
+        .filter((note) => note.typeLabel === label)
+        .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || a.title.localeCompare(b.title, "ko-KR"))
+    }))
+    .filter((section) => section.records.length > 0);
+  const taskStatusSections = statusSections
+    .map((section) => {
+      const sectionGroups = linkedNoteGroups.filter((group) => group.statusKey === section.key);
+      const sectionNotes = section.key === "other" && knowledgeMode === "byTask" ? otherNotes : [];
+      const recordCount = knowledgeMode === "updates"
+        ? sectionGroups.reduce((sum, group) => sum + group.updates.length, 0)
+        : sectionGroups.reduce((sum, group) => sum + group.notes.length, 0) + sectionNotes.length;
+      return {
+        ...section,
+        groups: sectionGroups,
+        notes: sectionNotes,
+        recordCount,
+        isOpen: expandedStatusKeys[section.key] ?? false
+      };
+    })
+    .filter((section) => recordCountIsVisible(section, statusFilter));
+  const totalLinkedNotes = groups.reduce((sum, group) => sum + group.inboxItems.length + group.posts.length, 0);
+  const totalNotes = totalLinkedNotes + unlinkedItems.length;
+  const totalUpdates = groups.reduce((sum, group) => sum + group.updates.length, 0);
+
+  function recordCountIsVisible(section, activeStatusFilter) {
+    return section.recordCount > 0 && (activeStatusFilter === "all" || section.key === activeStatusFilter);
+  }
+
+  const renderNote = (note) => (
+    <article className="knowledge-record knowledge-note-record" key={note.id}>
+      <span className={`knowledge-post-chip post-scope-chip tone-${taskPostCategoryMeta(note.typeLabel, postCategories).tone}`}>{note.typeLabel}</span>
+      <div>
+        <strong>{note.title}</strong>
+        <small>{note.date || "날짜 없음"} · {personName(note.authorId)} · {note.taskTitle || "기타/참고"} · {note.statusLabel} · {note.source} · {note.meta}</small>
+        {note.body && <p>{note.body}</p>}
+        {note.url && (
+          <a href={note.url} rel="noreferrer" target="_blank">
+            <Link2 size={13} />
+            {note.url}
+          </a>
+        )}
+        {note.attachment && (
+          <em className="knowledge-evidence-chip">
+            <FileText size={13} />
+            {note.attachment.label || "이미지 근거"}
+          </em>
+        )}
+      </div>
+    </article>
+  );
+  const renderUpdate = (update, index, task) => (
+    <article className="knowledge-record knowledge-update-record" key={`update-${task.id}-${update.date}-${index}`}>
+      <span className="knowledge-log-date">{update.date}</span>
+      <div>
+        <strong>{personName(update.authorId)}</strong>
+        <small>{displayTaskTitle(task)} · {statusLabelForKey(statusKeyForTask(task))}</small>
+        <p>{update.text}</p>
+      </div>
+    </article>
+  );
+  const renderTaskCard = (group) => {
+    const task = group.task;
+    const isSelected = selectedTaskId === task.id;
+    return (
+      <section className={`task-knowledge-card ${isSelected ? "selected" : ""}`} key={task.id}>
+        <div className="task-knowledge-card-head">
+          <button aria-expanded={group.isOpen} className="task-knowledge-toggle" onClick={() => toggleTask(task.id)} type="button">
+            {group.isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+            <span>
+              <strong>{displayTaskTitle(task)}</strong>
+              <small>{personName(task.ownerId)} · {taskWorkstreamLabel(task)} · {group.statusLabel}</small>
+            </span>
+          </button>
+          <div className="task-knowledge-counts">
+            {group.notes.length > 0 && <em>업무 Note {group.notes.length}</em>}
+            {group.updates.length > 0 && <em>로그 {group.updates.length}</em>}
+            <button className="secondary-button small" onClick={() => onSelectTask(task.id)} type="button">
+              상세
+            </button>
+          </div>
+        </div>
+        {group.isOpen && (
+          <div className="task-knowledge-records">
+            {knowledgeMode === "updates"
+              ? group.updates.map((update, index) => renderUpdate(update, index, task))
+              : group.notes.map(renderNote)}
+          </div>
+        )}
+      </section>
+    );
+  };
+
+  return (
+    <section className="task-knowledge-view">
+      <div className="task-knowledge-heading">
+        <div>
+          <span className="panel-label">업무자료</span>
+          <h2>{activePage === "team" ? "팀 업무별 자료" : `${selectedPerson.name} 업무 Note 자료`}</h2>
+        </div>
+        <div className="task-knowledge-summary" aria-label="업무자료 요약">
+          <span>{groups.length} 업무</span>
+          <span>{totalNotes} 업무 Note</span>
+          <span>{unlinkedItems.length} 기타/참고</span>
+          <span>{totalUpdates} 로그</span>
+        </div>
+      </div>
+      <div className="task-knowledge-toolbar">
+        <div className="segmented small task-knowledge-filter" role="tablist" aria-label="업무자료 기록 필터">
+          {modeOptions.map((option) => (
+            <button
+              className={knowledgeMode === option.key ? "active" : ""}
+              key={option.key}
+              onClick={() => {
+                setKnowledgeMode(option.key);
+                if (option.key !== "byType") setTypeFilter("all");
+              }}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <label className="task-knowledge-search">
+          <Search size={15} />
+          <input
+            aria-label="업무자료 검색"
+            onChange={(event) => setKnowledgeSearch(event.target.value)}
+            placeholder="업무자료 검색"
+            value={knowledgeSearch}
+          />
+        </label>
+      </div>
+      <div className="task-knowledge-subfilter" aria-label="업무자료 상태 필터">
+        {statusOptions.map((option) => (
+          <button className={statusFilter === option.key ? "active" : ""} key={option.key} onClick={() => setStatusFilter(option.key)} type="button">
+            {option.label}
+          </button>
+        ))}
+      </div>
+      {knowledgeMode === "byType" && (
+        <div className="task-knowledge-subfilter" aria-label="업무 Note 유형 필터">
+          <button className={typeFilter === "all" ? "active" : ""} onClick={() => setTypeFilter("all")} type="button">
+            유형 전체
+          </button>
+          {noteTypeLabels.map((label) => (
+            <button className={typeFilter === label ? "active" : ""} key={label} onClick={() => setTypeFilter(label)} type="button">
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {knowledgeMode === "byType" ? (
+        typeSections.length ? (
+          <div className="task-knowledge-type-list">
+            {typeSections.map((section) => {
+              const isOpen = expandedTypeKeys[section.key] ?? false;
+              return (
+                <section className="task-knowledge-type-section" key={section.label}>
+                  <button aria-expanded={isOpen} className="task-knowledge-section-head" onClick={() => toggleType(section.key)} type="button">
+                    <span>
+                      {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                      <strong>{section.label}</strong>
+                    </span>
+                    <em>{section.records.length}건</em>
+                  </button>
+                  {isOpen && (
+                    <div className="task-knowledge-records">
+                      {section.records.map(renderNote)}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="empty-note">선택한 조건의 업무 Note가 없습니다.</p>
+        )
+      ) : taskStatusSections.length ? (
+        <div className="task-knowledge-status-list">
+          {taskStatusSections.map((section) => (
+            <section className="task-knowledge-status-section" key={section.key}>
+              <button aria-expanded={section.isOpen} className="task-knowledge-section-head" onClick={() => toggleStatus(section.key)} type="button">
+                <span>
+                  {section.isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                  <strong>{section.label}</strong>
+                </span>
+                <em>{section.recordCount}건</em>
+              </button>
+              {section.isOpen && (
+                <div className="task-knowledge-section-body">
+                  {section.groups.map(renderTaskCard)}
+                  {section.notes.length > 0 && (
+                    <div className="task-knowledge-records">
+                      {section.notes.map(renderNote)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+      ) : (
+        <p className="empty-note">현재 조건에서 묶어 볼 업무자료가 없습니다.</p>
+      )}
+    </section>
+  );
+}
+
 function BriefingDetail({ group, isTeam, onClose, onSelect, selectedTaskId }) {
   return (
     <section className="detail-panel">
@@ -9334,7 +9916,7 @@ function PerformanceView({ isWikiReady = false, onReadWikiPage, onSearchWikiPage
   const displayTasks = tasksWithRecurringInstances(tasks, range.start, range.end);
   const highlightPostGroups = useMemo(() => {
     const posts = displayTasks
-      .filter((task) => !isDeletedTask(task) && !task.archived)
+      .filter((task) => !isDeletedTask(task))
       .flatMap((task) => taskKnowledgePosts(task, postCategories))
       .sort((a, b) => b.date.localeCompare(a.date) || a.taskTitle.localeCompare(b.taskTitle, "ko-KR"));
     const groupMap = new Map();
@@ -9424,8 +10006,8 @@ function PerformanceView({ isWikiReady = false, onReadWikiPage, onSearchWikiPage
       <div className="performance-heading">
         <div>
           <span className="panel-label">업무실적</span>
-          <h2>{activePerformanceTab === "posts" ? "업무흐름별 게시글 모음" : activePerformanceTab === "wiki" ? "업무흐름 Wiki" : reportTitle}</h2>
-          <p>{activePerformanceTab === "posts" ? "업무흐름별로 게시글을 접어 두고 필요한 흐름만 펼쳐 봅니다." : activePerformanceTab === "wiki" ? "발행된 Wiki page를 업무흐름 기준으로 검색하고 출처와 함께 읽습니다." : `${range.label} 기준으로 업무명과 세부 진행내역을 보고서 초안처럼 묶어 보여줍니다.`}</p>
+          <h2>{activePerformanceTab === "posts" ? "업무자료 모음" : activePerformanceTab === "wiki" ? "업무흐름 Wiki" : reportTitle}</h2>
+          <p>{activePerformanceTab === "posts" ? "업무흐름별로 업무자료를 접어 두고 필요한 흐름만 펼쳐 봅니다." : activePerformanceTab === "wiki" ? "발행된 Wiki page를 업무흐름 기준으로 검색하고 출처와 함께 읽습니다." : `${range.label} 기준으로 업무명과 세부 진행내역을 보고서 초안처럼 묶어 보여줍니다.`}</p>
         </div>
         <div className="performance-controls">
           <div className="segmented small performance-tabs" role="tablist" aria-label="Highlights 보기">
@@ -9433,7 +10015,7 @@ function PerformanceView({ isWikiReady = false, onReadWikiPage, onSearchWikiPage
               실적
             </button>
             <button className={activePerformanceTab === "posts" ? "active" : ""} onClick={() => setActivePerformanceTab("posts")} type="button">
-              업무흐름별 게시글 모음
+              업무자료 모음
             </button>
             <button className={activePerformanceTab === "wiki" ? "active" : ""} onClick={() => setActivePerformanceTab("wiki")} type="button">
               Wiki
@@ -9805,7 +10387,46 @@ function HighlightsPostsView({ expandedGroups, groups, onToggleGroup, postCatego
   const [expandedPostId, setExpandedPostId] = useState("");
   const [expandedImageId, setExpandedImageId] = useState(null);
   const [sortByGroup, setSortByGroup] = useState({});
-  const allPosts = groups.flatMap((group) => group.items);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [postSearch, setPostSearch] = useState("");
+  const statusSections = [
+    { key: "진행중", label: "진행" },
+    { key: "계획", label: "계획" },
+    { key: "완료", label: "완료" },
+    { key: "검토/대기", label: "검토" },
+    { key: "보류", label: "보류" },
+    { key: "other", label: "기타" },
+    { key: "archive", label: "보관" }
+  ];
+  const statusOptions = [{ key: "all", label: "전체" }, ...statusSections];
+  const searchTerm = postSearch.trim().toLowerCase();
+  const statusKeyForPost = (post) => post?.taskArchived ? "archive" : post?.taskStatus || "other";
+  const statusLabelForPost = (post) => statusSections.find((section) => section.key === statusKeyForPost(post))?.label || "기타";
+  const postMatchesStatus = (post) => statusFilter === "all" || statusKeyForPost(post) === statusFilter;
+  const postMatchesSearch = (post) => !searchTerm || searchableText([
+    post.title,
+    post.body,
+    post.url,
+    post.scope,
+    post.taskTitle,
+    post.workstream,
+    personName(post.ownerId),
+    personName(post.authorId),
+    post.date,
+    statusLabelForPost(post),
+    attachmentEvidenceText(post.attachment)
+  ]).includes(searchTerm);
+  const visibleGroups = groups
+    .map((group) => {
+      const items = group.items.filter((post) => postMatchesStatus(post) && postMatchesSearch(post));
+      return {
+        ...group,
+        items,
+        latestDate: items[0]?.date || group.latestDate
+      };
+    })
+    .filter((group) => group.items.length > 0);
+  const allPosts = visibleGroups.flatMap((group) => group.items);
   const expandedImagePost = allPosts.find((post) => post.id === expandedImageId);
   const sortOptions = [
     { key: "date", label: "날짜" },
@@ -9856,11 +10477,30 @@ function HighlightsPostsView({ expandedGroups, groups, onToggleGroup, postCatego
   };
 
   if (!groups.length) {
-    return <p className="empty-note">표시할 게시글이 없습니다.</p>;
+    return <p className="empty-note">표시할 업무자료가 없습니다.</p>;
   }
   return (
     <div className="highlight-posts-view">
-      {groups.map((group) => {
+      <div className="highlight-post-toolbar">
+        <label className="task-knowledge-search">
+          <Search size={15} />
+          <input
+            aria-label="업무자료 모음 검색"
+            onChange={(event) => setPostSearch(event.target.value)}
+            placeholder="업무자료 검색"
+            value={postSearch}
+          />
+        </label>
+        <div className="task-knowledge-subfilter" aria-label="업무자료 모음 상태 필터">
+          {statusOptions.map((option) => (
+            <button className={statusFilter === option.key ? "active" : ""} key={option.key} onClick={() => setStatusFilter(option.key)} type="button">
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {!visibleGroups.length && <p className="empty-note">선택한 조건에 맞는 업무자료가 없습니다.</p>}
+      {visibleGroups.map((group) => {
         const isOpen = Boolean(expandedGroups[group.label]);
         const latestDate = group.latestDate || group.items[0]?.date;
         const owners = Array.from(new Set(group.items.map((post) => personName(post.ownerId)))).slice(0, 3);
@@ -9904,7 +10544,7 @@ function HighlightsPostsView({ expandedGroups, groups, onToggleGroup, postCatego
                       <span className={`post-scope-chip tone-${taskPostCategoryMeta(post.scope, postCategories).tone}`}>{post.scope}</span>
                       <div>
                         <strong>{post.title}</strong>
-                        <small>{post.date} · 해당 업무: {post.taskTitle} · 담당: {personName(post.ownerId)} · 게시: {personName(post.authorId)}</small>
+                        <small>{post.date} · {statusLabelForPost(post)} · 해당 업무: {post.taskTitle} · 담당: {personName(post.ownerId)} · 게시: {personName(post.authorId)}</small>
                       </div>
                       {post.url && <Link2 size={14} />}
                     </button>
@@ -10067,7 +10707,7 @@ function TaskDetail({ canManage, onAddLink, onAddUpdate, onArchive, onClose, onC
             <div className="wiki-draft-action">
               <div>
                 <strong>LLM-Wiki 정리</strong>
-                <small>이 업무의 설명, 업데이트 로그, 업무 노트를 출처가 있는 Wiki 초안으로 만듭니다.</small>
+                <small>이 업무의 설명, 업데이트 로그, 업무 Note를 출처가 있는 Wiki 초안으로 만듭니다.</small>
               </div>
               <button className="secondary-button small" disabled={wikiDraftStatus === "saving"} onClick={onCreateWikiDraft} type="button">
                 <NotebookPen size={13} />
@@ -10320,7 +10960,7 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
   const tags = taskTags(task).slice(0, 2);
   const normalizedPostCategories = normalizeTaskPostCategories(postCategories);
   const activePostCategories = normalizedPostCategories.filter((category) => category.active);
-  const defaultScope = activePostCategories[0]?.label || normalizedPostCategories[0]?.label || "기억할 점";
+  const defaultScope = activePostCategories.find((category) => category.label === "기억할 점")?.label || activePostCategories[0]?.label || normalizedPostCategories[0]?.label || "기억할 점";
   const blankDraft = {
     id: "",
     scope: defaultScope,
@@ -10415,14 +11055,14 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
   };
 
   return (
-    <div className="task-posts-mockup-panel" aria-label="업무 노트">
+    <div className="task-posts-mockup-panel" aria-label="업무 Note">
       <div className="task-posts-mockup-head">
         <div>
-          <strong>업무 노트</strong>
+          <strong>업무 Note</strong>
         </div>
         <button className="secondary-button small" onClick={openWriteDialog} type="button">
           <Plus size={13} />
-          노트 작성
+          Note 작성
         </button>
       </div>
       <div className="task-post-feed-grid">
@@ -10446,7 +11086,7 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
             <div className="task-post-more-title">
               <h3>
                 <MessageSquareText size={15} />
-                이 업무 노트 더보기
+                이 업무 Note 더보기
               </h3>
               <button aria-expanded={isMoreOpen} className="section-manage-button" onClick={() => setIsMoreOpen((current) => !current)} type="button">
                 {isMoreOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
@@ -10475,23 +11115,23 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
         )}
       </div>
       {activePostDialog && (
-        <div className="task-post-dialog-layer" role="dialog" aria-label={activePostDialog.mode === "read" ? "업무 노트 상세" : "업무 노트 작성"}>
-          <button className="task-post-dialog-backdrop" onClick={closePostDialog} type="button" aria-label="업무 노트 창 닫기" />
+        <div className="task-post-dialog-layer" role="dialog" aria-label={activePostDialog.mode === "read" ? "업무 Note 상세" : "업무 Note 작성"}>
+          <button className="task-post-dialog-backdrop" onClick={closePostDialog} type="button" aria-label="업무 Note 창 닫기" />
           <div className="task-post-dialog">
             <div className="task-post-dialog-head">
               <div>
-                <strong>{activePostDialog.mode === "read" ? activePost?.title : activePostDialog.mode === "edit" ? "업무 노트 수정" : "업무 노트 작성"}</strong>
+                <strong>{activePostDialog.mode === "read" ? activePost?.title : activePostDialog.mode === "edit" ? "업무 Note 수정" : "업무 Note 작성"}</strong>
                 <small>{activePostDialog.mode === "read" ? `${activePost?.date} · ${personName(activePost?.authorId)} · ${activePost?.taskTitle}` : `${taskTitle} · ${workstream}`}</small>
               </div>
-              <button className="icon-button" onClick={closePostDialog} type="button" title="업무 노트 창 닫기">
+              <button className="icon-button" onClick={closePostDialog} type="button" title="업무 Note 창 닫기">
                 <X size={16} />
               </button>
             </div>
             {activePostDialog.mode !== "read" && (
             <form className="task-post-write-mockup" onPaste={handlePostPaste} onSubmit={submitPost}>
               <div className="task-post-type-field">
-                <span>노트 구분</span>
-                <div className="task-post-type-options" role="group" aria-label="업무 노트 구분 선택">
+                <span>Note 유형</span>
+                <div className="task-post-type-options" role="group" aria-label="업무 Note 유형 선택">
                   {[...activePostCategories, ...normalizedPostCategories.filter((category) => category.label === postDraft.scope && !category.active)].map((category) => (
                     <button
                       className={`post-scope-chip tone-${category.tone} ${postDraft.scope === category.label ? "active" : ""}`}
@@ -10601,7 +11241,7 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
                   <em className={`tag-tone-${tagTone(tag)}`} key={tag}>{tag}</em>
                 ))}
                 <button className="primary-button small" disabled={!postDraft.title.trim() || !postDraft.body.trim() || !onSavePost} type="submit">
-                  {activePostDialog.mode === "edit" ? "수정 저장" : "노트 남기기"}
+                  {activePostDialog.mode === "edit" ? "수정 저장" : "Note 남기기"}
                 </button>
               </div>
             </form>

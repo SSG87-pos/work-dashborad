@@ -2,6 +2,17 @@
 
 ## Now
 
+- [x] Add a task-by-task `업무자료` workflow tab.
+  - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
+  - Done: added `업무자료` in the workflow tab row, ordered as `보드 → 리스트 → 타임라인 → 업무자료 → 마인드맵 → 반복 업무 → 보관함`. It now offers `업무별 노트`, `유형별`, and `로그` views over the currently filtered tasks, and opens the existing workflow-side task detail through a compact `상세` action.
+  - Done: Today Briefing `업무 Note` and task-detail `업무 Note` now share the same Note type dictionary. My Desk note records can be linked directly to a current active task or saved under `기타/참고`.
+  - Done: My Desk only reads the selected person's personal Note records. Team Flow does not expose private notes and uses shared team-check records instead. Unlinked personal notes appear as a collapsed `기타/참고` group in `업무별 노트`.
+  - Done: task groups now start collapsed by default, and Note type stickers in `업무자료` reuse the same calm chip tone/height instead of looking like a separate badge system.
+  - Done: added local material search and state filters for `진행`, `계획`, `완료`, `검토`, `보류`, `기타`, and `보관`. State sections, task groups, and type groups start collapsed by default so accumulated materials stay scannable.
+  - Done: moved tag/owner/priority/spot filters out of the crowded workflow tab row and into the tag-library header beside the `펼치기/접기` control.
+  - Done: replaced the former `업무맥락/업무별노트` split with the unified `업무 Note` model and added `유형별` filters for mail, meeting notes, ideas, risks, references, todos, and notes.
+  - Guardrail: this is a read/lookup surface over existing task, briefing item, post, and update data. It does not introduce a new persistence model; future backend work can deepen the explicit task link field and migration rules.
+
 - [x] Apply phone-only information simplification.
   - Files: `src/styles.css`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
   - Done: at `max-width: 720px`, the dashboard now keeps search and `업무 추가` as the only visible top actions, compresses insight cards to number/label chips, shows team members as initial-only selectors, hides the long briefing greeting and side widgets, hides advanced workflow filters by default, and shortens briefing/task/update cards by hiding long description/tag/log overflow. Calendar keeps the month/event grid first and provides schedule registration through a compact collapsed `일정등록` action, and Highlights hides export/copy controls so report content moves up.
@@ -140,8 +151,8 @@
 
 - [x] Replace Today Briefing memo with structured My Desk inbox and Team checklist.
   - Files: `src/App.jsx`, `src/storage.js`, `src/supabaseStore.js`, `src/styles.css`, `supabase/migrations/022_briefing_items.sql`, `DESIGN.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/local-linux-supabase-runbook.md`, `HANDOFF.md`, `TODO.md`.
-  - Done: My Desk now shows `업무 인박스` instead of a plain memo textarea, with type, title, body, URL, and status fields for mail/meeting/idea/risk/reference/todo/note capture.
-  - Done: `업무 인박스` is personal per selected person. My Desk filters by the item's owner, while `팀 체크` remains shared for Team Flow.
+  - Done: My Desk now shows `업무 Note` instead of a plain memo textarea, with type, linked task/`기타/참고`, title, body, URL, and status fields for mail/meeting/idea/risk/reference/todo/note capture.
+  - Done: `업무 Note` is personal per selected person. My Desk filters by the item's owner, while `팀 체크` remains shared for Team Flow.
   - Done: Team Flow now shows `팀 체크` as compact todo rows; items can be added and checked done. Checked items stay completed until they are edited or deleted from the larger detail dialog.
   - Done: the small briefing area is now title-first and height-aware. It uses the available `오늘 브리핑` side-panel height to show as many recent rows as fit. Writing, long-form reading, editing, and deletion happen in a larger dialog; older rows open through a compact header `전체` list dialog instead of expanding or scrolling inside the side panel.
   - Done: moved the overflow `전체` control beside `추가/기록` in the capture header, so the row list keeps its vertical space. The preview threshold is based on the briefing-side height instead of a fixed 3/4 row count; in very short briefings it can show only two rows before the `전체` dialog.
@@ -242,8 +253,8 @@
   - Done: follow-up mockup moved long reading/writing into larger dialogs and added image attachment thumbnail enlargement inside the post dialog.
   - Done: follow-up retuned the feature from meeting-note-only to general remembered-context posts. The latest three posts now appear directly below `다음 액션 추천`, with a nearby `작성` action, same-task more/less control, and URL field/card mockup support.
   - Done: converted the visible post surface from read-only sample UI into real local/demo task data. Users can write, read, edit, and delete task posts; posts are stored on the task as `postItems` and persisted through the local dashboard snapshot.
-  - Done: added admin `게시글 유형 관리` for post category labels, tone colors, and active/hidden state. Renaming a type updates stored task posts that used the previous label.
-  - Done: renamed the task-detail surface to `업무 노트`, removed the extra explanatory summary card, changed the write action to `노트 작성`, made `노트 구분` chips visibly selectable with a checked active state, and added emoji insertion to the body textarea.
+  - Done: added admin `Note 유형 관리` for Note category labels, tone colors, and active/hidden state. Renaming a type updates stored task notes that used the previous label.
+  - Done: renamed the task-detail surface to `업무 Note`, removed the extra explanatory summary card, changed the write action to `Note 작성`, made `Note 유형` chips visibly selectable with a checked active state, and added emoji insertion to the body textarea.
   - Done: toned down post-category chips. Kept task-detail note reading in a larger dialog because the detail panel is narrow; moved row expand/collapse reading to the Highlights workstream post rollup instead.
   - Done: moved `업데이트 로그` above `관련 링크` and changed it to latest-three by default with a compact more/less control; edit/delete actions remain behind the separate `관리` toggle.
   - Follow-up: Supabase shared persistence is now prepared in `020_task_posts.sql`; live/local Supabase databases need that migration applied before multi-PC posts are shared.
@@ -257,7 +268,8 @@
   - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added a `게시글` tab inside Highlights next to the existing performance report.
   - Done: grouped remembered-context posts by `상위 업무흐름`; each workstream starts collapsed and expands to show post date, original task title, task owner, and post author.
-  - Done: follow-up renamed the visible tab/heading to `업무흐름별 게시글 모음`, sorted workstream groups by the latest post date, and removed the duplicated task-detail cross-task workstream surface so task detail stays focused on the selected task's posts.
+  - Done: follow-up renamed the visible tab/heading to `업무자료 모음`, sorted workstream groups by the latest post date, and removed the duplicated task-detail cross-task workstream surface so task detail stays focused on the selected task's posts.
+  - Done: `업무자료 모음` now mirrors workflow `업무자료` with material search and state filters for `진행`, `계획`, `완료`, `검토`, `보류`, `기타`, and `보관`; workstream groups remain collapsed by default.
   - Done: changed expanded group post reading from a larger dialog to inline row expand/collapse and added short sort controls: `날짜`, `사람`, `구분`, `업무`.
   - Product note: the rollup stays inside Highlights because it is a lookup/review surface. Team Flow can later add a lightweight shortcut, but another dense workflow tab beside mindmap is not recommended yet.
   - Browser QA: `http://127.0.0.1:5177/` showed the Highlights `게시글` tab, 8 collapsed workstream groups, 0 rows visible while collapsed, and 10 rows after expanding the first group. Expanded rows included `게시날짜`, `해당 업무`, `담당`, and `게시` information with no page-level horizontal overflow. Console warnings remained existing lanyard/Three warnings.

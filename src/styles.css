@@ -6183,6 +6183,14 @@ body[data-page="team"] .briefing-panel {
   gap: 10px;
 }
 
+.highlight-post-toolbar {
+  padding: 0 1px 2px;
+}
+
+.highlight-post-toolbar .task-knowledge-subfilter {
+  flex: 1 1 360px;
+}
+
 .highlight-post-group {
   border: 1px solid #dbe7fb;
   border-radius: 8px;
@@ -11870,11 +11878,13 @@ button.post-scope-chip svg {
   margin-right: auto;
 }
 
-.control-row .filter-select {
+.control-row .filter-select,
+.workflow-filter-row .filter-select {
   flex: 0 0 auto;
 }
 
-.control-row .priority-filter {
+.control-row .priority-filter,
+.workflow-filter-row .priority-filter {
   margin-left: 0 !important;
 }
 
@@ -11960,6 +11970,24 @@ button.post-scope-chip svg {
   justify-content: space-between !important;
   gap: 10px !important;
   flex-wrap: nowrap !important;
+}
+
+.tag-library-head-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 1 auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workflow-filter-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
 }
 
 .tag-library-title {
@@ -14126,6 +14154,400 @@ button.post-scope-chip svg {
   }
 }
 
+/* Task knowledge tab: task-by-task inbox, notes, and update lookup beside the mindmap. */
+.task-knowledge-view {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.task-knowledge-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.task-knowledge-heading h2 {
+  margin: 3px 0 0;
+  color: #172033;
+  font-size: 18px;
+  font-weight: 720;
+  letter-spacing: 0;
+}
+
+.task-knowledge-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 0;
+}
+
+.task-knowledge-summary span,
+.task-knowledge-counts em,
+.knowledge-evidence-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  min-height: 22px;
+  border: 1px solid #dbe7fb;
+  border-radius: 999px;
+  background: #f8fbff;
+  color: #475569;
+  padding: 0 7px;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 680;
+  white-space: nowrap;
+}
+
+.task-knowledge-filter {
+  width: fit-content;
+}
+
+.task-knowledge-toolbar,
+.highlight-post-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.task-knowledge-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: min(100%, 260px);
+  height: 34px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #64748b;
+  padding: 0 10px;
+}
+
+.task-knowledge-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #172033;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 580;
+}
+
+.task-knowledge-search input::placeholder {
+  color: #94a3b8;
+}
+
+.task-knowledge-subfilter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+
+.task-knowledge-subfilter button {
+  min-height: 26px;
+  border: 1px solid #dbe5ef;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #64748b;
+  padding: 0 9px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 680;
+}
+
+.task-knowledge-subfilter button.active {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.task-knowledge-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.task-knowledge-type-list,
+.task-knowledge-status-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.task-knowledge-card,
+.task-knowledge-unlinked,
+.task-knowledge-type-section,
+.task-knowledge-status-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid #e2eaf4;
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 10px;
+}
+
+.task-knowledge-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #172033;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.task-knowledge-section-head > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.task-knowledge-section-head strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 740;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-knowledge-section-head em {
+  flex: 0 0 auto;
+  min-height: 22px;
+  border: 1px solid #dbe7fb;
+  border-radius: 999px;
+  background: #f8fbff;
+  color: #475569;
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.task-knowledge-section-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.task-knowledge-card.selected {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.task-knowledge-card-head,
+.task-knowledge-unlinked-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.task-knowledge-toggle {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.task-knowledge-toggle strong,
+.task-knowledge-unlinked-head strong {
+  display: block;
+  overflow: hidden;
+  color: #172033;
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-knowledge-toggle small {
+  display: block;
+  overflow: hidden;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 560;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-knowledge-counts {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.task-knowledge-records {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.knowledge-record {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid #e5edf6;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.knowledge-post-chip.post-scope-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  min-height: 22px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.knowledge-record > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.knowledge-record strong {
+  overflow: hidden;
+  color: #172033;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.28;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-record small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-record p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: #475569;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 11.5px;
+  font-weight: 540;
+  line-height: 1.45;
+}
+
+.knowledge-record a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: #1d4ed8;
+  font-size: 10.5px;
+  font-weight: 680;
+  text-decoration: none;
+}
+
+.knowledge-record a:hover {
+  text-decoration: underline;
+}
+
+.knowledge-log-date {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 0 7px;
+  font-size: 10px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.task-knowledge-unlinked {
+  background: #fffdf8;
+}
+
+.task-knowledge-unlinked-head span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border: 1px solid #fde68a;
+  border-radius: 999px;
+  background: #fffbeb;
+  color: #b45309;
+  padding: 0 8px;
+  font-size: 10.5px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .task-knowledge-heading,
+  .task-knowledge-card-head,
+  .task-knowledge-unlinked-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .task-knowledge-summary,
+  .task-knowledge-counts {
+    justify-content: flex-start;
+  }
+}
+
 /* Shared canvas main tab: separated from the auto-generated workflow mindmap. */
 .shared-canvas-view {
   display: grid;
@@ -16246,7 +16668,10 @@ button.post-scope-chip svg {
 }
 
 .work-inbox-type.type-mail,
-.work-inbox-type.type-reference {
+.work-inbox-type.type-meeting,
+.work-inbox-type.type-reference,
+.work-inbox-type.type-important-doc,
+.work-inbox-type.type-decision {
   border-color: #bfdbfe;
   background: #eff6ff;
   color: #1d4ed8;
@@ -16258,7 +16683,10 @@ button.post-scope-chip svg {
   color: #be123c;
 }
 
-.work-inbox-type.type-idea {
+.work-inbox-type.type-idea,
+.work-inbox-type.type-memory,
+.work-inbox-type.type-todo,
+.work-inbox-type.type-followup {
   border-color: #ccfbf1;
   background: #f0fdfa;
   color: #0f766e;
@@ -16651,14 +17079,32 @@ button.post-scope-chip svg {
     flex: 1 1 142px;
   }
 
-  .control-row .tag-filter-select {
+  .control-row .tag-filter-select,
+  .workflow-filter-row .tag-filter-select {
     flex-basis: 160px;
   }
 
   .control-row .filter-select select,
-  .control-row .tag-filter-open-button {
+  .control-row .tag-filter-open-button,
+  .workflow-filter-row .filter-select select,
+  .workflow-filter-row .tag-filter-open-button {
     width: 100%;
     max-width: none;
+  }
+
+  .tag-library-head {
+    align-items: stretch !important;
+    flex-wrap: wrap !important;
+  }
+
+  .tag-library-head-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .workflow-filter-row {
+    flex: 1 1 auto;
+    justify-content: flex-start;
   }
 
   .calendar-body.has-calendar-detail {

@@ -63,12 +63,12 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 ### Admin
 
 - The `관리자` sidebar tab is visible only to users with `permissionRole: admin`.
-- The admin page groups operational management into `사람 관리`, `태그 관리`, `업무흐름 관리`, and `게시글 유형 관리`.
+- The admin page groups operational management into `사람 관리`, `태그 관리`, `업무흐름 관리`, and `Note 유형 관리`.
 - `사람 관리` owns roster add/edit, permission role, team display, and active-state controls.
 - `태그 관리` should use a compact tree/editor layout: Category folders on the left, tag-file rows under each folder, and a right-side editor for the selected Category or tag.
 - Admins can collapse/expand Category folders, click tags to rename/delete them, and drag tags between Category folders to keep the tag dictionary scannable as the list grows.
 - `업무흐름 관리` should use the same compact tree/editor pattern: current `상위 업무흐름` labels on the left, selected-flow details on the right, and similar-flow review candidates inside the selected detail panel. In FastAPI mode, DB-evidence suggestions can use title, description, tags, updates, and 업무 노트 as supporting signals. Renaming a flow can intentionally merge tasks under one label.
-- `게시글 유형 관리` owns the type/category labels used on task posts, such as `결정사항`, `기억할 점`, `리스크`, `회의록`, `중요문서`, `참고자료`, and `다음 확인`. Admins can rename labels, choose a tone color, and hide a type from the write dialog without deleting existing posts.
+- `Note 유형 관리` owns the shared type/category labels used by Today Briefing `업무 Note` records and task-detail `업무 Note`, such as `메일`, `회의록`, `아이디어`, `리스크`, `참고자료`, `할일`, `메모`, `결정사항`, `중요문서`, `다음 확인`, and `기억할 점`. Admins can rename labels, choose a tone color, and hide a type from write dialogs without deleting existing notes.
 - Non-admin users must not see the `관리자` tab, and stale persisted admin routes should return to a normal workflow view.
 
 ### Today Briefing
@@ -85,7 +85,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - The left briefing list owns most of the width; side widgets must not squeeze task titles.
 - The current approved split is approximately 56 percent briefing list and 44 percent side panel on standard desktop widths.
 - The side panel contains `오늘 일정` and a capture area, not `오늘 업무 큐`.
-- My Desk uses `업무 인박스` for each person's private structured remembered context before it becomes a task: mail, meeting notes, ideas, risks, references, todos, and short notes. Switching the selected person should show that person's own inbox items, not a shared team inbox.
+- My Desk uses `업무 Note` for each person's private structured remembered context. When users record a note beside `오늘 일정`, they can link it directly to one of their current active tasks or choose `기타/참고` for context that should remain unlinked. Switching the selected person should show that person's own notes, not a shared team note area.
 - Team Flow uses `팀 체크` for small shared todo-style items. Checking an item marks it done; clicking the title/text box opens the larger detail dialog; editing or deleting happens from that dialog, with delete confirmation because deletion removes the shared record.
 - The briefing capture area is title-first and compact: use the available `오늘 브리핑` side-panel height to show as many recent records as comfortably fit, reveal older records through a compact `전체` button beside `추가/기록` in the header, open a larger dialog for writing/reading/editing long content, and expose full long titles through native hover tooltips. The small rows should not show inline edit/delete icons.
 - Capture records should keep title, body, type, status, URL, author, and date as structured data so later AI/LLM features can use them as evidence.
@@ -110,7 +110,7 @@ Greetings:
 
 ## Emoji Picker Contract
 
-- Emoji selection is a shared interaction for profile settings, 업무 인박스 body text, calendar notes, update logs, and task `업무 노트` body text.
+- Emoji selection is a shared interaction for profile settings, `업무 Note` body text, calendar notes, and update logs.
 - The shared picker now uses `emoji-picker-react` for the full emoji set, search, categories, and recent emojis.
 - Load the picker only when the popover opens, so the main dashboard bundle stays light.
 - Use native emoji rendering rather than image/CDN emoji styles for company-network reliability.
@@ -136,7 +136,7 @@ Greetings:
 
 ### Workflow Filters
 
-- `보드`, `리스트`, `타임라인`, `반복 업무`, `보관함`, and `마인드맵` should share the same primary filters: tags, owner, priority, and spot-work scope.
+- `보드`, `리스트`, `타임라인`, `업무자료`, `마인드맵`, `반복 업무`, and `보관함` should share the same primary filters: tags, owner, priority, and spot-work scope.
 - Owner filtering must include `미지정` because some tasks may intentionally have no owner yet.
 - Filter controls should stay compact and use short labels such as `사람`, `태그`, `중요`, and `스팟`; avoid oversized select boxes that crowd the workflow toolbar.
 
@@ -242,10 +242,11 @@ Task detail is contextual and appears only after explicit selection.
 - Task detail should be readable on common 1280-1366px desktop monitors. The default detail column can be wider than the earlier compact prototype width, and `넓게 보기` may widen it further when there is enough screen width.
 - `넓게 보기` should favor detail text, update logs, change history, and calendar detail readability. It must avoid page-level horizontal overflow; workflow boards may keep their existing internal horizontal scroll behavior if the detail panel is open.
 - Updates log rows, Highlights performance summaries, and compact mindmap nodes should stay readable on standard office monitors. If these areas feel low-resolution or overly small, prefer small font-size/spacing adjustments over changing the approved component structure.
-- A task-level Teams-like `업무 노트` surface may sit inside task detail as a contextual notes/posts area for decisions, remembered context, reference URLs, risks, meeting notes, and future lookup. In local/demo mode, task posts are real local dashboard state saved with the task data; shared Supabase persistence still needs a future `task_posts` table and RLS. In the narrow task-detail panel, show the selected task's latest three title-first rows below `다음 액션 추천`, with a nearby `노트 작성` action and a compact more/less control for additional posts from that same task only. Do not add a separate explanatory card above the list; the section title and rows should carry the meaning. Because the task-detail panel is narrow, clicking a note row should open a larger read dialog. Writing and editing also open a larger dialog, and writing should allow emoji insertion in the body field.
+- A task-level `업무 Note` surface may sit inside task detail as a contextual notes/posts area for decisions, remembered context, reference URLs, risks, meeting notes, and future lookup. In local/demo mode, task notes are real local dashboard state saved with the task data; shared Supabase persistence still uses the task post table model. In the narrow task-detail panel, show the selected task's latest three title-first rows below `다음 액션 추천`, with a nearby `Note 작성` action and a compact more/less control for additional notes from that same task only. Do not add a separate explanatory card above the list; the section title and rows should carry the meaning. Because the task-detail panel is narrow, clicking a note row should open a larger read dialog. Writing and editing also open a larger dialog, and writing should allow emoji insertion in the body field.
 - Future task posts should be task-linked first and workstream-aggregatable second, so a later `업무흐름 피드` can collect posts from every task under the same `상위 업무흐름`.
 - Task-post attachments may show compact image thumbnails that open into a larger lightbox when clicked. Real implementation should store image metadata separately from post text and avoid loading large original images in the normal task-detail reading path.
-- Highlights may include `업무흐름별 게시글 모음`, which groups task posts by `상위 업무흐름`. Keep it in Highlights because it is a lookup/review surface rather than a live execution board; Team Flow can later add a small shortcut if needed, but should not gain another dense tab beside the mindmap unless daily workflow proves it necessary. Workstream groups should start collapsed, be sorted by each group's latest post date, and expanded rows should show 게시날짜, 해당 업무, 담당자, and 게시자 in the row summary. Clicking a row opens the body inline; the expanded body should avoid repeating scope/workstream metadata already visible in the row/group and focus on body text, URL, and attachment. Inside an expanded workstream, the sort controls should use short labels only: `날짜`, `사람`, `구분`, and `업무`. Task detail should not show posts from other tasks simply because they share the same workstream.
+- The workflow tab order is `보드`, `리스트`, `타임라인`, `업무자료`, `마인드맵`, `반복 업무`, `보관함`. The lightweight `업무자료` tab should provide `업무별 노트` and `유형별` views. `업무별 노트` groups the currently filtered tasks with linked Today Briefing `업무 Note`, task-detail `업무 Note`, and update logs, with an additional `기타/참고` group for notes that are not linked to a task. `유형별` groups the same notes by the shared Note type dictionary, so users can scan `메일`, `회의록`, `아이디어`, `리스크`, and similar types. The tab should support local material search and state filters for `진행`, `계획`, `완료`, `검토`, `보류`, `기타`, and `보관`; state sections and task groups should start collapsed by default. Note type stickers should reuse the same calm chip sizing and tone across both entry points. In My Desk, personal notes must stay scoped to the selected person; in Team Flow, do not expose private notes and use shared team-check records only.
+- Highlights may include `업무자료 모음`, which groups task notes/materials by `상위 업무흐름`. Keep it in Highlights because it is a broader lookup/review surface, while workflow `업무자료` stays task-by-task for daily lookup. Workstream groups should start collapsed, be sorted by each group's latest note date, and expanded rows should show 게시날짜, 상태, 해당 업무, 담당자, and 게시자 in the row summary. It should support the same material search and state filters as workflow `업무자료`, including `보관` records. Clicking a row opens the body inline; the expanded body should avoid repeating scope/workstream metadata already visible in the row/group and focus on body text, URL, and attachment. Inside an expanded workstream, the sort controls should use short labels only: `날짜`, `사람`, `구분`, and `업무`. Task detail should not show notes from other tasks simply because they share the same workstream.
 - Update logs should sit above related links in task detail. Show the latest three logs by default and reveal older logs through a compact more/less control; management actions should remain hidden behind the existing management toggle.
 
 Header:
@@ -320,7 +321,7 @@ Metadata and history:
 ## Performance Report Contract
 
 - `업무실적` opens in weekly mode by default.
-- Highlights has an additional `업무흐름별 게시글 모음` tab for remembered-context posts. It should group posts by `상위 업무흐름`, keep each workstream collapsed by default, show 게시날짜, 해당 업무, 담당자, and 게시자 when expanded, and support short sort controls: `날짜`, `사람`, `구분`, and `업무`.
+- Highlights has an additional `업무자료 모음` tab for remembered-context notes/materials. It should group notes by `상위 업무흐름`, keep each workstream collapsed by default, show 게시날짜, 상태, 해당 업무, 담당자, and 게시자 when expanded, support material search and state filters (`진행`, `계획`, `완료`, `검토`, `보류`, `기타`, `보관`), and support short sort controls: `날짜`, `사람`, `구분`, and `업무`.
 - Weekly view shows issue, description/content, completed, and planned lines.
 - Weekly view remains task-oriented.
 - `스팟 업무` is included in weekly and monthly performance reports. Quarterly and yearly summary reports exclude it by default to keep longer-period results focused, but `이슈/설명 포함 상세실적 보기` includes spot work again for detailed review.
