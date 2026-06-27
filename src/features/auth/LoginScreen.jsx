@@ -3,7 +3,7 @@ import { LogIn } from "lucide-react";
 
 export const defaultLoginBrand = {
   ariaLabel: "POSLAB Work Hub 시작",
-  kicker: "연구기획그룹-전략",
+  kicker: "",
   eyebrow: "POSCO",
   title: "POSLAB",
   titleAccent: "Work Hub",
@@ -83,14 +83,16 @@ export function LoginScreen({
       <div className="poslab-entry-gradient" aria-hidden="true" />
       <section className="poslab-entry-shell" aria-label={labels.ariaLabel}>
         <div className="poslab-entry-visual">
-          <div className="poslab-brand-kicker">
-            <span className="poslab-mark" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
-            <span>{labels.kicker}</span>
-          </div>
+          {labels.kicker ? (
+            <div className="poslab-brand-kicker">
+              <span className="poslab-mark" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+              <span>{labels.kicker}</span>
+            </div>
+          ) : null}
           {visual}
         </div>
 

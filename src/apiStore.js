@@ -159,6 +159,29 @@ function fromTask(row, relations = {}) {
   };
 }
 
+function fromNotification(row) {
+  return {
+    id: row.id,
+    recipientUserId: row.recipient_user_id,
+    actorUserId: row.actor_user_id,
+    actorEmail: row.actor_email ?? "",
+    actorName: row.actor_name ?? "",
+    taskId: row.task_id ?? "",
+    taskTitle: row.task_title ?? row.metadata?.task_title ?? "",
+    sourceType: row.source_type,
+    sourceId: row.source_id ?? "",
+    type: row.type,
+    severity: row.severity,
+    title: row.title,
+    body: row.body ?? "",
+    actionUrl: row.action_url ?? "",
+    metadata: row.metadata ?? {},
+    createdAt: row.created_at,
+    readAt: row.read_at,
+    dismissedAt: row.dismissed_at
+  };
+}
+
 function fromSubtask(row) {
   return {
     id: row.id,
@@ -724,6 +747,27 @@ async function readDashboardInsights({ scope = "team", ownerId = "", today = TOD
   return apiRequest(`/dashboard/insights?${params.toString()}`);
 }
 
+async function readNotifications({ limit = 30, unreadOnly = false } = {}) {
+  const params = new URLSearchParams();
+  params.set("limit", String(limit));
+  if (unreadOnly) params.set("unread_only", "true");
+  const result = await apiRequest(`/notifications?${params.toString()}`);
+  return {
+    items: (result.items ?? []).map(fromNotification),
+    unreadCount: result.unread_count ?? 0,
+    urgentCount: result.urgent_count ?? 0
+  };
+}
+
+async function markNotificationRead(notificationId) {
+  if (!isUuid(notificationId)) return { skipped: true, reason: "requires-notification-id" };
+  return apiRequest(`/notifications/${notificationId}/read`, { method: "PATCH" });
+}
+
+async function markAllNotificationsRead() {
+  return apiRequest("/notifications/read-all", { method: "PATCH" });
+}
+
 async function readAiEvidence(intent) {
   const path = buildAiReadPath(intent);
   if (!path) return { skipped: true, reason: "unsupported-ai-intent" };
@@ -877,6 +921,11 @@ export const apiDashboardStore = {
   },
   dashboard: {
     insights: readDashboardInsights
+  },
+  notifications: {
+    read: readNotifications,
+    markRead: markNotificationRead,
+    markAllRead: markAllNotificationsRead
   },
   workstreams: {
     suggestions: readWorkstreamSuggestions

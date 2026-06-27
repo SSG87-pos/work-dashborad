@@ -2,9 +2,27 @@
 
 작성 기준일: 2026-06-09
 
-이 문서는 회사 내부 backend 연결 이후에 구현할 `개인별 알림함` 후속 작업 기준입니다. 현재 승인된 backend 경로는 `FastAPI + PostgreSQL`입니다. 지금 dashboard에는 상단 종 아이콘, 오늘 브리핑, Updates, 업무 카드 배지, 지연/마감 표시처럼 알림에 가까운 시각 신호가 있지만, 아직 DB에 저장되는 읽음/안읽음 알림함은 없습니다.
+이 문서는 회사 내부 backend 연결 이후에 구현하는 `개인별 알림함` 기준입니다. 현재 승인된 backend 경로는 `FastAPI + PostgreSQL`입니다. Phase 1은 구현되어 있으며, DB에 저장되는 개인별 읽음/안읽음 알림함, 상단 종 아이콘 badge, 알림 패널, 읽음/전체 읽음, 업무 상세 이동을 포함합니다.
 
-후속 Codex 작업을 시작할 때는 이 문서를 먼저 읽고, 아래의 `미래 Codex 작업 프롬프트`를 그대로 사용하면 됩니다.
+후속 Codex 작업을 시작할 때는 이 문서를 먼저 읽고, 아래의 남은 범위를 기준으로 진행합니다.
+
+## 구현 상태
+
+2026-06-27 기준 Phase 1 구현 완료:
+
+- `backend/alembic/versions/20260625_0012_notifications.py`: `notifications` 테이블과 인덱스
+- `backend/app/api/routes_notifications.py`: 본인 알림 조회, 단건 읽음, 전체 읽음 API
+- `backend/app/services/notifications.py`: 새 배정, 지연, 본인 업무의 로그/Note/risk Note 알림 생성
+- `src/apiStore.js`: FastAPI notifications read/markRead/markAllRead 연결
+- `src/App.jsx`, `src/styles.css`: 상단 종 icon badge, 알림 패널, 안읽음/전체 필터, 모두 읽음, row 클릭 시 업무 상세 이동
+
+아직 남은 범위:
+
+- 실제 회사 PostgreSQL 환경 apply/smoke
+- dismiss/hide UI
+- due today/due soon 알림 row 생성 여부 결정
+- Teams/realtime/mobile push
+- 사용자별 알림 설정
 
 ## 구현 시점
 
@@ -21,7 +39,7 @@
 
 ## 목표
 
-- 사용자가 본인에게 관련된 신규/지연/변경/게시글/로그 이벤트를 한곳에서 확인한다.
+- 사용자가 본인이 꼭 한 번 더 확인해야 하는 신규 배정, 지연, 본인 업무의 로그/노트 이벤트를 한곳에서 확인한다.
 - 상단 종 아이콘이 unread 상태를 시각적으로 알려준다.
 - 알림을 클릭하면 관련 업무 상세로 이동한다.
 - 읽음 상태가 DB에 저장되어 다른 PC/브라우저에서도 유지된다.
@@ -49,13 +67,14 @@
 - 개인별: 본인에게 관련된 알림만 기본 표시한다.
 - 실행 가능: 클릭하면 관련 업무 상세로 이동해야 한다.
 - 중복 최소화: 같은 이벤트가 여러 번 쌓이지 않도록 한다.
+- 고신호 우선: 모든 변경사항이 아니라 사용자가 다시 확인해야 하는 이벤트만 알림으로 만든다.
 - 읽기 우선: 상단 종 아이콘과 알림 패널은 작고 조용하게 시작한다.
-- 중요도 구분: 지연/리스크/결정 필요는 더 강하게, 일반 로그 추가는 차분하게 표시한다.
+- 중요도 구분: 지연은 더 강하게, 본인 업무에 남겨진 일반 로그/노트는 차분하게 표시한다.
 - 접근성: 흔들림/애니메이션은 1회성이고 `prefers-reduced-motion`을 존중한다.
 
 ## 현재 화면에서 이어질 위치
 
-현재 App 상단에는 `알림` 아이콘 버튼이 있습니다. 후속 구현에서는 이 버튼을 실제 알림함 트리거로 연결합니다.
+현재 App 상단의 `알림` 아이콘 버튼은 FastAPI mode에서 실제 알림함 트리거로 연결됩니다.
 
 권장 UI:
 
@@ -83,22 +102,22 @@
 
 ## 알림 유형
 
-초기 후보:
+Phase 1은 단순한 개인 확인 알림만 구현합니다. 목표는 `사람별로 본인에게 해당하는 것`이 뜨는 것입니다.
 
 | type | 의미 | recipient 기준 | severity |
 | --- | --- | --- | --- |
-| `task_assigned` | 새 업무가 나에게 배정됨 | `tasks.owner_id` | `normal` |
-| `task_due_today` | 오늘 마감 | `tasks.owner_id` | `high` |
-| `task_due_soon` | 3일 내 마감 | `tasks.owner_id` | `normal` |
-| `task_overdue` | 마감일이 지남 | `tasks.owner_id` | `urgent` |
-| `status_changed` | 내가 맡은 업무 상태가 바뀜 | `tasks.owner_id`, 필요 시 creator | `normal` |
-| `task_update_added` | 내가 맡은/생성한 업무에 업데이트 로그가 추가됨 | owner, creator, task manager | `normal` |
-| `task_post_added` | 내가 맡은/생성한 업무에 업무 노트가 추가됨 | owner, creator, task manager | `normal` |
-| `decision_needed` | 결정/확인 성격의 노트가 등록됨 | owner, creator, task manager | `high` |
-| `risk_added` | 리스크 성격의 노트가 등록됨 | owner, creator, task manager | `high` |
-| `mention_added` | 게시글/로그에서 나를 언급함 | 언급된 사용자 | `normal` |
+| `task_assigned` | 새 업무가 나에게 배정됨 | 새 담당자 | `normal` |
+| `task_overdue` | 내 업무의 마감일이 지남 | 현재 담당자 | `urgent` |
+| `task_update_added` | 내 업무에 다른 사람이 업데이트 로그를 남김 | 현재 담당자 | `normal` |
+| `task_post_added` | 내 업무에 다른 사람이 업무 Note/자료/의견을 남김 | 현재 담당자 | `normal` |
+| `risk_added` | 내 업무에 리스크 성격의 Note가 남겨짐 | 현재 담당자 | `high` |
 
-`mention_added`는 나중에 본문 mention UI가 생긴 뒤 구현합니다.
+Phase 1에서 제외하거나 후순위로 둡니다.
+
+- `task_due_today`, `task_due_soon`: 마감 임박 배지는 화면 계산 신호로 먼저 유지하고, 알림 row 생성은 지연 알림 안정화 후 검토합니다.
+- `status_changed`: 상태 변경만으로는 너무 자주 울릴 수 있으므로 초기 알림에서는 제외합니다.
+- `decision_needed`: 업무 Note 분류가 안정된 뒤 `high` 알림 후보로 검토합니다.
+- `mention_added`: 나중에 본문 mention UI가 생긴 뒤 구현합니다.
 
 ## Supabase 테이블 초안
 
@@ -127,13 +146,9 @@ create table public.notifications (
   constraint notifications_type_check check (
     type in (
       'task_assigned',
-      'task_due_today',
-      'task_due_soon',
       'task_overdue',
-      'status_changed',
       'task_update_added',
       'task_post_added',
-      'decision_needed',
       'risk_added',
       'mention_added'
     )
@@ -230,17 +245,18 @@ least privilege 기준:
 - future `src/apiStore.js`에 notifications read/update API 추가
 - 기존 업무 저장 흐름에서 명확한 이벤트만 알림 row 생성
   - 새 업무 배정
-  - 업데이트 로그 추가
-  - 업무 노트 추가
-  - 상태 변경
+  - 내 업무 지연 발생
+  - 내 업무에 다른 사람이 업데이트 로그 추가
+  - 내 업무에 다른 사람이 업무 Note/자료/의견 추가
 - 상단 종 아이콘과 알림 패널 구현
 - 읽음 처리 구현
 
-이 단계에서는 due/overdue 자동 생성은 dashboard 조회 시 계산 배지로 유지해도 됩니다.
+이 단계에서는 due today/due soon은 dashboard 조회 시 계산 배지로 유지하고, DB 알림 row는 `task_overdue`부터 시작합니다.
 
 ### Phase 2: 마감/지연 알림 안정화
 
-- `task_due_today`, `task_due_soon`, `task_overdue` 생성 전략 결정
+- `task_due_today`, `task_due_soon`을 실제 알림 row로 만들지 여부 결정
+- Phase 1의 `task_overdue`가 중복 생성되지 않도록 생성 주기와 기준일 정책 보강
 - FastAPI/PostgreSQL 환경에서 scheduler, background job, 또는 앱 접속 시 생성 중 하나를 선택
 - 중복 방지 기준 추가
   - 예: 같은 업무/같은 날짜/같은 type은 하루 1개만 생성
@@ -269,21 +285,21 @@ least privilege 기준:
 업무별 기본 recipient:
 
 - 업무 담당자: 항상 포함
-- 업무 생성자: 담당자와 다르면 포함
+- 업무 생성자: Phase 1 기본 알림 대상은 아님. 자신이 만든 업무라도 현재 담당자가 아니면 개인 알림을 받지 않는다.
 - 팀장/관리자: 기본 알림 대상은 아님. 나중에 팀장 요약 알림으로 별도 설계
 - update/post 작성자: 본인이 만든 이벤트는 기본적으로 본인에게 다시 알리지 않음
 
 예외:
 
-- `decision_needed`, `risk_added`는 owner와 creator 모두에게 알릴 수 있음
+- `risk_added`는 현재 담당자에게만 먼저 알리고, creator/manager 확대는 운영 중 필요성이 확인되면 검토합니다.
 - mention 기능이 생기면 언급된 사람은 담당자가 아니어도 recipient가 됨
 
 ## 프론트엔드 구현 기준
 
 권장 파일:
 
-- `src/supabaseStore.js`: notifications read, markRead, markAllRead, insert helper
-- `src/storage.js`: local fallback에서 최소 mock notification 또는 no-op 구현
+- `src/apiStore.js`: notifications read, markRead, markAllRead 연결
+- local fallback: 실제 알림함은 비활성/빈 상태로 유지
 - `src/App.jsx`: top bell state, panel open/close, navigation to task detail
 - `src/styles.css`: bell badge, panel, row, reduced-motion
 
@@ -310,7 +326,7 @@ notifications: {
 }
 ```
 
-local fallback에서는 `read`가 빈 배열을 반환해도 됩니다. 단, UI 개발 검증용 sample이 필요하면 demo-only seed를 명확히 분리합니다.
+local fallback에서는 알림함을 빈 상태로 유지합니다. 단, UI 개발 검증용 sample이 필요하면 demo-only seed를 명확히 분리합니다.
 
 ## UI 세부 기준
 
@@ -400,15 +416,15 @@ Phase 1 완료 기준:
 - PostgreSQL migration으로 `notifications` 테이블과 indexes가 적용된다.
 - FastAPI 권한 검사로 사용자는 본인 알림만 조회 가능하다.
 - FastAPI 권한 검사로 사용자는 본인 알림의 `read_at`, `dismissed_at`만 update 가능하다.
-- 업무 배정/update log/업무 노트/상태 변경 중 최소 2종 이상이 실제 알림 row를 만든다.
+- 업무 배정, 지연, 본인 업무의 update log/업무 Note/risk Note 중 최소 2종 이상이 실제 알림 row를 만든다.
 - 상단 종 아이콘에 unread count가 표시된다.
 - 알림 패널에서 읽음/전체 읽음이 동작한다.
 - 알림 row 클릭 시 해당 업무 상세가 열린다.
 - `git diff --check`, build, 브라우저 QA, 최소 2계정 API 권한 smoke가 통과한다.
 
-## 미래 Codex 작업 프롬프트
+## 향후 Codex 작업 프롬프트
 
-후속 구현 시 Codex에게 아래처럼 요청합니다.
+회사 PostgreSQL apply/smoke 또는 Phase 2 구현 시 Codex에게 아래처럼 요청합니다.
 
 ```text
 docs/personal-notification-inbox-plan.md,
@@ -420,10 +436,10 @@ docs/permission-rules.md,
 src/AGENTS.md,
 DESIGN.md를 먼저 읽고 진행해줘.
 
-회사 내부 FastAPI/PostgreSQL 연결 상태에서 개인별 알림함 Phase 1을 구현해줘.
-범위는 notifications 테이블/indexes migration, apiStore notifications API,
-상단 종 아이콘 unread badge, 알림 패널, 읽음/전체읽음, 업무 상세 이동까지야.
-Teams 연동, 실시간 push, 모바일 push, 사용자별 알림 설정은 제외해줘.
+회사 내부 FastAPI/PostgreSQL 환경에 개인별 알림함 Phase 1을 apply/smoke 해줘.
+범위는 alembic upgrade, notifications API smoke, 2계정 권한 검증,
+상단 종 아이콘 unread badge, 알림 패널, 읽음/전체읽음, 업무 상세 이동 확인까지야.
+Teams 연동, 실시간 push, 모바일 push, 사용자별 알림 설정은 계속 제외해줘.
 
 구현 후 git diff --check, CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build,
 브라우저 QA, 최소 2계정 API 권한 smoke 결과를 정리해줘.

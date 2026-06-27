@@ -18,7 +18,9 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Preserve enough whitespace for scanning, but do not reserve empty detail areas before the user clicks something.
 - Korean text should break by word, not inside words, whenever possible.
 - Desktop and tablet remain the primary work surfaces, but phone layout must stay usable for quick checking, filtering, reading detail, and lightweight updates without page-level horizontal overflow.
+- Common notebook layouts should treat Notebook L at 100 percent browser zoom as a desktop baseline. Notebook L at roughly 81 percent can be used as a density reference, but the app should not require users to zoom out to avoid tablet-style composition. Keep desktop and landscape-tablet composition until about 980px, then apply tablet/portrait compaction below that point.
 - Phone layout is intentionally more selective than desktop/tablet: keep the top area to search plus primary task creation, compress insight cards to number/label chips, show team members as initial-only selectors, hide the long personal greeting, hide briefing side widgets and advanced workflow filters by default, and shorten briefing/task/update cards so mobile users can reach the actual work faster. Calendar should prioritize month/event checking on phone while keeping schedule registration behind a compact collapsed `일정등록` action, and Highlights should prioritize report/read surfaces over export/copy controls.
+- On phone widths, show team members only once in the top navigation area as equal short-name chips, matching the portrait-tablet name-chip behavior; do not repeat the workspace team strip below the title/search area.
 
 ## Current Layout Contract
 
@@ -29,11 +31,12 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Use a bright POSCO-inspired radial background that connects to the dashboard's blue/teal/slate palette.
 - `POSLAB` should read as the entry brand. `Work Hub` should reuse the dashboard title gradient grammar.
 - The small kicker above the main title should read `POSCO`, and the supporting line should read `함께 보는 업무, 함께 만드는 흐름, 함께 성장하는 팀`.
-- The left `연구기획그룹-전략` mark should stay visible enough to anchor the internal group identity without competing with the POSLAB heading.
+- The left visual should stay focused on the POSLAB lanyard card; do not show the former `연구기획그룹-전략` mark because it overlaps the strap on common laptop viewports.
 - The lanyard card should use the React Bits-style original card/clip/clamp model, but the strap must be logo-free and tuned to the POSCO-blue dashboard palette.
 - The POSLAB card face follows the selected `Executive Blue` direction: solid high-contrast POSCO-blue badge, restrained diagonal pattern, clean white `POSLAB` text placed above the subtle center rule, and no fake border strokes that fight the GLB UV mapping.
 - The card face may use subtle texture-drawn highlights and shadows to feel dimensional, but avoid heavy 3D text effects that make the badge feel game-like or dated.
 - The POSLAB card face must be readable on first load and must not collapse into a short top-only canvas, clip the card body, wash out against the pale background, or rotate so far that the text reads as a partial word.
+- On portrait tablet and phone widths, the POSLAB lanyard card can be hidden so the entry action and assistant panel stay in the first screen; when it is hidden, the entry panel should be centered rather than left-weighted.
 - The primary action is `대시보드로 들어가기`; future SSO can replace this action without changing the dashboard body.
 - Keep the entry screen visually separate from real backend security claims. Do not imply SSO is implemented until it is actually connected.
 
@@ -53,7 +56,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Search input is compact; placeholder text should not dominate the page.
 - The top search should feel broad even though it stays visually quiet: it searches task title/description, tags, 담당자/배정자/작성자, status/priority, 상위 업무흐름, dates, checklist detail, update logs, change history, related links, 업무 노트/posts, attachment evidence text, and calendar event title/note/owner metadata where that view can use it.
 - The top bar may include a compact `넓게/기본` viewing-density toggle for demo-room and low-legibility monitor conditions. It should adjust readability and detail width without changing the dashboard's approved navigation, color, or card structure.
-- On phone widths, secondary top-bar actions such as alert, AI, density, home, and account detail can be hidden from the main row so `검색` and `업무 추가` stay full-width and touch-safe. This is a phone-only simplification and must not change the desktop/tablet toolbar.
+- On phone widths, secondary top-bar actions such as alert, density, home, and account detail can be hidden from the main row so `검색`, compact `🤖 AI`, and `업무 추가` stay touch-safe. The AI entry point should remain visible across responsive sizes.
 - Account button shows emoji/profile, name, and role on one line when possible.
 - Admin indication belongs in the top account area, not in every team list row.
 - Account modal stays focused on account switching and personal profile edits.
@@ -84,6 +87,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Team mode summarizes the public team flow.
 - The left briefing list owns most of the width; side widgets must not squeeze task titles.
 - The current approved split is approximately 56 percent briefing list and 44 percent side panel on standard desktop widths.
+- On narrow desktop/notebook widths where the side panel would squeeze task titles, move `오늘 일정` and `팀 체크`/`업무 Note` below the briefing list in two columns before allowing important task titles to truncate.
 - The side panel contains `오늘 일정` and a capture area, not `오늘 업무 큐`.
 - My Desk uses `업무 Note` for each person's private structured remembered context. When users record a note beside `오늘 일정`, they can link it directly to one of their current active tasks or choose `기타/참고` for context that should remain unlinked. Switching the selected person should show that person's own notes, not a shared team note area.
 - Team Flow uses `팀 체크` for small shared todo-style items. Checking an item marks it done; clicking the title/text box opens the larger detail dialog; editing or deleting happens from that dialog, with delete confirmation because deletion removes the shared record.
@@ -97,6 +101,8 @@ Briefing rows:
 - Multi-item groups show each task line separately.
 - Due labels such as today, D-minus, and D-plus use one fixed right-side rail.
 - If a group has multiple tasks, each task gets its own due label.
+- On phone widths, briefing rows still keep the fixed icon/content/due columns so the due label does not wrap below the task content.
+- On extra-narrow phone widths and the narrowest portrait-tablet boundary, the briefing tag chip may be hidden so the owner, task title, and due rail remain readable.
 - If a group has one task, clicking it should give soft selection feedback and open the task detail.
 - Task titles should be more readable than helper captions; do not make them too thin.
 
@@ -124,8 +130,9 @@ Greetings:
 
 - Board order is fixed: `검토/대기`, `계획`, `진행중`, `완료`, `보류`.
 - My Desk board status lanes should start expanded so the selected person's work is visible immediately. Team Flow board status lanes should start collapsed so busy team boards remain scannable. Clicking the lane header expands/collapses that status.
-- When an expanded status lane has more than four visible cards, it should span the board's full available width and lay cards out in a wider responsive grid instead of forcing a long narrow column.
+- Board expansion has two modes. When multiple status lanes are open, keep them in comparable status columns so users can scan status-to-status flow without large lanes dropping below each other. When only one status lane is open and no task detail is open, treat it as focus mode; if it has three or more visible cards, span the board's full available width and lay cards out in a wider responsive grid instead of forcing a narrow column. Once task detail is open beside the board, return the board to compact comparable columns so the detail panel remains the focus and the board does not force horizontal scrolling.
 - Card titles should be readable but not heavy enough to fight the page title.
+- Workflow task titles are primary content. In board cards and list rows, show the full title with Korean word-preserving wrapping instead of ellipsizing the title.
 - Board cards do not show long description text; description belongs in task detail.
 - Owner initials must remain clear on team workflow cards.
 - `스팟 업무` marks short or one-time work. Board cards should use a subtle teal card edge and show one compact `스팟` chip in the top chip row. Do not duplicate `스팟` again in the card tag row.

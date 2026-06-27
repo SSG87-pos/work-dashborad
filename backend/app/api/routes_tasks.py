@@ -31,6 +31,11 @@ from app.schemas.task import (
     TaskUpdateLogRead,
     TaskUpdateLogUpdate,
 )
+from app.services.notifications import (
+    create_task_assignment_notification,
+    create_task_post_notification,
+    create_task_update_notification,
+)
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -162,7 +167,11 @@ def create_task(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="owner_roster_not_found")
 
     task = Task(**payload.model_dump(), creator_id=current_user.id)
+    if payload.owner_roster_id:
+        task.owner_roster = db.get(TeamRoster, payload.owner_roster_id)
     db.add(task)
+    db.flush()
+    create_task_assignment_notification(db, task=task, actor=current_user)
     db.commit()
     db.refresh(task)
     task.creator = current_user
@@ -474,7 +483,7 @@ def create_task_update(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> TaskUpdateLogRead:
-    get_task_or_404(db, task_id)
+    task = get_task_or_404(db, task_id)
     update = TaskUpdateLog(
         task_id=task_id,
         author_id=current_user.id,
@@ -482,6 +491,8 @@ def create_task_update(
         update_type=payload.update_type,
     )
     db.add(update)
+    db.flush()
+    create_task_update_notification(db, task=task, update=update, actor=current_user)
     db.commit()
     db.refresh(update)
     update.author = current_user
@@ -555,7 +566,7 @@ def create_task_post(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> TaskPostRead:
-    get_task_or_404(db, task_id)
+    task = get_task_or_404(db, task_id)
     if payload.category_id and db.get(TaskPostCategory, payload.category_id) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="post_category_not_found")
 
@@ -572,6 +583,10 @@ def create_task_post(
     if payload.posted_at:
         post.posted_at = payload.posted_at
     db.add(post)
+    db.flush()
+    if post.category_id:
+        post.category = db.get(TaskPostCategory, post.category_id)
+    create_task_post_notification(db, task=task, post=post, actor=current_user)
     db.commit()
     db.refresh(post)
     post.author = current_user

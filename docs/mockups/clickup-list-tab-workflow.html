@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClickUp식 리스트 탭 업무 영역 목업</title>
+    <style>
+      :root {
+        --bg: #f6faff;
+        --surface: #ffffff;
+        --line: #dbe7f5;
+        --line-soft: #edf3fb;
+        --blue: #2563eb;
+        --blue-soft: #eff6ff;
+        --teal: #0f766e;
+        --teal-soft: #ecfdf8;
+        --red: #e11d48;
+        --red-soft: #fff1f2;
+        --amber: #c2410c;
+        --amber-soft: #fff7ed;
+        --slate-900: #0f172a;
+        --slate-700: #334155;
+        --slate-500: #64748b;
+        --slate-100: #f1f5f9;
+        --shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--slate-900);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+          "Noto Sans KR", sans-serif;
+        letter-spacing: 0;
+        word-break: keep-all;
+      }
+
+      .page {
+        width: min(1500px, calc(100vw - 48px));
+        margin: 0 auto;
+        padding: 32px 0 46px;
+      }
+
+      .intro {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 430px;
+        gap: 18px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 27px;
+        line-height: 1.25;
+      }
+
+      .intro p {
+        margin: 0;
+        color: var(--slate-500);
+        font-size: 15px;
+        line-height: 1.65;
+      }
+
+      .decision {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.84);
+        padding: 14px 16px;
+        color: var(--slate-700);
+        font-size: 13px;
+        line-height: 1.55;
+        box-shadow: 0 10px 34px rgba(15, 23, 42, 0.05);
+      }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: 238px minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .sidebar {
+        min-height: 820px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: #fff;
+        padding: 18px 14px;
+        box-shadow: var(--shadow);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 22px;
+        font-size: 20px;
+        font-weight: 850;
+      }
+
+      .nav {
+        display: grid;
+        gap: 7px;
+      }
+
+      .nav button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        border: 0;
+        border-radius: 12px;
+        background: transparent;
+        color: var(--slate-700);
+        padding: 0 12px;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 750;
+        text-align: left;
+      }
+
+      .nav button.active {
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .main {
+        min-width: 0;
+        display: grid;
+        gap: 16px;
+      }
+
+      .topbar,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 70px;
+        padding: 0 18px;
+      }
+
+      .topbar strong {
+        font-size: 22px;
+        color: var(--blue);
+      }
+
+      .profile {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 7px 11px;
+        color: var(--slate-700);
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .briefing {
+        display: grid;
+        grid-template-columns: 1.52fr 0.92fr;
+        gap: 16px;
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 58px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, #fff 0%, #f9fcff 100%);
+      }
+
+      .panel-title {
+        margin: 0;
+        color: var(--blue);
+        font-size: 16px;
+        line-height: 1.35;
+      }
+
+      .panel-sub {
+        color: var(--slate-500);
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .brief-body {
+        padding: 18px;
+      }
+
+      .brief-row {
+        display: grid;
+        grid-template-columns: 130px minmax(0, 1fr) 56px;
+        align-items: center;
+        gap: 14px;
+        min-height: 58px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .brief-row:last-child {
+        border-bottom: 0;
+      }
+
+      .brief-kind {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--slate-700);
+        font-size: 14px;
+        font-weight: 850;
+      }
+
+      .brief-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .brief-title strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 15px;
+      }
+
+      .due {
+        text-align: right;
+        color: #ef4444;
+        font-size: 13px;
+        font-weight: 850;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 24px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0 9px;
+        background: #fff;
+        color: var(--slate-700);
+        font-size: 12px;
+        font-weight: 750;
+        line-height: 1;
+        white-space: nowrap;
+      }
+
+      .chip.blue {
+        border-color: #bfdbfe;
+        background: var(--blue-soft);
+        color: #1d4ed8;
+      }
+
+      .chip.teal {
+        border-color: #99f6e4;
+        background: var(--teal-soft);
+        color: var(--teal);
+      }
+
+      .chip.red {
+        border-color: #fecdd3;
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      .chip.amber {
+        border-color: #fed7aa;
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .mini-list {
+        display: grid;
+        gap: 8px;
+        padding: 14px;
+      }
+
+      .mini-card {
+        min-height: 48px;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: 8px 10px;
+        background: #fbfdff;
+      }
+
+      .mini-card strong {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+      }
+
+      .mini-card span {
+        display: block;
+        margin-top: 4px;
+        color: var(--slate-500);
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .workflow-panel {
+        overflow: hidden;
+      }
+
+      .workflow-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 14px 16px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .workflow-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .workflow-title h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .view-tabs {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 4px;
+        background: #f8fbff;
+      }
+
+      .view-tabs button {
+        min-height: 30px;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--slate-500);
+        padding: 0 11px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .view-tabs button.active {
+        background: #fff;
+        color: var(--blue);
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.14);
+      }
+
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        padding: 0 16px 13px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .filter {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 30px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        padding: 0 10px;
+        color: var(--slate-700);
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .mock-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+      }
+
+      .mock-column {
+        min-width: 0;
+        padding: 16px;
+      }
+
+      .mock-column + .mock-column {
+        border-left: 1px solid var(--line);
+      }
+
+      .column-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .column-head h3 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .card-stack {
+        display: grid;
+        gap: 10px;
+      }
+
+      .task-card {
+        border: 1px solid #cfe0f5;
+        border-radius: 14px;
+        background: #fff;
+        padding: 12px;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+      }
+
+      .task-card.spot {
+        border-left: 4px solid #5eead4;
+      }
+
+      .card-top {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 9px;
+      }
+
+      .task-card strong {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 15px;
+        line-height: 1.42;
+      }
+
+      .card-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--slate-500);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .list-section {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+      }
+
+      .list-section + .list-section {
+        margin-top: 10px;
+      }
+
+      .section-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        min-height: 42px;
+        padding: 0 12px;
+        background: #f8fbff;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .section-head strong {
+        font-size: 14px;
+      }
+
+      .table {
+        display: grid;
+      }
+
+      .table-head,
+      .table-row {
+        display: grid;
+        grid-template-columns: minmax(280px, 1.35fr) 94px 130px 116px 115px;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .table-head {
+        min-height: 38px;
+        padding: 0 12px;
+        background: #fbfdff;
+        border-bottom: 1px solid var(--line-soft);
+        color: var(--slate-500);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .table-row {
+        min-height: 52px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .table-row:last-child {
+        border-bottom: 0;
+      }
+
+      .task-line {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .task-line strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+      }
+
+      .owner,
+      .period,
+      .progress {
+        color: var(--slate-700);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .tags {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        overflow: hidden;
+      }
+
+      .bar {
+        position: relative;
+        width: 82px;
+        height: 7px;
+        border-radius: 999px;
+        background: #e9eff7;
+        overflow: hidden;
+      }
+
+      .bar i {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: var(--w);
+        border-radius: inherit;
+        background: #60a5fa;
+      }
+
+      .progress {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .explainer {
+        margin-top: 14px;
+        border: 1px solid #bfdbfe;
+        background: #f8fbff;
+        border-radius: 14px;
+        padding: 12px 14px;
+        color: var(--slate-700);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      @media (max-width: 1180px) {
+        .intro,
+        .app-shell,
+        .briefing,
+        .mock-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          min-height: auto;
+        }
+
+        .mock-column + .mock-column {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
+
+        .table {
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="intro">
+        <div>
+          <h1>카드형 업무 영역에 ClickUp식 리스트 탭을 붙인다면</h1>
+          <p>
+            첫 화면과 현재 카드형 보드는 유지하고, 업무 카드가 나오는 영역 안에서
+            `카드형`과 `간단 리스트`를 전환하는 목업입니다. 복잡한 사람은 리스트로
+            비교하고, 단순하게 보고 싶은 사람은 카드형을 그대로 쓰는 방식입니다.
+          </p>
+        </div>
+        <aside class="decision">
+          추천 방향: 사이드바에 별도 메뉴를 늘리기보다, 현재 업무 카드 영역 상단에
+          작은 탭만 추가합니다. 사용자는 “같은 업무를 카드로 볼지, 한 줄 리스트로
+          볼지”만 고르면 됩니다.
+        </aside>
+      </section>
+
+      <section class="app-shell">
+        <aside class="sidebar">
+          <h2 class="brand">▦ Strategy Work Hub</h2>
+          <nav class="nav">
+            <button class="active">🏠 My Desk</button>
+            <button>🧾 Team Flow</button>
+            <button>📅 Calendar</button>
+            <button>💬 Updates</button>
+            <button>✨ Highlights</button>
+            <button>🗒 Canvas</button>
+          </nav>
+        </aside>
+
+        <div class="main">
+          <header class="topbar">
+            <strong>Strategy Work Hub</strong>
+            <span class="profile">🐿 소슬기 · 수석</span>
+          </header>
+
+          <section class="briefing">
+            <article class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">오늘 브리핑</h2>
+                <span class="panel-sub">개인 업무 흐름</span>
+              </div>
+              <div class="brief-body">
+                <div class="brief-row">
+                  <div class="brief-kind">🚀 오늘 시작</div>
+                  <div class="brief-title">
+                    <span class="chip teal">스팟</span>
+                    <strong>회의 직후 공유자료 빠른 정리</strong>
+                  </div>
+                  <div class="due">D-1</div>
+                </div>
+                <div class="brief-row">
+                  <div class="brief-kind">⏰ 오늘 마감</div>
+                  <div class="brief-title">
+                    <span class="chip blue">월간보고</span>
+                    <strong>6월 월간보고 운영자료 취합</strong>
+                  </div>
+                  <div class="due">오늘</div>
+                </div>
+                <div class="brief-row">
+                  <div class="brief-kind">⚠ 지연</div>
+                  <div class="brief-title">
+                    <span class="chip red">높음</span>
+                    <strong>기획보고 데이터 근거 검증</strong>
+                  </div>
+                  <div class="due">D+2</div>
+                </div>
+              </div>
+            </article>
+
+            <aside class="panel">
+              <div class="panel-head">
+                <h2 class="panel-title">업무 인박스</h2>
+                <span class="panel-sub">+ 기록</span>
+              </div>
+              <div class="mini-list">
+                <div class="mini-card">
+                  <strong>회의에서 나온 자료 링크 확인 필요</strong>
+                  <span>참고자료 · 미처리</span>
+                </div>
+                <div class="mini-card">
+                  <strong>월간보고 수치 기준 다시 확인</strong>
+                  <span>할일 · 미처리</span>
+                </div>
+              </div>
+            </aside>
+          </section>
+
+          <section class="panel workflow-panel">
+            <div class="workflow-toolbar">
+              <div class="workflow-title">
+                <h2>내 업무</h2>
+                <span class="panel-sub">현재 업무 카드가 나오는 영역</span>
+              </div>
+              <div class="view-tabs" aria-label="업무 보기 방식">
+                <button>카드형</button>
+                <button class="active">간단 리스트</button>
+              </div>
+            </div>
+
+            <div class="filters">
+              <span class="filter">사람: 나</span>
+              <span class="filter">태그: 전체</span>
+              <span class="filter">중요: 전체</span>
+              <span class="filter">스팟: 전체</span>
+              <span class="filter">정렬: 마감일</span>
+            </div>
+
+            <div class="mock-grid">
+              <div class="mock-column">
+                <div class="column-head">
+                  <h3>현재 카드형</h3>
+                  <span class="panel-sub">보기 좋지만 업무가 많으면 비교가 어려움</span>
+                </div>
+                <div class="card-stack">
+                  <article class="task-card spot">
+                    <div class="card-top">
+                      <span class="chip teal">스팟</span>
+                      <span class="chip amber">마감 임박</span>
+                    </div>
+                    <strong>회의 직후 공유자료 빠른 정리</strong>
+                    <div class="card-meta">
+                      <span>소슬기 · 운영</span>
+                      <span>D-1 · 20%</span>
+                    </div>
+                  </article>
+                  <article class="task-card">
+                    <div class="card-top">
+                      <span class="chip red">높음</span>
+                      <span class="chip red">지연</span>
+                    </div>
+                    <strong>기획보고 데이터 근거 검증</strong>
+                    <div class="card-meta">
+                      <span>류강목 · 기획보고</span>
+                      <span>D+2 · 40%</span>
+                    </div>
+                  </article>
+                  <article class="task-card">
+                    <div class="card-top">
+                      <span class="chip blue">보통</span>
+                      <span class="chip">반복</span>
+                    </div>
+                    <strong>정책 변화 모니터링 메모</strong>
+                    <div class="card-meta">
+                      <span>조원태 · 자료조사</span>
+                      <span>D-3 · 30%</span>
+                    </div>
+                  </article>
+                </div>
+              </div>
+
+              <div class="mock-column">
+                <div class="column-head">
+                  <h3>ClickUp식 간단 리스트</h3>
+                  <span class="panel-sub">같은 업무를 한 줄로 비교</span>
+                </div>
+
+                <section class="list-section">
+                  <div class="section-head">
+                    <strong>진행중</strong>
+                    <span class="chip">3건</span>
+                  </div>
+                  <div class="table">
+                    <div class="table-head">
+                      <span>업무</span>
+                      <span>담당</span>
+                      <span>구분</span>
+                      <span>기간</span>
+                      <span>진행률</span>
+                    </div>
+                    <div class="table-row">
+                      <div class="task-line">
+                        <span class="chip teal">스팟</span>
+                        <span class="chip amber">마감</span>
+                        <strong>회의 직후 공유자료 빠른 정리</strong>
+                      </div>
+                      <span class="owner">소슬기</span>
+                      <div class="tags">
+                        <span class="chip">운영</span>
+                      </div>
+                      <span class="period">06-25</span>
+                      <span class="progress"><span class="bar"><i style="--w: 20%"></i></span>20%</span>
+                    </div>
+                    <div class="table-row">
+                      <div class="task-line">
+                        <span class="chip red">높음</span>
+                        <span class="chip red">지연</span>
+                        <strong>기획보고 데이터 근거 검증</strong>
+                      </div>
+                      <span class="owner">류강목</span>
+                      <div class="tags">
+                        <span class="chip">기획보고</span>
+                      </div>
+                      <span class="period">06-20 - 06-23</span>
+                      <span class="progress"><span class="bar"><i style="--w: 40%"></i></span>40%</span>
+                    </div>
+                    <div class="table-row">
+                      <div class="task-line">
+                        <span class="chip blue">보통</span>
+                        <span class="chip">반복</span>
+                        <strong>정책 변화 모니터링 메모</strong>
+                      </div>
+                      <span class="owner">조원태</span>
+                      <div class="tags">
+                        <span class="chip">자료조사</span>
+                      </div>
+                      <span class="period">06-24 - 06-28</span>
+                      <span class="progress"><span class="bar"><i style="--w: 30%"></i></span>30%</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="list-section">
+                  <div class="section-head">
+                    <strong>보류</strong>
+                    <span class="chip">1건</span>
+                  </div>
+                  <div class="table">
+                    <div class="table-row">
+                      <div class="task-line">
+                        <span class="chip amber">확인</span>
+                        <strong>자료 출처 보강 필요</strong>
+                      </div>
+                      <span class="owner">박관욱</span>
+                      <div class="tags">
+                        <span class="chip">외부자료</span>
+                      </div>
+                      <span class="period">06-21 - 06-26</span>
+                      <span class="progress"><span class="bar"><i style="--w: 15%"></i></span>15%</span>
+                    </div>
+                  </div>
+                </section>
+
+                <div class="explainer">
+                  이 리스트는 별도 업무 체계를 새로 만드는 것이 아니라, 기존 카드형 업무를
+                  같은 자리에서 한 줄씩 바꿔 보는 방식입니다. 클릭하면 기존과 동일하게
+                  오른쪽 업무 상세가 열리고, 상태 변경·로그·업무 노트는 그대로 상세에서
+                  처리합니다.
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

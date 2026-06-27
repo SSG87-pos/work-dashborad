@@ -1,5 +1,6 @@
 from app.models.briefing import BriefingItem
 from app.models.calendar import CalendarEvent, CalendarScope
+from app.models.notification import Notification, NotificationSeverity, NotificationSourceType, NotificationType
 from app.models.preferences import DashboardMemo, UserPreference
 from app.models.task import (
     AssignerType,
@@ -34,6 +35,10 @@ __all__ = [
     "CalendarScope",
     "DashboardMemo",
     "ChangeType",
+    "Notification",
+    "NotificationSeverity",
+    "NotificationSourceType",
+    "NotificationType",
     "PermissionRole",
     "Subtask",
     "Tag",

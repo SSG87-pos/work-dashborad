@@ -519,7 +519,7 @@ create table user_preferences (
 
 ### 5.15 notifications
 
-알림은 후속 기능입니다. DB 스키마는 미리 잡아둘 수 있지만 첫 운영 구현에서는 endpoint와 UI만 나중에 연결합니다.
+개인별 알림함 Phase 1은 구현되어 있습니다. FastAPI mode에서 본인 알림 조회, 읽음, 전체 읽음, 상단 종 icon badge, 알림 패널, 업무 상세 이동을 제공합니다. 알림 생성은 새 배정, 본인 업무 지연, 본인 업무에 다른 사람이 남긴 update log/업무 Note/risk Note로 제한합니다.
 
 ```sql
 create table notifications (
@@ -543,6 +543,14 @@ create table notifications (
 create index notifications_recipient_created_idx on notifications (recipient_user_id, created_at desc);
 create index notifications_unread_idx on notifications (recipient_user_id, read_at) where read_at is null and dismissed_at is null;
 ```
+
+Implemented endpoints:
+
+- `GET /api/v1/notifications?limit=40&unread_only=true`
+- `PATCH /api/v1/notifications/{notification_id}/read`
+- `PATCH /api/v1/notifications/read-all`
+
+Remaining later scope: company PostgreSQL apply/smoke, dismiss/hide UI, due today/due soon notification rows, Teams/realtime/mobile push, and user-configurable notification rules.
 
 ## 6. FastAPI API Contract
 

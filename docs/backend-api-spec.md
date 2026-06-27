@@ -241,7 +241,7 @@ For internal security environments, do not assume the AI can open `url`. If user
 
 ### notifications
 
-Future backend-backed personal notification inbox. See `docs/personal-notification-inbox-plan.md` before implementing.
+Backend-backed personal notification inbox. Phase 1 is implemented for high-signal personal alerts: newly assigned work, overdue owned work, and update logs / 업무 Note / risk Note left by someone else on the recipient's own work. See `docs/personal-notification-inbox-plan.md` before extending.
 
 | Column | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -440,7 +440,7 @@ These endpoints are future-facing and should be implemented only after the FastA
 | GET | `/notifications` | user | Return current user's notifications, newest first; supports `unreadOnly`, `limit`, and `severity`. |
 | PATCH | `/notifications/:id/read` | recipient | Mark one notification as read. |
 | PATCH | `/notifications/read-all` | user | Mark current user's unread notifications as read. |
-| PATCH | `/notifications/:id/dismiss` | recipient | Hide one notification without deleting audit context. |
+| PATCH | `/notifications/:id/dismiss` | recipient | Later scope. Hide one notification without deleting audit context. |
 
 ### Tags
 

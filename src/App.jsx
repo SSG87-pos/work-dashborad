@@ -74,6 +74,36 @@ const workKindOptions = [
   { value: "spot", label: "스팟 업무" }
 ];
 const displayDensityOptions = ["standard", "comfortable"];
+const assistantModeOptions = [
+  { value: "question", label: "질문", placeholder: "무엇을 도와드릴까요?!" },
+  { value: "task", label: "업무 등록", placeholder: "등록할 업무 내용을 적어주세요" },
+  { value: "note", label: "업무 Note", placeholder: "남길 업무 기록이나 회의 내용을 적어주세요" },
+  { value: "status", label: "상태 변경", placeholder: "상태를 바꿀 업무와 변경할 상태를 적어주세요" }
+];
+const assistantPromptExamples = {
+  question: defaultAiAssistantPrompts,
+  task: [
+    "전략과제 회의 후속 업무를 등록해줘. 담당자와 마감일은 확인 필요",
+    "A 과제 리스크 점검 업무를 새로 만들어줘",
+    "이번 주 보고서 취합 업무를 등록해줘",
+    "회의에서 나온 액션 아이템을 업무로 정리해줘",
+    "자료 검토와 피드백 요청 업무를 만들어줘"
+  ],
+  note: [
+    "A 업무 관련 코멘트: 검토 방향을 다시 확인해야 함",
+    "B 업무 진행 로그: 초안 공유했고 담당자 피드백 대기",
+    "A 업무 회의록: 논의 내용은 다음과 같음",
+    "전략과제 관련 참고자료: 핵심 내용과 링크를 남김",
+    "C 업무 리스크: 일정 지연 가능성이 있어 확인 필요"
+  ],
+  status: [
+    "A 업무 상태를 진행중으로 바꿔줘",
+    "B 업무는 완료 처리해줘",
+    "C 업무는 잠시 보류로 변경해줘",
+    "회의자료 정리 업무를 검토/대기로 넘겨줘",
+    "이번 주 보고서 업무를 계획 상태로 바꿔줘"
+  ]
+};
 const taskPostToneOptions = ["blue", "green", "amber", "red", "violet", "slate"];
 const NOTE_OTHER_TASK_ID = "__other_reference__";
 const briefingItemTypes = [
@@ -162,6 +192,20 @@ const permissionLabels = {
   lead: "팀장",
   member: "팀원"
 };
+const notificationTypeLabels = {
+  task_assigned: "배정",
+  task_overdue: "지연",
+  task_update_added: "로그",
+  task_post_added: "Note",
+  risk_added: "리스크",
+  mention_added: "언급"
+};
+const notificationSeverityLabels = {
+  low: "낮음",
+  normal: "일반",
+  high: "중요",
+  urgent: "긴급"
+};
 let peopleDirectory = people;
 
 function timeGreeting(date = new Date()) {
@@ -173,6 +217,26 @@ function timeGreeting(date = new Date()) {
   if (hour < 19) return "오늘 하루 마무리할 시간이네요 🌆 남은 일은 가볍게 정리해봐요.";
   if (hour < 22) return "오늘도 고생 많으셨어요 ✨ 내일로 넘길 일까지 편하게 정리해봐요.";
   return "늦은 시간까지 고생 많으셨어요 🌙 지금은 부담을 조금 내려놓아도 좋아요.";
+}
+
+function notificationTypeLabel(type) {
+  return notificationTypeLabels[type] ?? "알림";
+}
+
+function notificationSeverityLabel(severity) {
+  return notificationSeverityLabels[severity] ?? "일반";
+}
+
+function notificationRelativeTime(value) {
+  if (!value) return "";
+  const created = new Date(value);
+  if (Number.isNaN(created.getTime())) return "";
+  const diffMinutes = Math.max(0, Math.floor((Date.now() - created.getTime()) / 60000));
+  if (diffMinutes < 1) return "방금";
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간 전`;
+  return shortDateLabel(created.toISOString().slice(0, 10), true);
 }
 
 function taskCountByBriefingTitle(briefing, title) {
@@ -2528,7 +2592,18 @@ function App() {
   const [assistantResult, setAssistantResult] = useState(null);
   const [assistantStatus, setAssistantStatus] = useState("idle");
   const [assistantError, setAssistantError] = useState("");
+  const [assistantMode, setAssistantMode] = useState("question");
+  const [assistantThread, setAssistantThread] = useState([]);
   const [isDashboardAiOpen, setIsDashboardAiOpen] = useState(false);
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
+  const [notificationFilter, setNotificationFilter] = useState("unread");
+  const [notificationState, setNotificationState] = useState({
+    items: [],
+    unreadCount: 0,
+    urgentCount: 0,
+    status: "idle",
+    error: ""
+  });
   const [wikiDraftTaskId, setWikiDraftTaskId] = useState("");
   const [wikiReviewDrafts, setWikiReviewDrafts] = useState([]);
   const [wikiReviewStatus, setWikiReviewStatus] = useState("idle");
@@ -2637,6 +2712,74 @@ function App() {
       setSyncNotice("");
       syncNoticeTimerRef.current = null;
     }, 3600);
+  }
+
+  function loadNotifications({ unreadOnly = notificationFilter === "unread", silent = false } = {}) {
+    if (!isApiReady || authStatus !== "signed-in" || !isAuthenticated || !remoteDashboardStore.notifications?.read) {
+      setNotificationState({ items: [], unreadCount: 0, urgentCount: 0, status: "idle", error: "" });
+      return Promise.resolve(null);
+    }
+    if (!silent) {
+      setNotificationState((current) => ({ ...current, status: "loading", error: "" }));
+    }
+    return remoteDashboardStore.notifications.read({ limit: 40, unreadOnly })
+      .then((result) => {
+        setNotificationState({
+          items: result.items ?? [],
+          unreadCount: result.unreadCount ?? 0,
+          urgentCount: result.urgentCount ?? 0,
+          status: "ready",
+          error: ""
+        });
+        return result;
+      })
+      .catch((error) => {
+        console.warn("알림을 불러오지 못했습니다.", error);
+        setNotificationState((current) => ({
+          ...current,
+          status: "error",
+          error: "알림을 불러오지 못했습니다."
+        }));
+        return null;
+      });
+  }
+
+  function handleNotificationFilter(nextFilter) {
+    setNotificationFilter(nextFilter);
+    loadNotifications({ unreadOnly: nextFilter === "unread" });
+  }
+
+  function handleNotificationClick(notification) {
+    if (!notification) return;
+    const openRelatedTask = () => {
+      if (notification.taskId && tasks.some((task) => task.id === notification.taskId)) {
+        setActivePage("my");
+        setActiveView("board");
+        selectTask(notification.taskId, "workflow");
+      }
+      setIsNotificationPanelOpen(false);
+    };
+    if (!notification.readAt && remoteDashboardStore.notifications?.markRead) {
+      remoteDashboardStore.notifications.markRead(notification.id)
+        .then(() => loadNotifications({ unreadOnly: notificationFilter === "unread", silent: true }))
+        .catch((error) => {
+          console.warn("알림 읽음 처리에 실패했습니다.", error);
+          showSyncNotice("알림 읽음 처리를 저장하지 못했습니다.");
+        })
+        .finally(openRelatedTask);
+      return;
+    }
+    openRelatedTask();
+  }
+
+  function handleMarkAllNotificationsRead() {
+    if (!remoteDashboardStore.notifications?.markAllRead) return;
+    remoteDashboardStore.notifications.markAllRead()
+      .then(() => loadNotifications({ unreadOnly: notificationFilter === "unread" }))
+      .catch((error) => {
+        console.warn("모든 알림 읽음 처리에 실패했습니다.", error);
+        showSyncNotice("모든 알림 읽음 처리를 저장하지 못했습니다.");
+      });
   }
 
   function handleSupabaseWriteResult(result, skippedMessage) {
@@ -3022,6 +3165,14 @@ function App() {
   }, [activePage, authStatus, dashboardInsightRefreshKey, isApiReady, isAuthenticated, selectedPersonId]);
 
   useEffect(() => {
+    if (!isApiReady || authStatus !== "signed-in" || !isAuthenticated || !remoteDashboardStore.notifications?.read) {
+      setNotificationState({ items: [], unreadCount: 0, urgentCount: 0, status: "idle", error: "" });
+      return;
+    }
+    loadNotifications({ unreadOnly: notificationFilter === "unread", silent: true });
+  }, [authStatus, isApiReady, isAuthenticated, notificationFilter]);
+
+  useEffect(() => {
     if (isSupabaseReady) return;
     const nextState = {
       version: 1,
@@ -3326,17 +3477,82 @@ function App() {
     setEditingTask(task);
   }
 
-  async function askAiAssistant(promptText = assistantPrompt) {
+  function latestAssistantAction() {
+    for (let index = assistantThread.length - 1; index >= 0; index -= 1) {
+      const result = assistantThread[index]?.result;
+      if (result?.recordDraft || result?.statusDraft || result?.intent?.kind === "task-draft") return result;
+    }
+    return null;
+  }
+
+  function isAssistantActionConfirmation(text) {
+    const cleanText = String(text ?? "").trim();
+    return /^(응|네|예|좋아|그래|ㅇㅇ)(\s|$)/i.test(cleanText)
+      || /(그렇게|진행|저장|처리|등록|확인).*(해|해줘|해주세요|하자|진행|저장|처리|등록|확인)?/i.test(cleanText);
+  }
+
+  async function askAiAssistant(promptText = assistantPrompt, options = {}) {
     const cleanPrompt = String(promptText ?? "").trim();
     if (!cleanPrompt || assistantStatus === "loading") return;
+    const mode = options.mode ?? assistantMode;
+    const messageStamp = Date.now();
     setAssistantPrompt(cleanPrompt);
     setAssistantStatus("loading");
     setAssistantError("");
+    setAssistantThread((current) => [
+      ...current,
+      {
+        id: `user-${messageStamp}`,
+        role: "user",
+        mode,
+        content: cleanPrompt
+      }
+    ]);
 
-    const assistantContext = { briefingItems, currentPerson: selectedPerson, memoByPage, people: directory, today: TODAY };
+    const commitAssistantReply = (reply, errorText = "") => {
+      setAssistantResult(reply);
+      setAssistantThread((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now()}-${current.length}`,
+          role: "assistant",
+          mode,
+          content: reply?.answer || errorText,
+          error: errorText,
+          result: reply
+        }
+      ]);
+    };
+
+    const assistantContext = { briefingItems, currentPerson: selectedPerson, memoByPage, mode, people: directory, today: TODAY };
+    const pendingAction = latestAssistantAction();
+    if (pendingAction && isAssistantActionConfirmation(cleanPrompt)) {
+      let success = true;
+      let answer = "확인했습니다. 요청한 처리를 진행했습니다.";
+      if (pendingAction.recordDraft) {
+        success = saveAssistantWorkRecord(pendingAction.recordDraft);
+        answer = success ? "확인했습니다. 제안한 업무 기록을 저장했습니다." : "저장하려면 기록 내용을 한 번 더 확인해 주세요.";
+      } else if (pendingAction.statusDraft) {
+        success = saveAssistantStatusChange(pendingAction.statusDraft);
+        answer = success ? "확인했습니다. 제안한 상태 변경을 처리했습니다." : "상태 변경 대상과 상태를 한 번 더 확인해 주세요.";
+      } else if (pendingAction.intent?.kind === "task-draft") {
+        enterDashboardWithAssistantDraft(selectedPersonId, { intent: pendingAction.intent });
+        answer = "확인했습니다. 업무 등록 폼으로 이어갈게요. 제목, 담당자, 마감일을 확인한 뒤 저장해 주세요.";
+      }
+      commitAssistantReply({
+        intent: { kind: "action-result", label: success ? "처리 완료" : "확인 필요" },
+        answer,
+        evidence: null,
+        sources: []
+      });
+      setAssistantStatus("idle");
+      return;
+    }
+
     const intent = classifyAssistantPrompt(cleanPrompt, assistantContext);
-    if (intent.kind === "task-draft") {
-      setAssistantResult(buildLocalAssistantReply({ ...assistantContext, prompt: cleanPrompt, tasks }));
+    let fallbackError = "";
+    if (intent.kind === "task-draft" || intent.kind === "work-record" || intent.kind === "status-change") {
+      commitAssistantReply(buildLocalAssistantReply({ ...assistantContext, prompt: cleanPrompt, tasks }));
       setAssistantStatus("idle");
       return;
     }
@@ -3358,7 +3574,7 @@ function App() {
             }
           }
           : evidence;
-        setAssistantResult({
+        commitAssistantReply({
           intent,
           evidence: enrichedEvidence,
           answer: summarizeAssistantEvidence(enrichedEvidence, intent),
@@ -3368,16 +3584,18 @@ function App() {
         return;
       } catch (error) {
         console.warn("AI 읽기 API 호출에 실패했습니다.", error);
-        setAssistantError("FastAPI AI 읽기 API 호출에 실패해서 화면 데이터 기준으로 임시 답변했습니다.");
+        const errorText = "FastAPI AI 읽기 API 호출에 실패해서 화면 데이터 기준으로 임시 답변했습니다.";
+        fallbackError = errorText;
+        setAssistantError(errorText);
       }
     }
 
-    setAssistantResult(buildLocalAssistantReply({ ...assistantContext, prompt: cleanPrompt, tasks }));
+    commitAssistantReply(buildLocalAssistantReply({ ...assistantContext, prompt: cleanPrompt, tasks }), fallbackError);
     setAssistantStatus("idle");
   }
 
-  function createTaskFromAssistantDraft(ownerId = defaultTaskOwnerId, creatorId = selectedPersonId) {
-    const rawText = assistantResult?.intent?.params?.rawText || assistantPrompt;
+  function createTaskFromAssistantDraft(ownerId = defaultTaskOwnerId, creatorId = selectedPersonId, sourceDraft = null) {
+    const rawText = sourceDraft?.rawText || sourceDraft?.intent?.params?.rawText || assistantResult?.intent?.params?.rawText || assistantPrompt;
     const title = rawText
       .replace(/등록|추가|생성|업무화|해줘|해주세요/g, "")
       .replace(/\s+/g, " ")
@@ -3395,6 +3613,63 @@ function App() {
       ]
     });
     showSyncNotice("AI 등록 초안을 업무 추가 창으로 열었습니다. 확인 후 저장해 주세요.");
+  }
+
+  function saveAssistantWorkRecord(draft = {}) {
+    const body = String(draft.body || draft.rawText || assistantPrompt).trim();
+    if (!body) {
+      showSyncNotice("저장할 업무 기록 내용이 없습니다.");
+      return;
+    }
+    if (draft.mode === "task" || !draft.taskId) {
+      enterDashboardWithAssistantDraft(selectedPersonId, draft);
+      return true;
+    }
+    const targetTask = tasks.find((task) => task.id === draft.taskId);
+    if (!targetTask) {
+      enterDashboardWithAssistantDraft(selectedPersonId, draft);
+      return true;
+    }
+    if (!isAuthenticated && selectedPersonId) loginAs(selectedPersonId);
+    setHasEnteredDashboard(true);
+    setActivePage("my");
+    setActiveView("board");
+    if (draft.mode === "post") {
+      const saved = saveTaskPost(draft.taskId, {
+        scope: draft.scope || "기억할 점",
+        title: draft.title || "AI 업무자료",
+        body
+      });
+      if (!saved) return false;
+      showSyncNotice(`"${displayTaskTitle(targetTask)}" 업무자료로 저장했습니다.`);
+    } else {
+      addTaskUpdate(draft.taskId, body);
+      showSyncNotice(`"${displayTaskTitle(targetTask)}" 업무 로그로 저장했습니다.`);
+    }
+    selectTask(draft.taskId, "workflow");
+    return true;
+  }
+
+  function saveAssistantStatusChange(draft = {}) {
+    const taskId = String(draft.taskId ?? "").trim();
+    const nextStatus = String(draft.nextStatus ?? "").trim();
+    if (!taskId || !statuses.includes(nextStatus)) {
+      showSyncNotice("상태를 변경할 업무와 상태를 확인해 주세요.");
+      return false;
+    }
+    const targetTask = tasks.find((task) => task.id === taskId);
+    if (!targetTask) {
+      enterDashboardWithAssistantDraft(selectedPersonId, draft);
+      return true;
+    }
+    if (!isAuthenticated && selectedPersonId) loginAs(selectedPersonId);
+    setHasEnteredDashboard(true);
+    setActivePage("my");
+    setActiveView("board");
+    updateStatus(taskId, nextStatus);
+    selectTask(taskId, "workflow");
+    showSyncNotice(`"${displayTaskTitle(targetTask)}" 상태를 ${nextStatus}(으)로 변경했습니다.`);
+    return true;
   }
 
   async function createWikiDraftFromTask(task) {
@@ -3556,13 +3831,13 @@ function App() {
     return remoteDashboardStore.workstreams.suggestions();
   }
 
-  function enterDashboardWithAssistantDraft(personId = selectedPersonId) {
+  function enterDashboardWithAssistantDraft(personId = selectedPersonId, sourceDraft = null) {
     const nextPerson = directory.find((person) => person.id === personId) ?? selectedPerson;
     const creatorId = nextPerson?.id ?? selectedPersonId;
     const ownerId = nextPerson?.isTeamMember === false ? "lead" : creatorId;
     if (!isAuthenticated && creatorId) loginAs(creatorId);
     setHasEnteredDashboard(true);
-    window.setTimeout(() => createTaskFromAssistantDraft(ownerId, creatorId), 0);
+    window.setTimeout(() => createTaskFromAssistantDraft(ownerId, creatorId, sourceDraft), 0);
   }
 
   function closeTaskEditor() {
@@ -4194,14 +4469,27 @@ function App() {
     closeTaskDetail();
   }
 
-  function applySummaryFilter(filterKey) {
+  function applySummaryFilter(filterKey, previewTask = null) {
+    const previewTaskId = previewTask?.id ?? "";
+    const targetTask = tasks.find((task) => task.id === previewTaskId && !isDeletedTask(task))
+      ?? tasks.find((task) => (
+        !isDeletedTask(task)
+        && !task.archived
+        && (activePage === "team" || task.ownerId === selectedPersonId)
+        && summaryFilterMatches(task, filterKey, TODAY)
+      ));
     setSummaryFilter(filterKey);
     setCategory("전체");
     setPriorityFilter("전체");
     setQuery("");
     setActiveView("board");
     setDetailContext("workflow");
-    closeTaskDetail();
+    if (targetTask) {
+      window.setTimeout(() => selectTask(targetTask.id, "workflow"), 120);
+      return;
+    }
+    setIsDetailOpen(false);
+    setSelectedBriefingKey("");
     window.setTimeout(() => {
       const workflowTarget = workflowSurfaceRef.current?.querySelector(".board-view") ?? workflowSurfaceRef.current;
       if (!workflowTarget) return;
@@ -4658,12 +4946,18 @@ function App() {
           <AiAssistantPanel
             className="entry-ai-panel"
             error={assistantError}
+            mode={assistantMode}
             onAsk={askAiAssistant}
-            onCreateDraftTask={() => enterDashboardWithAssistantDraft(isAuthenticated ? undefined : selectedLocalAccount?.id)}
+            onCreateDraftTask={(draft) => enterDashboardWithAssistantDraft(isAuthenticated ? undefined : selectedLocalAccount?.id, draft)}
+            onModeChange={setAssistantMode}
             onPromptChange={setAssistantPrompt}
+            onSaveRecord={saveAssistantWorkRecord}
+            onSaveStatus={saveAssistantStatusChange}
+            postCategories={taskPostCategories}
             prompt={assistantPrompt}
             result={assistantResult}
             status={assistantStatus}
+            thread={assistantThread}
           />
         )}
         renderProfileEmojiPicker={({ value, onChange }) => (
@@ -4684,6 +4978,10 @@ function App() {
   }
 
   const hasTaskDetail = isDetailOpen && Boolean(selectedTask);
+  const visibleNotifications = notificationState.items;
+  const unreadNotificationCount = notificationState.unreadCount;
+  const hasUrgentNotifications = notificationState.urgentCount > 0;
+  const notificationBadgeLabel = unreadNotificationCount > 99 ? "99+" : String(unreadNotificationCount);
   const detailPanel = hasTaskDetail ? (
     <TaskDetail
       onArchive={() => toggleArchive(selectedTask.id, true)}
@@ -4848,67 +5146,167 @@ function App() {
           </div>
         )}
         <header className="topbar">
-          <div>
+          <div className="topbar-title-row">
             <h1>Strategy Work Hub</h1>
+            <div className="top-actions">
+              <div className="notification-menu">
+                <button
+                  aria-expanded={isNotificationPanelOpen}
+                  aria-label={`알림${unreadNotificationCount ? ` ${unreadNotificationCount}건` : ""}`}
+                  className={`icon-button notification-bell ${unreadNotificationCount ? "has-unread" : ""} ${hasUrgentNotifications ? "has-urgent" : ""}`}
+                  onClick={() => {
+                    const nextOpen = !isNotificationPanelOpen;
+                    setIsNotificationPanelOpen(nextOpen);
+                    if (nextOpen) loadNotifications({ unreadOnly: notificationFilter === "unread" });
+                  }}
+                  type="button"
+                  title="알림"
+                >
+                  <Bell size={18} />
+                  {unreadNotificationCount > 0 && <span className="notification-badge">{notificationBadgeLabel}</span>}
+                </button>
+                {isNotificationPanelOpen && (
+                  <div className="notification-panel" role="dialog" aria-label="알림">
+                    <div className="notification-panel-head">
+                      <div>
+                        <strong>알림</strong>
+                        <span>안읽음 {unreadNotificationCount}</span>
+                      </div>
+                      <button
+                        className="text-button"
+                        disabled={!unreadNotificationCount}
+                        onClick={handleMarkAllNotificationsRead}
+                        type="button"
+                      >
+                        모두 읽음
+                      </button>
+                    </div>
+                    <div className="notification-tabs" role="tablist" aria-label="알림 필터">
+                      <button
+                        aria-selected={notificationFilter === "unread"}
+                        className={notificationFilter === "unread" ? "active" : ""}
+                        onClick={() => handleNotificationFilter("unread")}
+                        role="tab"
+                        type="button"
+                      >
+                        안읽음
+                      </button>
+                      <button
+                        aria-selected={notificationFilter === "all"}
+                        className={notificationFilter === "all" ? "active" : ""}
+                        onClick={() => handleNotificationFilter("all")}
+                        role="tab"
+                        type="button"
+                      >
+                        전체
+                      </button>
+                    </div>
+                    <div className="notification-list">
+                      {notificationState.status === "loading" && <p className="notification-empty">알림을 불러오는 중입니다.</p>}
+                      {notificationState.status === "error" && <p className="notification-empty">{notificationState.error}</p>}
+                      {notificationState.status !== "loading" && notificationState.status !== "error" && !visibleNotifications.length && (
+                        <p className="notification-empty">
+                          {notificationFilter === "unread" ? "확인할 새 알림이 없습니다." : "표시할 알림이 없습니다."}
+                        </p>
+                      )}
+                      {visibleNotifications.map((notification) => (
+                        <button
+                          className={`notification-row severity-${notification.severity} ${notification.readAt ? "is-read" : "is-unread"}`}
+                          key={notification.id}
+                          onClick={() => handleNotificationClick(notification)}
+                          type="button"
+                        >
+                          <span className="notification-row-top">
+                            <span className="notification-type">{notificationTypeLabel(notification.type)}</span>
+                            <span className="notification-time">{notificationRelativeTime(notification.createdAt)}</span>
+                          </span>
+                          <strong>{notification.title}</strong>
+                          <span className="notification-body">{notification.body}</span>
+                          <span className="notification-meta">
+                            {notification.taskTitle || "관련 업무"}
+                            {notification.actorName ? ` · ${notification.actorName}` : ""}
+                            {notification.severity !== "normal" ? ` · ${notificationSeverityLabel(notification.severity)}` : ""}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                aria-expanded={isDashboardAiOpen}
+                className={`dashboard-ai-button ${isDashboardAiOpen ? "active" : ""}`}
+                onClick={() => setIsDashboardAiOpen((current) => !current)}
+                type="button"
+                title="AI에게 대시보드 내용 물어보기"
+              >
+                <span aria-hidden="true">🤖</span>
+                <strong>AI</strong>
+              </button>
+              <button
+                aria-pressed={displayDensity === "comfortable"}
+                className={`view-density-button ${displayDensity === "comfortable" ? "active" : ""}`}
+                onClick={() => setDisplayDensity((current) => current === "comfortable" ? "standard" : "comfortable")}
+                title={displayDensity === "comfortable" ? "기본 보기로 전환" : "넓게 보기로 전환"}
+                type="button"
+              >
+                <PanelRightOpen size={16} />
+                <span>{displayDensity === "comfortable" ? "기본" : "넓게"}</span>
+              </button>
+              <button
+                className="icon-button"
+                onClick={() => setHasEnteredDashboard(false)}
+                type="button"
+                title="입장 화면으로 돌아가기"
+                aria-label="입장 화면으로 돌아가기"
+              >
+                <House size={18} />
+              </button>
+              <button className="account-button" onClick={() => setIsAccountOpen(true)} type="button" title="계정 및 프로필">
+                <span className="profile-emoji" data-initials={initials(selectedPerson.name)} style={avatarStyle(selectedPerson)}>
+                  {selectedPerson.emoji}
+                </span>
+                <span className="account-identity">
+                  <strong>{selectedPerson.name}</strong>
+                  {selectedPerson.role !== "관리자" && <small>{roleLine(selectedPerson)}</small>}
+                  {adminBadge(selectedPerson) && <em className="account-admin-badge">{adminBadge(selectedPerson)}</em>}
+                </span>
+              </button>
+              <button className="primary-button" onClick={() => openTaskEditor(createBlankTask(defaultTaskOwnerId, selectedPersonId))} type="button">
+                <Plus size={18} />
+                업무 추가
+              </button>
+            </div>
           </div>
-          <div className="top-actions">
-            <label className="search-box">
-              <Search size={17} />
-              <input
-                aria-label="업무 검색"
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="업무·태그·담당·로그·자료 검색"
-                value={query}
-              />
-            </label>
-            <button className="icon-button" type="button" title="알림">
-              <Bell size={18} />
-            </button>
-            <button
-              aria-expanded={isDashboardAiOpen}
-              className={`dashboard-ai-button ${isDashboardAiOpen ? "active" : ""}`}
-              onClick={() => setIsDashboardAiOpen((current) => !current)}
-              type="button"
-              title="AI에게 대시보드 내용 물어보기"
-            >
-              <span aria-hidden="true">🤖</span>
-              <strong>AI</strong>
-            </button>
-            <button
-              aria-pressed={displayDensity === "comfortable"}
-              className={`view-density-button ${displayDensity === "comfortable" ? "active" : ""}`}
-              onClick={() => setDisplayDensity((current) => current === "comfortable" ? "standard" : "comfortable")}
-              title={displayDensity === "comfortable" ? "기본 보기로 전환" : "넓게 보기로 전환"}
-              type="button"
-            >
-              <PanelRightOpen size={16} />
-              <span>{displayDensity === "comfortable" ? "기본" : "넓게"}</span>
-            </button>
-            <button
-              className="icon-button"
-              onClick={() => setHasEnteredDashboard(false)}
-              type="button"
-              title="입장 화면으로 돌아가기"
-              aria-label="입장 화면으로 돌아가기"
-            >
-              <House size={18} />
-            </button>
-            <button className="account-button" onClick={() => setIsAccountOpen(true)} type="button" title="계정 및 프로필">
-              <span className="profile-emoji" style={avatarStyle(selectedPerson)}>
-                {selectedPerson.emoji}
-              </span>
-              <span className="account-identity">
-                <strong>{selectedPerson.name}</strong>
-                {selectedPerson.role !== "관리자" && <small>{roleLine(selectedPerson)}</small>}
-                {adminBadge(selectedPerson) && <em className="account-admin-badge">{adminBadge(selectedPerson)}</em>}
-              </span>
-            </button>
-            <button className="primary-button" onClick={() => openTaskEditor(createBlankTask(defaultTaskOwnerId, selectedPersonId))} type="button">
-              <Plus size={18} />
-              업무 추가
-            </button>
-          </div>
+          <label className="search-box top-search">
+            <Search size={17} />
+            <input
+              aria-label="업무 검색"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="업무·태그·담당·로그·자료 검색"
+              value={query}
+            />
+          </label>
         </header>
+        <div className="team-stack workspace-team-strip" aria-label="팀 멤버">
+          <span className="panel-label">Team Members</span>
+          {teamMembers.map((person) => (
+            <button
+              className={`person-pill ${selectedPersonId === person.id ? "selected" : ""} ${teamMemberPulseId === person.id ? "is-pulsing" : ""}`}
+              key={`workspace-${person.id}`}
+              onClick={() => changePerson(person.id)}
+              type="button"
+            >
+              <span className="profile-emoji" data-initials={initials(person.name)} style={avatarStyle(person)}>
+                {person.emoji}
+              </span>
+              <span className="person-label">
+                <strong>{person.name}</strong>
+                <small>{person.role}</small>
+              </span>
+            </button>
+          ))}
+        </div>
 
         {!["performance", "canvas", "admin"].includes(activeView) && <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />}
 
@@ -5291,13 +5689,19 @@ function App() {
       <DashboardAiWidget
         error={assistantError}
         isOpen={isDashboardAiOpen}
+        mode={assistantMode}
         onAsk={askAiAssistant}
         onClose={() => setIsDashboardAiOpen(false)}
-        onCreateDraftTask={() => enterDashboardWithAssistantDraft(selectedPersonId)}
+        onCreateDraftTask={(draft) => enterDashboardWithAssistantDraft(selectedPersonId, draft)}
+        onModeChange={setAssistantMode}
         onPromptChange={setAssistantPrompt}
+        onSaveRecord={saveAssistantWorkRecord}
+        onSaveStatus={saveAssistantStatusChange}
+        postCategories={taskPostCategories}
         prompt={assistantPrompt}
         result={assistantResult}
         status={assistantStatus}
+        thread={assistantThread}
       />
     </div>
   );
@@ -5312,13 +5716,19 @@ function orderedAccounts(accounts) {
 function DashboardAiWidget({
   error,
   isOpen,
+  mode,
   onAsk,
   onClose,
   onCreateDraftTask,
+  onModeChange,
   onPromptChange,
+  onSaveRecord,
+  onSaveStatus,
+  postCategories,
   prompt,
   result,
-  status
+  status,
+  thread
 }) {
   const windowRef = useRef(null);
   const dragStateRef = useRef(null);
@@ -5419,12 +5829,18 @@ function DashboardAiWidget({
           <AiAssistantPanel
             className="dashboard-floating-ai-panel"
             error={error}
+            mode={mode}
             onAsk={onAsk}
             onCreateDraftTask={onCreateDraftTask}
+            onModeChange={onModeChange}
             onPromptChange={onPromptChange}
+            onSaveRecord={onSaveRecord}
+            onSaveStatus={onSaveStatus}
+            postCategories={postCategories}
             prompt={prompt}
             result={result}
             status={status}
+            thread={thread}
           />
         </motion.aside>
       )}
@@ -6858,8 +7274,9 @@ function InsightStrip({ activeFilter, onSelect, summary }) {
             className={`insight-card ${tone} ${hasItems ? "has-items" : "empty"} ${activeFilter === key ? "active" : ""}`}
             initial={{ opacity: 0, y: 8 }}
             key={key}
-            onClick={() => {
-              if (hasItems) onSelect(key);
+            onClick={(event) => {
+              event.currentTarget.blur();
+              if (hasItems) onSelect(key, preview[0] ?? null);
             }}
             type="button"
             transition={{ delay: index * 0.04, duration: 0.22 }}
@@ -6895,27 +7312,30 @@ function InsightStrip({ activeFilter, onSelect, summary }) {
 function AiAssistantPanel({
   className = "",
   error,
+  mode = "question",
   onAsk,
   onCreateDraftTask,
+  onModeChange,
   onPromptChange,
+  onSaveRecord,
+  onSaveStatus,
+  postCategories = defaultTaskPostCategories,
   prompt,
   result,
-  status
+  status,
+  thread = []
 }) {
   const isLoading = status === "loading";
-  const evidenceItems = result?.evidence?.items ?? [];
-  const isDraft = result?.intent?.kind === "task-draft";
   const [isPromptOpen, setIsPromptOpen] = useState(false);
-  const answerLines = String(result?.answer ?? "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const answerLead = answerLines[0] ?? "";
-  const answerDetails = answerLines.slice(1).map((line) => line.replace(/^[-•]\s*/, ""));
+  const activeMode = assistantModeOptions.find((item) => item.value === mode) ?? assistantModeOptions[0];
+  const promptExamples = assistantPromptExamples[activeMode.value] ?? defaultAiAssistantPrompts;
+  const threadMessages = thread.length
+    ? thread
+    : (result || error ? [{ id: "assistant-latest", role: "assistant", content: result?.answer || error, error, result }] : []);
 
   function submit(event) {
     event.preventDefault();
-    onAsk(prompt);
+    onAsk(prompt, { mode });
   }
 
   return (
@@ -6928,14 +7348,25 @@ function AiAssistantPanel({
       <div className="ai-assistant-head">
         <div>
           <span className="ai-agent-label">
-            <span className="atlas-spinner mini" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
+            <span className="floating-ai-bot-icon" aria-hidden="true">🤖</span>
             무엇을 도와드릴까요?!
           </span>
         </div>
+      </div>
+
+      <div className="ai-mode-tabs" role="tablist" aria-label="AI 작업 선택">
+        {assistantModeOptions.map((item) => (
+          <button
+            aria-selected={mode === item.value}
+            className={mode === item.value ? "active" : ""}
+            key={item.value}
+            onClick={() => onModeChange?.(item.value)}
+            role="tab"
+            type="button"
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
 
       <form className="ai-assistant-form gradient-ai-chat-input" onSubmit={submit}>
@@ -6945,7 +7376,7 @@ function AiAssistantPanel({
               <textarea
                 aria-label="무엇을 도와드릴까요?!"
                 onChange={(event) => onPromptChange(event.target.value)}
-                placeholder="무엇을 도와드릴까요?!"
+                placeholder={activeMode.placeholder}
                 rows={2}
                 value={prompt}
               />
@@ -6978,13 +7409,13 @@ function AiAssistantPanel({
 
       {isPromptOpen && (
         <div className="ai-prompt-row" aria-label="추천 질문">
-          {defaultAiAssistantPrompts.slice(0, 5).map((item) => (
+          {promptExamples.slice(0, 10).map((item) => (
             <button
               className={prompt === item ? "active" : ""}
               key={item}
               onClick={() => {
                 onPromptChange(item);
-                onAsk(item);
+                onAsk(item, { mode });
               }}
               type="button"
             >
@@ -6994,60 +7425,310 @@ function AiAssistantPanel({
         </div>
       )}
 
-      {(result || error) && (
-        <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          className="ai-answer-surface"
-          initial={{ opacity: 0, y: 8 }}
-          key={`${result?.intent?.label ?? "answer"}-${answerLead}-${error ?? ""}`}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-        >
-          <div className="ai-answer-header">
-            <span className="ai-answer-badge">
-              <Sparkles size={13} aria-hidden="true" />
-              AI 답변
-            </span>
-            {result?.intent?.label && <span className="ai-answer-context">{result.intent.label}</span>}
-          </div>
-
-          {error && <p className="ai-answer-warning">{error}</p>}
-          {answerLines.length > 0 && (
-            <div className="ai-answer-copy">
-              {answerLead && <p className="ai-answer-lead">{answerLead}</p>}
-              {answerDetails.length > 0 && (
-                <ul className="ai-answer-points">
-                  {answerDetails.map((line, index) => (
-                    <li key={`${line}-${index}`}>{line}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {isDraft && onCreateDraftTask && (
-            <button className="secondary-button small" onClick={onCreateDraftTask} type="button">
-              <Plus size={15} />
-              업무 추가 창으로 열기
-            </button>
-          )}
-
-          {!isDraft && evidenceItems.length > 0 && (
-            <div className="ai-source-list" aria-label="AI 답변 근거">
-              <span className="ai-source-heading">근거 업무 {evidenceItems.length}건</span>
-              {evidenceItems.slice(0, 4).map((item) => (
-                <div className="ai-source-row" key={`${item.taskId}-${item.taskTitle}`}>
-                  <strong>{item.taskTitle}</strong>
-                  <span>
-                    {item.ownerName || "담당자 미상"} · {item.status || "상태 미상"}
-                    {item.recentUpdates?.[0]?.id ? ` · update:${item.recentUpdates[0].id}` : ""}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-      )}
+      <AssistantThread
+        messages={threadMessages}
+        onCreateDraftTask={onCreateDraftTask}
+        onSaveRecord={onSaveRecord}
+        onSaveStatus={onSaveStatus}
+        postCategories={postCategories}
+      />
     </motion.section>
+  );
+}
+
+function AssistantThread({ messages = [], onCreateDraftTask, onSaveRecord, onSaveStatus, postCategories = defaultTaskPostCategories }) {
+  if (!messages.length) return null;
+  return (
+    <div className="ai-thread" aria-label="AI 대화 기록">
+      {messages.map((message) => {
+        if (message.role === "user") {
+          return (
+            <div className="ai-thread-message user" key={message.id}>
+              <p>{message.content}</p>
+            </div>
+          );
+        }
+        return (
+          <AssistantResponseBubble
+            error={message.error}
+            key={message.id}
+            onCreateDraftTask={onCreateDraftTask}
+            onSaveRecord={onSaveRecord}
+            onSaveStatus={onSaveStatus}
+            postCategories={postCategories}
+            result={message.result}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function AssistantResponseBubble({ error, onCreateDraftTask, onSaveRecord, onSaveStatus, postCategories = defaultTaskPostCategories, result }) {
+  const evidenceItems = result?.evidence?.items ?? [];
+  const isDraft = result?.intent?.kind === "task-draft";
+  const answerLines = String(result?.answer ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const answerLead = answerLines[0] ?? "";
+  const answerDetails = answerLines.slice(1).map((line) => line.replace(/^[-•]\s*/, ""));
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      className="ai-thread-message assistant ai-answer-surface"
+      initial={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+    >
+      <div className="ai-answer-header">
+        <span className="ai-answer-badge">
+          <Sparkles size={13} aria-hidden="true" />
+          AI 판단
+        </span>
+        {result?.intent?.label && <span className="ai-answer-context">{result.intent.label}</span>}
+      </div>
+
+      {error && <p className="ai-answer-warning">{error}</p>}
+      {answerLines.length > 0 && (
+        <div className="ai-answer-copy">
+          {answerLead && <p className="ai-answer-lead">{answerLead}</p>}
+          {answerDetails.length > 0 && (
+            <ul className="ai-answer-points">
+              {answerDetails.map((line, index) => (
+                <li key={`${line}-${index}`}>{line}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {result?.recordDraft && onSaveRecord && (
+        <AssistantRecordDraftCard
+          draft={result.recordDraft}
+          onCreateDraftTask={onCreateDraftTask}
+          onSave={onSaveRecord}
+          postCategories={postCategories}
+        />
+      )}
+
+      {result?.statusDraft && onSaveStatus && (
+        <AssistantStatusDraftCard
+          draft={result.statusDraft}
+          onCreateDraftTask={onCreateDraftTask}
+          onSave={onSaveStatus}
+        />
+      )}
+
+      {isDraft && onCreateDraftTask && (
+        <button className="secondary-button small" onClick={() => onCreateDraftTask?.({ intent: result?.intent })} type="button">
+          <Plus size={15} />
+          업무 추가 창으로 열기
+        </button>
+      )}
+
+      {!isDraft && evidenceItems.length > 0 && (
+        <div className="ai-source-list" aria-label="AI 답변 근거">
+          <span className="ai-source-heading">근거 업무 {evidenceItems.length}건</span>
+          {evidenceItems.slice(0, 4).map((item) => (
+            <div className="ai-source-row" key={`${item.taskId}-${item.taskTitle}`}>
+              <strong>{item.taskTitle}</strong>
+              <span>
+                {item.ownerName || "담당자 미상"} · {item.status || "상태 미상"}
+                {item.recentUpdates?.[0]?.id ? ` · update:${item.recentUpdates[0].id}` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function AssistantStatusDraftCard({ draft, onCreateDraftTask, onSave }) {
+  const options = draft?.options ?? [];
+  const [taskId, setTaskId] = useState(draft?.taskId ?? "");
+  const [nextStatus, setNextStatus] = useState(draft?.nextStatus || "진행중");
+  const shouldCreateTask = draft?.mode === "task" || !options.length;
+
+  useEffect(() => {
+    setTaskId(draft?.taskId ?? "");
+    setNextStatus(draft?.nextStatus || "진행중");
+  }, [draft?.nextStatus, draft?.taskId]);
+
+  if (!draft) return null;
+
+  if (shouldCreateTask) {
+    return (
+      <div className="assistant-record-card">
+        <div className="assistant-record-head">
+          <strong>새 업무로 전환</strong>
+          <span>대상 업무 없음</span>
+        </div>
+        <p>상태를 바꿀 기존 업무를 찾지 못했습니다. 새 업무 등록 폼에서 이어갈 수 있습니다.</p>
+        <button className="secondary-button small" onClick={() => onCreateDraftTask?.(draft)} type="button">
+          <Plus size={15} />
+          업무 등록 폼 열기
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="assistant-record-card">
+      <div className="assistant-record-head">
+        <strong>상태 변경 확인</strong>
+        <span>후보 {options.length}건</span>
+      </div>
+      <label>
+        <span>대상 업무</span>
+        <select value={taskId} onChange={(event) => setTaskId(event.target.value)}>
+          {options.map((item) => (
+            <option key={item.taskId} value={item.taskId}>
+              {item.taskTitle}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>변경할 상태</span>
+        <select value={nextStatus} onChange={(event) => setNextStatus(event.target.value)}>
+          {statuses.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="assistant-record-actions">
+        <button
+          className="primary-button small"
+          disabled={!taskId || !nextStatus}
+          onClick={() => onSave?.({ ...draft, nextStatus, taskId })}
+          type="button"
+        >
+          상태 변경
+        </button>
+        <button className="secondary-button small" onClick={() => onCreateDraftTask?.(draft)} type="button">
+          새 업무로 등록
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AssistantRecordDraftCard({ draft, onCreateDraftTask, onSave, postCategories = defaultTaskPostCategories }) {
+  const options = draft?.options ?? [];
+  const [taskId, setTaskId] = useState(draft?.taskId ?? "");
+  const [body, setBody] = useState(draft?.body ?? draft?.rawText ?? "");
+  const [saveMode, setSaveMode] = useState(draft?.mode === "post" ? "post" : "update");
+  const activePostCategories = normalizeTaskPostCategories(postCategories).filter((category) => category.active);
+  const defaultScope = activePostCategories.find((category) => category.label === draft?.scope)?.label
+    || activePostCategories.find((category) => category.label === "기억할 점")?.label
+    || activePostCategories[0]?.label
+    || "기억할 점";
+  const [scope, setScope] = useState(draft?.scope || defaultScope);
+  const [title, setTitle] = useState(draft?.title || "AI 업무자료");
+  const shouldCreateTask = draft?.mode === "task" || !options.length;
+
+  useEffect(() => {
+    setTaskId(draft?.taskId ?? "");
+    setBody(draft?.body ?? draft?.rawText ?? "");
+    setSaveMode(draft?.mode === "post" ? "post" : "update");
+    setScope(draft?.scope || defaultScope);
+    setTitle(draft?.title || "AI 업무자료");
+  }, [defaultScope, draft?.body, draft?.mode, draft?.rawText, draft?.scope, draft?.taskId, draft?.title]);
+
+  if (!draft) return null;
+
+  if (shouldCreateTask) {
+    return (
+      <div className="assistant-record-card">
+        <div className="assistant-record-head">
+          <strong>새 업무로 정리</strong>
+          <span>기존 업무 후보 없음</span>
+        </div>
+        <p>맞는 업무를 찾지 못해서 업무 등록 폼으로 이어갈 수 있습니다.</p>
+        <button className="secondary-button small" onClick={onCreateDraftTask} type="button">
+          <Plus size={15} />
+          업무 등록 폼 열기
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="assistant-record-card">
+      <div className="assistant-record-head">
+        <strong>{saveMode === "post" ? "업무자료 저장" : "업무 로그 저장"}</strong>
+        <span>후보 {options.length}건</span>
+      </div>
+      <div className="assistant-record-mode" role="radiogroup" aria-label="저장 위치">
+        <button
+          aria-checked={saveMode === "update"}
+          className={saveMode === "update" ? "active" : ""}
+          onClick={() => setSaveMode("update")}
+          role="radio"
+          type="button"
+        >
+          로그
+        </button>
+        <button
+          aria-checked={saveMode === "post"}
+          className={saveMode === "post" ? "active" : ""}
+          onClick={() => setSaveMode("post")}
+          role="radio"
+          type="button"
+        >
+          업무자료
+        </button>
+      </div>
+      <label>
+        <span>연결할 업무</span>
+        <select value={taskId} onChange={(event) => setTaskId(event.target.value)}>
+          {options.map((item) => (
+            <option key={item.taskId} value={item.taskId}>
+              {item.taskTitle}
+            </option>
+          ))}
+        </select>
+      </label>
+      {saveMode === "post" && (
+        <>
+          <label>
+            <span>자료 유형</span>
+            <select value={scope} onChange={(event) => setScope(event.target.value)}>
+              {activePostCategories.map((category) => (
+                <option key={category.id} value={category.label}>
+                  {category.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>자료 제목</span>
+            <input value={title} onChange={(event) => setTitle(event.target.value)} />
+          </label>
+        </>
+      )}
+      <label>
+        <span>{saveMode === "post" ? "업무자료 내용" : "로그 내용"}</span>
+        <textarea rows={3} value={body} onChange={(event) => setBody(event.target.value)} />
+      </label>
+      <div className="assistant-record-actions">
+        <button
+          className="primary-button small"
+          disabled={!taskId || !body.trim() || (saveMode === "post" && !title.trim())}
+          onClick={() => onSave?.({ ...draft, body, mode: saveMode, scope, taskId, title })}
+          type="button"
+        >
+          {saveMode === "post" ? "업무자료 저장" : "로그 저장"}
+        </button>
+        <button className="secondary-button small" onClick={onCreateDraftTask} type="button">
+          새 업무로 등록
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -7874,8 +8555,12 @@ function BoardView({ canManageTask, counts, defaultExpanded = false, onArchive, 
     setExpandedStatuses((current) => ({ ...current, [status]: !current[status] }));
   }
 
+  const expandedStatusCount = boardStatuses.filter((status) => expandedStatuses[status]).length;
+  const hasContextDetail = Boolean(selectedTaskId);
+  const isComparisonMode = expandedStatusCount > 1 || hasContextDetail;
+
   return (
-    <section className="board-view">
+    <section className={`board-view ${isComparisonMode ? "is-comparison-mode" : "is-focus-mode"} ${hasContextDetail ? "has-context-detail" : ""}`}>
       <div className="status-guide" aria-label="업무 상태 의미">
         {boardStatuses.map((status) => (
           <span key={status}>
@@ -7888,7 +8573,7 @@ function BoardView({ canManageTask, counts, defaultExpanded = false, onArchive, 
       {boardStatuses.map((status) => {
         const statusTasks = tasksByStatus[status] ?? [];
         const isExpanded = Boolean(expandedStatuses[status]);
-        const isWideExpanded = isExpanded && statusTasks.length > 4;
+        const isWideExpanded = isExpanded && !hasContextDetail && !isComparisonMode && statusTasks.length >= 3;
         return (
           <div
             className={`status-lane status-${status.replace("/", "")} ${isExpanded ? "is-expanded" : "is-collapsed"} ${isWideExpanded ? "is-wide-expanded" : ""} ${dropStatus === status ? "drop-target" : ""}`}

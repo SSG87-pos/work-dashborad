@@ -197,7 +197,7 @@ LLM rule: `briefing_items` are useful as raw evidence for future AI briefing, se
 
 ### notifications
 
-Future personal notification inbox used by the top bell icon. Implement after FastAPI/PostgreSQL auth, roster, tasks, update logs, and 업무 노트 persistence are stable. See `docs/personal-notification-inbox-plan.md`.
+Future personal notification inbox used by the top bell icon. Implement after FastAPI/PostgreSQL auth, roster, tasks, update logs, and 업무 노트 persistence are stable. Phase 1 should stay high-signal and personal: newly assigned work, overdue owned work, and logs/notes/risk notes left by someone else on the recipient's own work. See `docs/personal-notification-inbox-plan.md`.
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -207,7 +207,7 @@ Future personal notification inbox used by the top bell icon. Implement after Fa
 | task_id | task id nullable | Related task for click-through navigation. |
 | source_type | string | task, task_update, task_post, task_change_history, or system. |
 | source_id | string/uuid nullable | Source row id used for dedupe. |
-| type | enum/string | task_assigned, task_due_today, task_overdue, task_update_added, task_post_added, risk_added, and related event types. |
+| type | enum/string | Phase 1: task_assigned, task_overdue, task_update_added, task_post_added, risk_added. Later: due-soon, decision-needed, mention, and related event types. |
 | severity | enum/string | low, normal, high, urgent. |
 | title | string | Compact notification title. |
 | body | text | Short summary, not a full copy of sensitive detail. |

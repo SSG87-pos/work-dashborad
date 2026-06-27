@@ -8,6 +8,7 @@ from app.api.routes_calendar import router as calendar_router
 from app.api.routes_canvas import router as canvas_router
 from app.api.routes_dashboard import router as dashboard_router
 from app.api.routes_health import router as health_router
+from app.api.routes_notifications import router as notifications_router
 from app.api.routes_posts import rollup_router, router as posts_router
 from app.api.routes_preferences import memos_router, preferences_router
 from app.api.routes_roster import router as roster_router
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
     app.include_router(calendar_router, prefix="/api/v1")
     app.include_router(canvas_router, prefix="/api/v1")
     app.include_router(health_router, prefix="/api/v1")
+    app.include_router(notifications_router, prefix="/api/v1")
     app.include_router(posts_router, prefix="/api/v1")
     app.include_router(preferences_router, prefix="/api/v1")
     app.include_router(memos_router, prefix="/api/v1")

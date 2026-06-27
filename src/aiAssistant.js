@@ -11,8 +11,15 @@ export const defaultAiAssistantPrompts = [
   "이번 주 업무현황을 보고서 형태로 정리해줘",
   "최근 업데이트된 업무만 요약해줘",
   "지연되거나 리스크가 있는 업무를 찾아줘",
-  "회의 후속 업무 등록 초안을 만들어줘"
+  "회의 후속 업무 등록 초안을 만들어줘",
+  "오늘 내가 꼭 확인해야 할 업무를 알려줘",
+  "이번 주 마감 예정 업무만 모아줘",
+  "내가 남긴 로그와 메모를 업무별로 정리해줘",
+  "담당자별 진행 상황을 비교해서 보여줘",
+  "전략과제 관련 리스크와 다음 액션을 정리해줘"
 ];
+
+const statusWords = ["검토/대기", "계획", "진행중", "완료", "보류"];
 
 const routeByKind = {
   "report-evidence": "/ai/read/report-evidence",
@@ -80,6 +87,49 @@ function keywordQuery(prompt) {
   return prompt.replace(/알려줘|정리해줘|찾아줘|검색해줘|뭐야|무엇/g, "").trim();
 }
 
+function recordQuery(prompt) {
+  return prompt
+    .replace(/업무|기록|로그|메모|남겨줘|남겨|저장해줘|저장|회의록|회의|내용|관련|건/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function draftTitleFromText(text, fallback = "AI 업무 기록 초안") {
+  return String(text ?? "")
+    .replace(/업무|기록|로그|메모|남겨줘|남겨|저장해줘|저장|등록|추가|생성|업무화|해줘|해주세요/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 64) || fallback;
+}
+
+function recordDestinationFromText(text) {
+  if (/회의록|회의|자료|문서|보고서|메일|링크|url|첨부|결정사항|아이디어|리스크|참고/.test(String(text ?? "").toLowerCase())) {
+    return "post";
+  }
+  return "update";
+}
+
+function recordScopeFromText(text) {
+  const value = String(text ?? "");
+  if (/회의록|회의/.test(value)) return "회의록";
+  if (/메일/.test(value)) return "메일";
+  if (/리스크/.test(value)) return "리스크";
+  if (/아이디어/.test(value)) return "아이디어";
+  if (/결정사항|결정/.test(value)) return "결정사항";
+  if (/문서|보고서|자료|링크|url|첨부|참고/.test(value.toLowerCase())) return "참고자료";
+  return "기억할 점";
+}
+
+function statusFromText(text) {
+  const value = String(text ?? "");
+  return statusWords.find((status) => value.includes(status))
+    || (/완료|끝났|마무리/.test(value) ? "완료" : "")
+    || (/진행|착수/.test(value) ? "진행중" : "")
+    || (/보류|대기/.test(value) ? "보류" : "")
+    || (/계획/.test(value) ? "계획" : "")
+    || (/검토/.test(value) ? "검토/대기" : "");
+}
+
 function isSelfReference(text) {
   return /(^|\s)(나|내|내가|저|제|본인|나의|내\s*업무|제\s*업무)(\s|의|가|를|은|는|만|$)/.test(text);
 }
@@ -107,13 +157,73 @@ function personalContextFrom({ briefingItems = [], currentPersonId = "", memoByP
   };
 }
 
-export function classifyAssistantPrompt(prompt, { people = [], today = new Date().toISOString().slice(0, 10), currentPerson = null } = {}) {
+export function classifyAssistantPrompt(prompt, { people = [], today = new Date().toISOString().slice(0, 10), currentPerson = null, mode = "question" } = {}) {
   const text = normalizePrompt(prompt);
   const week = weekRange(today);
   const month = monthRange(today);
   const lower = text.toLowerCase();
   const mentionedPerson = findMentionedPerson(text, people);
   const selfPerson = currentPerson && isSelfReference(text) ? currentPerson : null;
+
+  if (mode === "task") {
+    return {
+      kind: "task-draft",
+      label: "업무 등록 초안",
+      needsHumanApproval: true,
+      params: {
+        rawText: text,
+        periodStart: week.start,
+        periodEnd: week.end
+      }
+    };
+  }
+
+  if (mode === "note") {
+    const query = recordQuery(text) || keywordQuery(text) || text;
+    return {
+      kind: "work-record",
+      label: "업무 Note",
+      needsHumanApproval: true,
+      params: {
+        rawText: text,
+        query,
+        periodStart: month.start,
+        periodEnd: month.end
+      }
+    };
+  }
+
+  if (mode === "status") {
+    const query = recordQuery(text) || keywordQuery(text) || text;
+    return {
+      kind: "status-change",
+      label: "상태 변경 확인",
+      needsHumanApproval: true,
+      params: {
+        rawText: text,
+        query,
+        nextStatus: statusFromText(text),
+        periodStart: month.start,
+        periodEnd: month.end
+      }
+    };
+  }
+
+  if (/상태|완료|진행중|진행|보류|계획|검토/.test(text) && /변경|바꿔|처리|완료|넘겨|해줘|했어|끝났/.test(text)) {
+    const query = recordQuery(text) || keywordQuery(text) || text;
+    return {
+      kind: "status-change",
+      label: "상태 변경 확인",
+      needsHumanApproval: true,
+      params: {
+        rawText: text,
+        query,
+        nextStatus: statusFromText(text),
+        periodStart: month.start,
+        periodEnd: month.end
+      }
+    };
+  }
 
   if (/등록|추가|생성|업무화/.test(text) && /업무|할일|태스크|후속/.test(text)) {
     return {
@@ -124,6 +234,21 @@ export function classifyAssistantPrompt(prompt, { people = [], today = new Date(
         rawText: text,
         periodStart: week.start,
         periodEnd: week.end
+      }
+    };
+  }
+
+  if (/기록|로그|메모|남겨|저장|회의록|회의|후속|공유/.test(text)) {
+    const query = recordQuery(text) || keywordQuery(text) || text;
+    return {
+      kind: "work-record",
+      label: "업무 기록",
+      needsHumanApproval: true,
+      params: {
+        rawText: text,
+        query,
+        periodStart: month.start,
+        periodEnd: month.end
       }
     };
   }
@@ -281,6 +406,109 @@ export function buildTaskDraftReply(intent) {
   };
 }
 
+export function buildWorkRecordReply(intent, evidence) {
+  const items = evidence?.items ?? [];
+  const rawText = intent.params.rawText;
+  if (!items.length) {
+    return {
+      intent,
+      evidence,
+      answer: [
+        "조건에 맞는 기존 업무를 찾지 못했습니다.",
+        "이 내용은 새 업무 등록 초안으로 전환할 수 있습니다. 업무 추가 폼에서 제목, 담당자, 마감일을 확인한 뒤 저장하세요.",
+        `기록 원문: ${rawText}`
+      ].join("\n"),
+      recordDraft: {
+        mode: "task",
+        rawText,
+        title: draftTitleFromText(rawText),
+        body: rawText
+      },
+      sources: []
+    };
+  }
+
+  const primary = items[0];
+  const destination = recordDestinationFromText(rawText);
+  const options = items.slice(0, 5).map((item) => ({
+    taskId: item.taskId,
+    taskTitle: item.taskTitle,
+    ownerName: item.ownerName,
+    status: item.status
+  }));
+  return {
+    intent,
+    evidence,
+    answer: [
+      `관련 업무 후보 ${items.length}건을 찾았습니다.`,
+      destination === "post"
+        ? `우선 "${primary.taskTitle}" 업무의 업무자료로 저장할 수 있습니다.`
+        : `우선 "${primary.taskTitle}" 업무의 로그로 저장할 수 있습니다.`,
+      "저장 전 아래 기록 내용을 확인하세요."
+    ].join("\n"),
+    recordDraft: {
+      mode: destination,
+      rawText,
+      body: rawText,
+      scope: recordScopeFromText(rawText),
+      title: draftTitleFromText(rawText, destination === "post" ? "AI 업무자료" : "AI 업무 로그"),
+      taskId: primary.taskId,
+      taskTitle: primary.taskTitle,
+      options
+    },
+    sources: sourceRefs(items)
+  };
+}
+
+export function buildStatusChangeReply(intent, evidence) {
+  const items = evidence?.items ?? [];
+  const rawText = intent.params.rawText;
+  const nextStatus = intent.params.nextStatus || "진행중";
+  if (!items.length) {
+    return {
+      intent,
+      evidence,
+      answer: [
+        "상태를 바꿀 기존 업무를 찾지 못했습니다.",
+        "이 요청이 새 업무라면 업무 등록 초안으로 전환할 수 있습니다.",
+        `요청 원문: ${rawText}`
+      ].join("\n"),
+      statusDraft: {
+        mode: "task",
+        rawText,
+        nextStatus,
+        body: rawText
+      },
+      sources: []
+    };
+  }
+  const primary = items[0];
+  const options = items.slice(0, 5).map((item) => ({
+    taskId: item.taskId,
+    taskTitle: item.taskTitle,
+    ownerName: item.ownerName,
+    status: item.status
+  }));
+  return {
+    intent,
+    evidence,
+    answer: [
+      `관련 업무 후보 ${items.length}건을 찾았습니다.`,
+      `"${primary.taskTitle}" 업무 상태를 ${nextStatus}(으)로 변경할까요?`,
+      "저장 전 대상 업무와 상태를 확인하세요."
+    ].join("\n"),
+    statusDraft: {
+      mode: "status",
+      rawText,
+      taskId: primary.taskId,
+      taskTitle: primary.taskTitle,
+      nextStatus,
+      options
+    },
+    sources: sourceRefs(items)
+  };
+}
+
 function localEvidenceForIntent(intent, { briefingItems = [], currentPerson = null, memoByPage = {}, tasks = [], people = [], today }) {
   const base = {
     tasks,
@@ -313,10 +541,12 @@ function localEvidenceForIntent(intent, { briefingItems = [], currentPerson = nu
   return buildTopicSearchEvidence({ ...base, query: intent.params.query });
 }
 
-export function buildLocalAssistantReply({ briefingItems = [], currentPerson = null, memoByPage = {}, prompt, tasks = [], people = [], today = new Date().toISOString().slice(0, 10) } = {}) {
-  const intent = classifyAssistantPrompt(prompt, { people, today, currentPerson });
+export function buildLocalAssistantReply({ briefingItems = [], currentPerson = null, memoByPage = {}, mode = "question", prompt, tasks = [], people = [], today = new Date().toISOString().slice(0, 10) } = {}) {
+  const intent = classifyAssistantPrompt(prompt, { people, today, currentPerson, mode });
   if (intent.kind === "task-draft") return buildTaskDraftReply(intent);
   const evidence = localEvidenceForIntent(intent, { briefingItems, currentPerson, memoByPage, tasks, people, today });
+  if (intent.kind === "work-record") return buildWorkRecordReply(intent, evidence);
+  if (intent.kind === "status-change") return buildStatusChangeReply(intent, evidence);
   return {
     intent,
     evidence,
