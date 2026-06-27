@@ -17,7 +17,8 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Preferred dashboard micro-motion examples are task-card selection pulse, status-chip pop after a status change, and sidebar active-indicator glide. Avoid adding graph-like decoration to top insight cards unless it becomes a real reporting requirement.
 - Preserve enough whitespace for scanning, but do not reserve empty detail areas before the user clicks something.
 - Korean text should break by word, not inside words, whenever possible.
-- Desktop and tablet are the main targets; phone layout is lower priority.
+- Desktop and tablet remain the primary work surfaces, but phone layout must stay usable for quick checking, filtering, reading detail, and lightweight updates without page-level horizontal overflow.
+- Phone layout is intentionally more selective than desktop/tablet: keep the top area to search plus primary task creation, compress insight cards to number/label chips, show team members as initial-only selectors, hide the long personal greeting, hide briefing side widgets and advanced workflow filters by default, and shorten briefing/task/update cards so mobile users can reach the actual work faster. Calendar should prioritize month/event checking on phone while keeping schedule registration behind a compact collapsed `일정등록` action, and Highlights should prioritize report/read surfaces over export/copy controls.
 
 ## Current Layout Contract
 
@@ -50,11 +51,14 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - The common page header should keep only the `Strategy Work Hub` title; do not show repeated explanatory subtitles below it.
 - The title can be slightly larger than the surrounding toolbar controls, but should remain compact enough for 1366px desktop layouts.
 - Search input is compact; placeholder text should not dominate the page.
+- The top search should feel broad even though it stays visually quiet: it searches task title/description, tags, 담당자/배정자/작성자, status/priority, 상위 업무흐름, dates, checklist detail, update logs, change history, related links, 업무 노트/posts, attachment evidence text, and calendar event title/note/owner metadata where that view can use it.
 - The top bar may include a compact `넓게/기본` viewing-density toggle for demo-room and low-legibility monitor conditions. It should adjust readability and detail width without changing the dashboard's approved navigation, color, or card structure.
+- On phone widths, secondary top-bar actions such as alert, AI, density, home, and account detail can be hidden from the main row so `검색` and `업무 추가` stay full-width and touch-safe. This is a phone-only simplification and must not change the desktop/tablet toolbar.
 - Account button shows emoji/profile, name, and role on one line when possible.
 - Admin indication belongs in the top account area, not in every team list row.
 - Account modal stays focused on account switching and personal profile edits.
 - Admin-only operational management belongs in the sidebar `관리자` tab, not inside the account modal.
+- The dashboard floating AI window should keep the robot mark on the left of the header title, use a slightly wider desktop default than the compact entry panel, and still shrink to the viewport on tablet/phone.
 
 ### Admin
 
@@ -70,7 +74,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 ### Today Briefing
 
 - `오늘 브리핑` is the first meaningful screen.
-- Top insight cards should stay number-first, but act as compact action filters: nonzero cards show a small `보기 →` action and clicking them filters the board to that cohort. In FastAPI mode, these cards may use DB-computed insight counts/evidence for operational signals such as `업데이트 정체` and `흐름 미지정`.
+- Top insight cards should stay number-first, but act as compact action filters: nonzero cards show a small `보기 →` action and clicking them filters the board to that cohort. Keep the first screen to the core daily signals: 진행 업무, 3일 내 마감, 지연 업무, and 완료 업무. Do not show `업데이트 정체` or `흐름 미지정` as top cards; those signals can remain available to backend/AI/admin diagnostics without making My Desk busier.
 - Insight cards should stay short on 1280-1366px widths: use the right-side space for status copy/action text instead of adding a taller third text row.
 - Insight card labels under the number should be medium-strong, not black-weight bold.
 - Insight hover previews list only the relevant tasks; do not repeat the summary card title inside the hover panel.
@@ -119,7 +123,7 @@ Greetings:
 ### Board
 
 - Board order is fixed: `검토/대기`, `계획`, `진행중`, `완료`, `보류`.
-- Status lanes start collapsed by default so busy boards remain scannable. Clicking the lane header expands/collapses that status.
+- My Desk board status lanes should start expanded so the selected person's work is visible immediately. Team Flow board status lanes should start collapsed so busy team boards remain scannable. Clicking the lane header expands/collapses that status.
 - When an expanded status lane has more than four visible cards, it should span the board's full available width and lay cards out in a wider responsive grid instead of forcing a long narrow column.
 - Card titles should be readable but not heavy enough to fight the page title.
 - Board cards do not show long description text; description belongs in task detail.
@@ -139,7 +143,7 @@ Greetings:
 ### List
 
 - `리스트` sits between `보드` and `타임라인` as a compact table-style workflow view.
-- Status sections follow the same order as the board and start collapsed by default: `검토/대기`, `계획`, `진행중`, `완료`, `보류`.
+- Status sections follow the same order as the board: `검토/대기`, `계획`, `진행중`, `완료`, `보류`. In My Desk, list sections with at least one visible task should start expanded and empty status sections should stay collapsed. Team Flow list sections should start collapsed.
 - Expanded sections should stay denser and quieter than cards: thin separators, compact rows, restrained chips, and no decorative card spacing.
 - Rows should show enough scanning context in one line: task title with compact priority/spot/repeat/schedule markers, owner name only when in team scope, calm tag chips, period, and progress. Do not repeat the row status inside each row because the expanded section header already owns that context.
 - Clicking a row opens the same workflow-side task detail as board/timeline/recurring/archive.

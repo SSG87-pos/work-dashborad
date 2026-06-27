@@ -16,7 +16,6 @@ import {
   CircleAlert,
   ClipboardList,
   Clock3,
-  Database,
   Download,
   Edit3,
   Filter,
@@ -1866,6 +1865,90 @@ function taskKnowledgePosts(task, categories = defaultTaskPostCategories) {
   return normalizeTaskPosts(task.postItems, task, categories);
 }
 
+function searchableText(parts) {
+  return parts
+    .flatMap((part) => {
+      if (Array.isArray(part)) return part;
+      if (part && typeof part === "object") return Object.values(part);
+      return part;
+    })
+    .filter((part) => part !== null && part !== undefined)
+    .map((part) => String(part))
+    .join(" ")
+    .toLowerCase();
+}
+
+function taskSearchText(task, postCategories = defaultTaskPostCategories) {
+  const tags = taskTags(task);
+  const owner = taskOwnerOptions().find((person) => person.id === task.ownerId);
+  const assigner = taskOwnerOptions().find((person) => person.id === task.assignerId);
+  const creator = taskOwnerOptions().find((person) => person.id === task.creatorId);
+  const completedBy = taskOwnerOptions().find((person) => person.id === task.completedBy);
+  const subtasks = (task.subtasks ?? []).map((subtask) => [subtask.title, subtask.done ? "완료" : "미완료"]);
+  const updates = (task.updates ?? []).map((update) => [update.date, personName(update.authorId), update.text]);
+  const history = (task.statusHistory ?? []).map((entry) => [
+    entry.date,
+    personName(entry.actorId),
+    entry.from,
+    entry.to,
+    taskChangeText(entry)
+  ]);
+  const links = (task.links ?? []).map((link) => [link.title, link.type, link.url]);
+  const posts = taskKnowledgePosts(task, postCategories).map((post) => [
+    post.scope,
+    post.title,
+    post.body,
+    post.url,
+    post.workstream,
+    personName(post.authorId),
+    attachmentEvidenceText(post.attachment)
+  ]);
+  return searchableText([
+    task.id,
+    displayTaskTitle(task),
+    task.description,
+    task.status,
+    task.priority,
+    task.workKind === "spot" ? "스팟 업무" : "일반 업무",
+    task.category,
+    tags,
+    taskWorkstreamLabel(task),
+    task.startDate,
+    task.dueDate,
+    task.createdAt,
+    task.completedAt,
+    task.archived ? "보관 보관함 archived archive" : "",
+    task.isNewAssignment ? "신규 배정" : "",
+    task.recurring ? ["반복 업무", task.recurring, recurringSummary(task)] : "",
+    `진행률 ${taskProgress(task)}%`,
+    owner ? [owner.name, owner.role, owner.permissionRole] : personName(task.ownerId),
+    assigner ? [assigner.name, assigner.role, task.assignerType] : [personName(task.assignerId), task.assignerType],
+    creator ? [creator.name, creator.role] : personName(task.creatorId),
+    completedBy ? [completedBy.name, completedBy.role] : personName(task.completedBy),
+    subtasks,
+    updates,
+    history,
+    links,
+    posts
+  ]);
+}
+
+function calendarEventSearchText(event) {
+  const owner = taskOwnerOptions().find((person) => person.id === event.ownerId);
+  const creator = taskOwnerOptions().find((person) => person.id === eventCreatorId(event));
+  return searchableText([
+    event.id,
+    event.title,
+    event.note,
+    event.scope === "personal" ? "개인 일정" : "팀 일정",
+    eventRangeLabel(event),
+    eventStartDate(event),
+    eventEndDate(event),
+    owner ? [owner.name, owner.role, owner.permissionRole] : personName(event.ownerId),
+    creator ? [creator.name, creator.role] : personName(eventCreatorId(event))
+  ]);
+}
+
 async function copyText(text) {
   if (typeof navigator !== "undefined" && navigator.clipboard) {
     try {
@@ -2082,6 +2165,15 @@ function makeBriefingGroup(title, caption, icon, tone, tasks) {
   return { key: title, title, caption, icon, tone, tasks, dueText };
 }
 
+function expandedStatusDefaults(mode = false, tasks = []) {
+  if (!mode) return {};
+  const statusesWithTasks = new Set(tasks.map((task) => task.status));
+  return boardStatuses.reduce((acc, status) => {
+    if (mode === "nonEmpty" ? statusesWithTasks.has(status) : true) acc[status] = true;
+    return acc;
+  }, {});
+}
+
 function briefingDueLabel(task) {
   const due = diffDays(task.dueDate, TODAY);
   return due < 0 ? `D+${Math.abs(due)}` : due === 0 ? "오늘" : due ? `D-${due}` : "";
@@ -2113,15 +2205,6 @@ function briefingFor(tasks, personId) {
     makeBriefingGroup("이번 달 반복 업무", "매월 진행하는 업무", "🔁", "green", recurring),
     makeBriefingGroup("오늘 집중 업무", "중요도 높은 업무", "🎯", "teal", focus)
   ].filter((group) => group.tasks.length);
-}
-
-function latestTaskUpdateDate(task) {
-  return (task.updates ?? [])
-    .map((update) => update.date || update.createdAt)
-    .filter(Boolean)
-    .map((value) => String(value).slice(0, 10))
-    .sort()
-    .reverse()[0] || "";
 }
 
 function mergeRemoteInsightItems(items, tasks, remoteInsights) {
@@ -2165,11 +2248,6 @@ function dashboardSummary(tasks, activePage, selectedPersonId, remoteInsights = 
     const days = diffDays(task.dueDate, TODAY);
     return days >= 0 && days <= 3;
   });
-  const stale = open.filter((task) => {
-    const latestDate = latestTaskUpdateDate(task);
-    return diffDays(task.startDate, TODAY) <= 0 && (!latestDate || diffDays(latestDate, TODAY) < -7);
-  });
-  const unclassified = open.filter((task) => !String(task.workstream ?? "").trim());
   const completed = scoped.filter((task) => task.status === "완료");
   const archived = (activePage === "my" ? tasks.filter((task) => task.ownerId === selectedPersonId) : tasks).filter(
     (task) => !isDeletedTask(task) && task.archived
@@ -2208,26 +2286,6 @@ function dashboardSummary(tasks, activePage, selectedPersonId, remoteInsights = 
       tone: "red",
       icon: AlertTriangle,
       preview: overdue
-    },
-    {
-      key: "stale",
-      label: "업데이트 정체",
-      value: stale.length,
-      caption: stale.length ? "7일 이상 새 로그 없음" : "최근 로그 양호",
-      actionLabel: "정체 업무 보기 →",
-      tone: "amber",
-      icon: CircleAlert,
-      preview: stale
-    },
-    {
-      key: "unclassified",
-      label: "흐름 미지정",
-      value: unclassified.length,
-      caption: unclassified.length ? "업무흐름 정리 필요" : "흐름 정리됨",
-      actionLabel: "미지정 업무 보기 →",
-      tone: "amber",
-      icon: Database,
-      preview: unclassified
     },
     {
       key: "completed",
@@ -2692,34 +2750,36 @@ function App() {
   }
 
   const filteredTasks = useMemo(() => {
+    const searchTerm = query.trim().toLowerCase();
     return tasks.filter((task) => {
       if (isDeletedTask(task)) return false;
       const tags = taskTags(task);
       const byCategory = matchesTagFilter(tags, category, tagGroups);
-      const text = `${task.title} ${task.description} ${tags.join(" ")}`.toLowerCase();
       const byScope = activePage === "team" || task.ownerId === selectedPersonId;
       const byArchive = activeView === "archive" ? task.archived : !task.archived;
       const byPriority = !workflowFilterViews.includes(activeView) || priorityFilter === "전체" || task.priority === priorityFilter;
       const byWorkKind = !workflowFilterViews.includes(activeView) || workKindFilter === "전체" || isSpotTask(task);
       const byOwner = !workflowFilterViews.includes(activeView) || ownerFilter === "전체" || task.ownerId === ownerFilter;
       const bySummary = activeView !== "board" || summaryFilterMatches(task, summaryFilter, TODAY);
-      return byScope && byCategory && byArchive && byPriority && byWorkKind && byOwner && bySummary && text.includes(query.trim().toLowerCase());
+      const bySearch = !searchTerm || taskSearchText(task, taskPostCategories).includes(searchTerm);
+      return byScope && byCategory && byArchive && byPriority && byWorkKind && byOwner && bySummary && bySearch;
     });
-  }, [activePage, activeView, category, ownerFilter, priorityFilter, query, selectedPersonId, summaryFilter, tagGroups, tasks, workKindFilter]);
+  }, [activePage, activeView, category, directory, ownerFilter, priorityFilter, query, selectedPersonId, summaryFilter, tagGroups, taskPostCategories, tasks, workKindFilter]);
 
   const mindmapTasks = useMemo(() => {
+    const searchTerm = query.trim().toLowerCase();
     return tasks.filter((task) => {
       if (isDeletedTask(task)) return false;
       const tags = taskTags(task);
       const byCategory = matchesTagFilter(tags, category, tagGroups);
-      const text = `${task.title} ${task.description} ${tags.join(" ")}`.toLowerCase();
       const byScope = activePage === "team" || task.ownerId === selectedPersonId;
       const byPriority = priorityFilter === "전체" || task.priority === priorityFilter;
       const byWorkKind = workKindFilter === "전체" || isSpotTask(task);
       const byOwner = ownerFilter === "전체" || task.ownerId === ownerFilter;
-      return byScope && byCategory && byPriority && byWorkKind && byOwner && text.includes(query.trim().toLowerCase());
+      const bySearch = !searchTerm || taskSearchText(task, taskPostCategories).includes(searchTerm);
+      return byScope && byCategory && byPriority && byWorkKind && byOwner && bySearch;
     });
-  }, [activePage, category, ownerFilter, priorityFilter, query, selectedPersonId, tagGroups, tasks, workKindFilter]);
+  }, [activePage, category, directory, ownerFilter, priorityFilter, query, selectedPersonId, tagGroups, taskPostCategories, tasks, workKindFilter]);
 
   const briefing = useMemo(
     () => briefingFor(tasks, activePage === "my" ? selectedPersonId : null),
@@ -4593,7 +4653,7 @@ function App() {
               onClick={() => changePerson(person.id)}
               type="button"
             >
-              <span className="profile-emoji" style={avatarStyle(person)}>
+              <span className="profile-emoji" data-initials={initials(person.name)} style={avatarStyle(person)}>
                 {person.emoji}
               </span>
               <span className="person-label">
@@ -4622,7 +4682,7 @@ function App() {
               <input
                 aria-label="업무 검색"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="업무, 태그, 자료 검색"
+                placeholder="업무·태그·담당·로그·자료 검색"
                 value={query}
               />
             </label>
@@ -4799,6 +4859,7 @@ function App() {
                 <BoardView
                   canManageTask={(task) => canManageTaskFor(task, selectedPersonId)}
                   counts={counts}
+                  defaultExpanded={activePage === "my"}
                   onEdit={(task) => openTaskEditor(task)}
                   onArchive={(task) => toggleArchive(task.id, true)}
                   onSelect={(taskId) => selectTask(taskId, "workflow")}
@@ -4819,6 +4880,7 @@ function App() {
             {activeView === "list" && (
               <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`} ref={workflowSurfaceRef}>
                 <TaskListView
+                  defaultExpanded={activePage === "my" ? "nonEmpty" : false}
                   onSelect={(taskId) => selectTask(taskId, "workflow")}
                   selectedTaskId={isWorkflowDetailContext ? selectedTaskId : ""}
                   showOwner={activePage === "team"}
@@ -4872,6 +4934,7 @@ function App() {
                 onUpdateHistory={(task, entry, index, note) => updateTaskHistoryEntry(task.id, entry, index, note)}
                 onUpdateLog={(task, update, index, text) => updateTaskUpdateEntry(task.id, update, index, text)}
                 onUpdateEvent={updateCalendarEvent}
+                query={query}
                 selectedPersonId={selectedPersonId}
                 tasks={filteredTasks}
               />
@@ -5151,6 +5214,7 @@ function DashboardAiWidget({
             onPointerUp={stopDragging}
           >
             <div className="floating-ai-title">
+              <span className="floating-ai-bot-icon" aria-hidden="true">🤖</span>
               <strong>무엇을 도와드릴까요?!</strong>
             </div>
             <button className="icon-button" onClick={onClose} type="button" aria-label="AI 창 닫기">
@@ -7545,16 +7609,20 @@ function TagLibrary({ activeTags, canManageTags, isOpen, libraryRef, onAdd, onCl
   );
 }
 
-function BoardView({ canManageTask, counts, onArchive, onEdit, onSelect, onStatusChange, selectedTaskPulseId, selectedTaskId, showOwner, statusPulseTaskId, tasks }) {
+function BoardView({ canManageTask, counts, defaultExpanded = false, onArchive, onEdit, onSelect, onStatusChange, selectedTaskPulseId, selectedTaskId, showOwner, statusPulseTaskId, tasks }) {
   const [draggingTaskId, setDraggingTaskId] = useState("");
   const [dropStatus, setDropStatus] = useState("");
-  const [expandedStatuses, setExpandedStatuses] = useState({});
+  const [expandedStatuses, setExpandedStatuses] = useState(() => expandedStatusDefaults(defaultExpanded, tasks));
   const tasksByStatus = useMemo(() => (
     boardStatuses.reduce((acc, status) => {
       acc[status] = tasks.filter((task) => task.status === status);
       return acc;
     }, {})
   ), [tasks]);
+
+  useEffect(() => {
+    setExpandedStatuses(expandedStatusDefaults(defaultExpanded, tasks));
+  }, [defaultExpanded, tasks]);
 
   useEffect(() => {
     if (!selectedTaskId) return;
@@ -7646,14 +7714,18 @@ function BoardView({ canManageTask, counts, onArchive, onEdit, onSelect, onStatu
   );
 }
 
-function TaskListView({ onSelect, selectedTaskId, showOwner, tasks }) {
-  const [expandedStatuses, setExpandedStatuses] = useState({});
+function TaskListView({ defaultExpanded = false, onSelect, selectedTaskId, showOwner, tasks }) {
+  const [expandedStatuses, setExpandedStatuses] = useState(() => expandedStatusDefaults(defaultExpanded, tasks));
   const tasksByStatus = useMemo(() => (
     boardStatuses.reduce((acc, status) => {
       acc[status] = tasks.filter((task) => task.status === status);
       return acc;
     }, {})
   ), [tasks]);
+
+  useEffect(() => {
+    setExpandedStatuses(expandedStatusDefaults(defaultExpanded, tasks));
+  }, [defaultExpanded, tasks]);
 
   useEffect(() => {
     if (!selectedTaskId) return;
@@ -8101,6 +8173,7 @@ function CalendarView({
   onUpdateHistory,
   onUpdateLog,
   onUpdateEvent,
+  query = "",
   selectedPersonId,
   tasks
 }) {
@@ -8117,6 +8190,7 @@ function CalendarView({
     ownerId: selectedPersonId,
     note: ""
   });
+  const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [selectedCalendarItem, setSelectedCalendarItem] = useState(null);
   const calendarNoteRef = useRef(null);
   const [year, monthValue] = month.split("-").map(Number);
@@ -8125,6 +8199,11 @@ function CalendarView({
   const monthStart = `${month}-01`;
   const monthEnd = `${month}-${String(monthDays).padStart(2, "0")}`;
   const displayTasks = tasksWithRecurringInstances(tasks, monthStart, monthEnd);
+  const eventSearchTerm = query.trim().toLowerCase();
+  const visibleEvents = useMemo(
+    () => events.filter((event) => !eventSearchTerm || calendarEventSearchText(event).includes(eventSearchTerm)),
+    [eventSearchTerm, events]
+  );
   const cells = [
     ...Array.from({ length: firstDay }, () => null),
     ...Array.from({ length: monthDays }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`)
@@ -8135,7 +8214,7 @@ function CalendarView({
       : null;
   const selectedEvent =
     selectedCalendarItem?.type === "event"
-      ? events.find((event) => event.id === selectedCalendarItem.id) ?? selectedCalendarItem.event
+      ? visibleEvents.find((event) => event.id === selectedCalendarItem.id) ?? selectedCalendarItem.event
       : null;
   const hasSelectedCalendarDetail = Boolean(selectedTask || selectedEvent);
 
@@ -8173,6 +8252,7 @@ function CalendarView({
       ownerId: selectedPersonId,
       note: ""
     }));
+    setIsEventFormOpen(false);
   }
 
   return (
@@ -8196,7 +8276,22 @@ function CalendarView({
           </button>
         </div>
       </div>
-      <form className={`calendar-add-form ${draftEvent.scope === "personal" ? "has-target" : ""}`} onSubmit={submitEvent}>
+      <button
+        aria-controls="calendar-add-form"
+        aria-expanded={isEventFormOpen}
+        className={`calendar-mobile-add-toggle ${isEventFormOpen ? "is-open" : ""}`}
+        onClick={() => setIsEventFormOpen((current) => !current)}
+        type="button"
+      >
+        <Plus size={15} />
+        일정등록
+        <ChevronDown size={14} />
+      </button>
+      <form
+        className={`calendar-add-form ${draftEvent.scope === "personal" ? "has-target" : ""} ${isEventFormOpen ? "is-mobile-open" : ""}`}
+        id="calendar-add-form"
+        onSubmit={submitEvent}
+      >
         <label className="calendar-form-field">
           <span>시작일</span>
           <input
@@ -8314,10 +8409,13 @@ function CalendarView({
                     .slice(0, 4)
                 : [];
               const dayEvents = date
-                ? events
+                ? visibleEvents
                     .filter((event) => eventSpansDate(event, date))
                     .slice(0, Math.max(1, 5 - taskDueItems.length))
                 : [];
+              const hiddenItemCount = date
+                ? visibleEvents.filter((event) => eventSpansDate(event, date)).length + displayTasks.filter((task) => !task.archived && task.dueDate === date).length
+                : 0;
               return (
                 <div className={`calendar-cell ${date === TODAY ? "today" : ""} ${date ? "" : "empty"} ${day === 0 || day === 6 ? "holiday" : ""}`} key={date ?? `blank-${index}`}>
                   {date && <strong>{Number(date.slice(8, 10))}</strong>}
@@ -8349,7 +8447,7 @@ function CalendarView({
                         {eventStartDate(event) !== eventEndDate(event) && <em>({eventCompactRangeLabel(event)})</em>}
                       </button>
                     ))}
-                    {date && events.filter((event) => eventSpansDate(event, date)).length + tasks.filter((task) => task.dueDate === date).length > 5 && (
+                    {date && hiddenItemCount > 5 && (
                       <small>+ 더보기</small>
                     )}
                   </div>

@@ -2,6 +2,42 @@
 
 ## Now
 
+- [x] Apply phone-only information simplification.
+  - Files: `src/styles.css`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
+  - Done: at `max-width: 720px`, the dashboard now keeps search and `업무 추가` as the only visible top actions, compresses insight cards to number/label chips, shows team members as initial-only selectors, hides the long briefing greeting and side widgets, hides advanced workflow filters by default, and shortens briefing/task/update cards by hiding long description/tag/log overflow. Calendar keeps the month/event grid first and provides schedule registration through a compact collapsed `일정등록` action, and Highlights hides export/copy controls so report content moves up.
+  - Guardrail: this is a CSS-only phone override, so desktop/tablet layout and behavior are not intentionally changed.
+  - Verified: `git diff --check`, `check:summary-filter`, and production build passed. Browser QA on `http://127.0.0.1:5176/` at phone widths covered My Desk, Team Flow, Calendar, Updates, Highlights, Canvas, 관리자, and task detail. It verified no page-level horizontal overflow, no framework overlay, one visible top action button, four compact insight chips without action-label overlap, hidden advanced filters, hidden briefing side panel, mobile team initials, hidden long briefing greeting, shortened briefing rows and board task cards, Calendar grid before the collapsed schedule-registration form, the `일정등록` toggle expanding to show start/end/scope/title/note fields plus submit, Updates still showing inline log forms, Highlights report before export controls, full-width mobile task detail, and desktop 1366px still showing the normal top buttons, emoji team members, long briefing greeting, advanced filters, briefing side panel, always-visible Calendar form, task-card actions, and insight action labels.
+
+- [x] Widen dashboard AI assistant and broaden top search coverage.
+  - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
+  - Done: floating dashboard AI now puts the robot mark on the left side of the header title and uses a wider desktop default while keeping viewport-fit behavior on smaller screens.
+  - Done: top search now matches task title/description, tags, 담당자/배정자/작성자, status/priority, 상위 업무흐름, dates, checklist detail, update logs, change history, related links, 업무 노트/posts, attachment evidence text, and calendar event title/note/owner metadata.
+  - Verified: `git diff --check`, `check:summary-filter`, and production build passed. Browser QA on `http://127.0.0.1:5176/` verified `미제출` finds the 월간보고 task through update-log text, the AI window renders at 540px on desktop with the robot icon left of the title, and the same AI window fits a 390px mobile viewport without page-level horizontal overflow.
+
+- [x] Split My Desk and Team Flow default workflow expansion.
+  - Files: `src/App.jsx`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
+  - Done: My Desk `보드` starts with status lanes expanded so personal work is visible immediately; the My Desk `리스트` behavior was refined in the follow-up item below.
+  - Done: Team Flow keeps the previous collapsed default for `보드` and `리스트` so the shared workflow stays scannable.
+  - Earlier QA: `check:summary-filter`, `git diff --check`, and production build passed. Browser QA on `http://127.0.0.1:5176/` verified the initial split before the My Desk list refinement below.
+
+- [x] Refine My Desk list default expansion.
+  - Files: `src/App.jsx`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
+  - Done: My Desk `리스트` now opens only the status sections that currently have visible tasks; empty status sections stay collapsed.
+  - Guardrail: My Desk `보드` still starts expanded across status lanes, and Team Flow `보드`/`리스트` still start collapsed.
+  - Verified: `check:summary-filter`, `git diff --check`, and production build passed. Browser QA on `http://127.0.0.1:5176/` verified My Desk `리스트` had `진행` expanded for its 1 visible task and the 0-count statuses collapsed; My Desk `보드` remained 5 expanded / 0 collapsed, and Team Flow `리스트` remained 0 expanded / 5 collapsed.
+
+- [x] Simplify top dashboard insight cards.
+  - Files: `src/App.jsx`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
+  - Done: hid `업데이트 정체` and `흐름 미지정` from the first-screen insight strip so My Desk returns to four core cards: 진행 업무, 3일 내 마감, 지연 업무, and 완료 업무.
+  - Guardrail: kept the existing summary filter utility labels/checks for stale and unclassified cohorts so backend/AI/admin diagnostics can still reuse those signals later without crowding the first screen.
+
+- [x] Review and support phone-width dashboard usage.
+  - Files: `src/styles.css`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
+  - Done: added a phone-width layout override so dashboard, workflow detail, briefing detail, and calendar detail collapse to one usable column instead of compressing hidden side panels.
+  - Done: raised search/filter/form/canvas control heights for touch use across desktop, tablet, and phone widths, and kept wide work surfaces such as board, timeline, calendar grid, archive, and Canvas inside their own horizontal scroll areas rather than creating page-level overflow.
+  - QA: local-mode Vite ran on `http://127.0.0.1:5176/` because `127.0.0.1:5173` was already occupied by another app in this machine session. Browser QA covered 1366x768, 1024x768, 768x1024, 390x844, and 360x740 viewports across dashboard, Team Flow, Calendar, Updates, and Canvas; the 768/390/360 pass also verified briefing and calendar detail flows. Recheck result: no page-level horizontal overflow and no short-control failures. Existing console warnings remain limited to the known Three/lanyard deprecation messages.
+  - Verified: `git diff --check` passed; `PATH=/Users/seulgi/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build` passed.
+
 - [x] Polish entry/dashboard AI assistant and clean the top bar.
   - Branch: `codex/llm-wiki-architecture`.
   - Files: `src/App.jsx`, `src/aiAssistant.js`, `src/styles.css`, `HANDOFF.md`, `TODO.md`.
@@ -36,6 +72,7 @@
   - Done: added FastAPI `GET /api/v1/dashboard/insights` for DB-computed dashboard signals: open, due soon, overdue, stale/no-update, unclassified workstream, and completed cohorts.
   - Done: top insight cards now include `업데이트 정체` and `흐름 미지정`; in FastAPI mode they use DB counts/evidence first and fall back to local task-array calculation if the API is unavailable.
   - Done: summary filters now support the new cohorts so clicking the cards narrows the board to the same operational group.
+  - Superseded UI note: 2026-06-27 simplification hides `업데이트 정체` and `흐름 미지정` from the first-screen insight strip while keeping their filter utilities/checks for diagnostics.
   - Verified: `/private/tmp/work-dashboard-backend-venv312/bin/python -m pytest backend/tests` passed with `38 passed`; `check:api-store`, `check:summary-filter`, `git diff --check`, and production build passed.
   - Browser QA on `http://127.0.0.1:5187/` verified six top insight cards render without horizontal overflow, `흐름 미지정` is quiet when count is 0, and `업데이트 정체` click shows `요약: 업데이트 정체` while narrowing the board lane counts.
 
