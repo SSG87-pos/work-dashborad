@@ -151,8 +151,8 @@
 
 - [x] Reframe backend implementation from Supabase Docker to FastAPI + PostgreSQL.
   - Files: `docs/fastapi-postgres-backend-spec.md`, `docs/company-fastapi-postgres-beginner-runbook.md`, `docs/backend-api-spec.md`, `docs/data-model.md`, `docs/backend-implementation-plan.md`, `docs/backend-decision-brief.md`, `docs/company-demo-readiness-checklist.md`, `docs/supabase-start-guide.md`, `docs/company-self-hosted-supabase-guide.md`, `docs/personal-notification-inbox-plan.md`, `docs/ai-agent-readiness.md`, `docs/ai-agent-codex-implementation-brief.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
-  - Done: documented the current company backend constraint that Supabase Docker/self-hosted Supabase is not available.
-  - Done: established `FastAPI + PostgreSQL without Docker` as the new active implementation route.
+  - Done: documented the current company backend constraint more precisely: C3 may be Docker-based, but the project should not assume it can run a Supabase-style multi-container Docker Compose stack.
+  - Done: established `FastAPI single app runtime + separate PostgreSQL` as the active implementation route, compatible with Ubuntu/systemd or a C3 single-container app slot.
   - Done: added PostgreSQL DDL, FastAPI endpoint contract, auth/permission rules, project structure, deployment outline, validation checklist, and future Codex prompt in `docs/fastapi-postgres-backend-spec.md`.
   - Done: added `docs/company-fastapi-postgres-beginner-runbook.md`, a step-by-step company Linux manual for someone new to FastAPI/PostgreSQL. It covers existing-folder vs new-folder branch checkout, tool installation, frontend check, PostgreSQL setup, backend-after-implementation commands, env files, systemd, troubleshooting, and the next Codex implementation prompt.
   - Done: changed existing backend docs so Supabase is reference/design history only, while FastAPI/PostgreSQL is the active operating target.

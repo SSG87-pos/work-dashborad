@@ -2,11 +2,11 @@
 
 작성 기준일: 2026-06-09
 
-이 문서는 `연구기획그룹-전략` 대시보드를 Docker 없는 회사 내부망에서 운영하기 위한 실제 구현 기준입니다. 기존 Supabase 설계와 마이그레이션은 데이터 모델 참고 자료로 유지하되, 새 운영 목표는 `FastAPI + PostgreSQL`입니다.
+이 문서는 `연구기획그룹-전략` 대시보드를 회사 C3/Ubuntu 환경에서 운영하기 위한 실제 구현 기준입니다. 여기서 핵심 제약은 "Docker 자체가 없음"이 아니라, Supabase self-host처럼 여러 컨테이너를 띄우는 Docker Compose stack을 프로젝트가 자유롭게 구성하기 어렵다는 점입니다. 기존 Supabase 설계와 마이그레이션은 데이터 모델 참고 자료로 유지하되, 새 운영 목표는 `FastAPI 단일 앱 실행 단위 + 별도 PostgreSQL`입니다.
 
 ## 1. 결론
 
-회사 백엔드 환경에서 Supabase Docker 구성을 설치할 수 없다면 self-hosted Supabase를 억지로 맞추지 않습니다.
+회사 백엔드 환경이 C3의 단일/제한 컨테이너 실행 구조라면 Supabase Docker Compose 구성을 억지로 맞추지 않습니다. FastAPI backend는 하나의 Python 프로세스 또는 하나의 C3 app container로 올리고, PostgreSQL은 별도 DB/service로 연결하는 구성을 우선합니다.
 
 새 기준:
 
@@ -15,7 +15,7 @@ React/Vite Dashboard
   -> REST API
 FastAPI Backend
   -> SQLAlchemy or SQLModel
-PostgreSQL
+External/managed PostgreSQL
 ```
 
 현재 시점에서 실시간 기능은 제외합니다. 여러 사용자가 같은 데이터를 저장하고 다시 조회할 수 있으면 충분합니다. 실시간 커서, 동시 편집 충돌 처리, 변경 이력 스트리밍, 즉시 알림은 운영 안정화 이후 WebSocket 또는 SSE로 확장합니다.
@@ -25,8 +25,8 @@ PostgreSQL
 - 프론트엔드 UI는 유지합니다.
 - `src/storage.js`를 저장 경계로 보고, 새 `apiDashboardStore` 또는 동일 역할의 API 어댑터를 추가합니다.
 - 화면 컴포넌트에서 직접 `fetch`를 흩뿌리지 않습니다.
-- PostgreSQL은 직접 설치된 DB를 사용합니다.
-- FastAPI는 Python 가상환경과 `systemd`로 운영합니다.
+- PostgreSQL은 FastAPI 앱과 분리된 DB/service로 둡니다. 회사 정책에 따라 host PostgreSQL, 별도 DB 서버, C3 제공 DB 중 하나를 사용합니다.
+- FastAPI는 Python 가상환경과 `systemd`로 운영하거나, C3가 제공하는 단일 app container 안에서 실행합니다.
 - 권한은 Supabase RLS 대신 FastAPI 서비스 계층에서 검사합니다.
 - DB는 감사 추적과 보고서 생성을 위해 정규화된 relational schema를 사용합니다.
 - JSON export/import는 운영 백업/초기 이관 도구로 유지합니다.
@@ -40,7 +40,7 @@ PostgreSQL
   PostgreSQL 15+
   Python 3.11+
   FastAPI app
-  systemd service
+  systemd service 또는 C3 app container
 
 사용자 브라우저
   내부 주소의 React/Vite build 또는 dev preview
@@ -56,6 +56,24 @@ PostgreSQL
 | PostgreSQL | `5432` | 서버 로컬 접속만 권장 |
 
 PostgreSQL은 가능하면 외부 PC에서 직접 접속하지 않게 하고, FastAPI만 내부망에 노출합니다.
+
+### 3.2.1 C3 / container 운영 해석
+
+C3가 Docker 기반이라고 해도, 한 환경에서 여러 container를 조합하는 Docker Compose 권한이 없을 수 있습니다. 이 경우 "Docker 사용 불가"가 아니라 "프로젝트가 Supabase식 multi-container stack을 직접 운영하기 어려움"으로 이해합니다.
+
+이 프로젝트의 권장 배치는 다음입니다.
+
+```text
+C3 app container 또는 Ubuntu process
+  -> FastAPI backend
+  -> DATABASE_URL로 PostgreSQL 접속
+
+PostgreSQL
+  -> C3 외부의 별도 DB/service
+  -> 또는 회사가 관리하는 host/DB 서버
+```
+
+운영에서는 FastAPI와 PostgreSQL을 같은 container에 넣지 않는 것을 권장합니다. 한 container 안에 둘 다 넣는 방식은 짧은 데모에는 가능하지만, 백업/복구/업데이트/장애 분리가 어려워 운영 기준으로는 피합니다.
 
 ### 3.3 환경 변수
 

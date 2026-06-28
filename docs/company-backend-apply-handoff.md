@@ -2,7 +2,7 @@
 
 작성 기준일: 2026-06-28
 
-이 문서는 회사 환경에서 `연구기획그룹-전략` 대시보드에 FastAPI + PostgreSQL backend를 붙여 실행할 담당자를 위한 최종 인수인계 문서입니다. 목표는 새 기능 개발이 아니라, 이미 구현된 backend와 frontend API 연결을 회사 PostgreSQL/서버 환경에 적용하고 smoke 검증하는 것입니다.
+이 문서는 회사 C3/Ubuntu 환경에서 `연구기획그룹-전략` 대시보드에 FastAPI + PostgreSQL backend를 붙여 실행할 담당자를 위한 최종 인수인계 문서입니다. 목표는 새 기능 개발이 아니라, 이미 구현된 backend와 frontend API 연결을 회사 PostgreSQL/서버 환경에 적용하고 smoke 검증하는 것입니다.
 
 ## 1. 결론
 
@@ -32,6 +32,15 @@ latest verified commit: 25e0048 fix: refine mobile dashboard interactions
 2. `backend/.env`에 회사 DB/JWT/CORS 값 설정
 3. `alembic upgrade head`, 첫 관리자 seed, `/health/db` smoke
 4. frontend `.env.local`에 `VITE_API_BASE_URL`을 넣고 실제 브라우저 저장/수정/삭제 QA
+
+Docker/C3 해석:
+
+- 이 설계는 "Docker가 아예 없는 서버"만 가정한 것이 아닙니다.
+- 회사 C3가 Docker 기반이지만 한 환경에 하나의 container/app 실행 단위만 제공하는 경우도 고려한 구조입니다.
+- 피하려는 것은 Supabase self-host처럼 `postgres`, `auth`, `storage`, `realtime`, `studio`, gateway 등을 여러 container로 조합하는 Docker Compose stack입니다.
+- 권장 구조는 `FastAPI 단일 실행 단위 + 별도 PostgreSQL`입니다.
+- FastAPI는 Ubuntu/systemd로 직접 실행하거나, C3가 제공하는 하나의 app container 안에서 실행할 수 있습니다.
+- PostgreSQL은 production 기준으로 FastAPI container 안에 같이 넣지 말고, 회사가 관리하는 별도 DB/service로 두는 것이 좋습니다.
 
 ## 2. 구현된 범위 요약
 
@@ -163,6 +172,15 @@ git pull
 - Python 3.11+
 - PostgreSQL 15+
 - 내부망에서 frontend 포트와 FastAPI 포트 접근 허용
+
+C3 container 방식이면 추가로 확인할 것:
+
+- 한 C3 환경에서 여러 container를 띄울 수 있는지, 아니면 app container 하나만 가능한지
+- Docker Compose 사용 권한이 있는지
+- persistent volume을 붙일 수 있는지
+- PostgreSQL을 C3 외부 별도 DB로 제공받을 수 있는지
+- C3 설정 화면에서 `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGINS` 같은 환경변수를 주입할 수 있는지
+- container 외부로 FastAPI 포트 `18080` 또는 C3가 매핑하는 API 포트를 열 수 있는지
 
 권장 포트:
 
@@ -367,9 +385,9 @@ http://<company-server-ip>:10097/
 - 새로고침 후 데이터 유지
 - 다른 브라우저에서 같은 데이터 조회
 
-## 12. systemd 운영 예시
+## 12. systemd 또는 C3 container 운영 예시
 
-검증 후 상시 실행이 필요하면 예시 service를 만듭니다.
+Ubuntu 서버에서 직접 운영하고 상시 실행이 필요하면 예시 service를 만듭니다.
 
 ```ini
 [Unit]
@@ -400,6 +418,18 @@ sudo journalctl -u work-dashboard-api -f
 
 회사 서버 경로와 실행 user/group은 실제 운영 정책에 맞춥니다.
 
+C3 container 방식이면 위 `systemd` 대신 C3의 app 실행 설정에 아래 내용을 반영합니다.
+
+```text
+working directory: backend
+install command: pip install -e .
+start command: uvicorn app.main:app --host 0.0.0.0 --port 18080
+environment variables: backend/.env에 적는 값과 동일하게 C3 secret/env 설정에 주입
+database: DATABASE_URL로 외부 PostgreSQL 접속
+```
+
+C3가 외부 노출 포트를 별도로 매핑한다면 `VITE_API_BASE_URL`은 C3가 제공하는 실제 API URL을 사용합니다.
+
 ## 13. 회사 적용 완료 기준
 
 완료라고 말하려면 아래가 모두 확인되어야 합니다.
@@ -423,7 +453,7 @@ sudo journalctl -u work-dashboard-api -f
 
 - UI에서 admin 탭이 숨겨진다고 backend 보안이 완성되는 것은 아닙니다. 운영 판정은 FastAPI endpoint 권한 검사와 실제 계정 smoke로 합니다.
 - localStorage fallback은 계속 남아 있습니다. `VITE_API_BASE_URL`이 비어 있으면 회사 DB가 아니라 local fallback으로 동작할 수 있습니다.
-- Supabase 문서와 migration은 과거 설계 참고입니다. 현재 회사 운영 기준은 FastAPI + PostgreSQL입니다.
+- Supabase 문서와 migration은 과거 설계 참고입니다. 현재 회사 운영 기준은 FastAPI 단일 실행 단위 + 별도 PostgreSQL입니다.
 - `release/company-fastapi-postgres`는 backend 기준선이지만 최신 최종 검증본은 `codex/llm-wiki-architecture`입니다.
 - production backup, monitoring, HTTPS/reverse proxy, SSO, Teams, realtime은 회사 운영 정책 확정 후 별도 phase로 진행합니다.
 

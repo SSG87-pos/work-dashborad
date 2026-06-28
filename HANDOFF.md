@@ -250,13 +250,13 @@ Key product decisions now in the prototype:
   - shared emoji picker now uses lazy-loaded `emoji-picker-react` with native emoji rendering for profile, memo, calendar notes, and update logs
   - team composition order is `그룹장 -> 팀장 -> 가나다순`.
 - Backend direction is now approved at the architecture level:
-  - current company backend route: FastAPI + PostgreSQL without Docker
+  - current company backend route: FastAPI single app runtime + separate PostgreSQL, suitable for Ubuntu/systemd or a C3 single-container app slot
   - current company apply branch for this route: `codex/llm-wiki-architecture`
   - previous backend baseline branch: `release/company-fastapi-postgres`
   - final company apply handoff: `docs/company-backend-apply-handoff.md`
   - implementation spec: `docs/fastapi-postgres-backend-spec.md`
   - beginner company setup/runbook: `docs/company-fastapi-postgres-beginner-runbook.md`
-  - Supabase/self-hosted Supabase is no longer the active operating target because the company backend environment cannot install the Supabase Docker stack.
+  - Supabase/self-hosted Supabase is no longer the active operating target because the company backend environment may be Docker-based but does not appear to support a project-managed Supabase-style multi-container Docker Compose stack.
   - previous Supabase migrations and docs remain schema/permission reference material only.
   - current FastAPI implementation milestone is present: `backend/` has FastAPI health/db endpoints, PostgreSQL session config, Alembic migrations through `20260625_0012`, `.env.example`, and first-admin seed CLI.
   - auth/roster/profile APIs are present: `POST /api/v1/auth/login`, JWT access tokens, `GET/PATCH /api/v1/me`, and admin-only `GET/POST/PATCH /api/v1/admin/roster`.

@@ -238,6 +238,8 @@ http://192.168.10.25:10097/
 
 PostgreSQL은 업무 데이터가 저장될 DB입니다.
 
+회사 C3가 Docker 기반이어도 한 환경에서 app container 하나만 제공하는 구조라면, PostgreSQL은 FastAPI container 안에 같이 넣지 말고 별도 DB/service로 준비하는 것을 우선합니다. 이 문서의 PostgreSQL 설치 단계는 회사가 host PostgreSQL을 허용하는 경우의 예시입니다. C3 또는 IT에서 별도 PostgreSQL 접속 정보를 제공한다면 설치 단계 대신 그 `DATABASE_URL`을 받아 `backend/.env`에 넣으면 됩니다.
+
 ### 5.1 Ubuntu/Debian 예시
 
 ```bash
@@ -792,7 +794,7 @@ curl -s -X POST http://127.0.0.1:18080/api/v1/briefing-items \
 
 ## 12. systemd로 backend 자동 실행하기
 
-개발 중에는 `uvicorn`을 터미널에서 직접 실행해도 됩니다. 운영처럼 계속 켜두려면 `systemd`를 사용합니다.
+개발 중에는 `uvicorn`을 터미널에서 직접 실행해도 됩니다. Ubuntu 서버에서 직접 운영처럼 계속 켜두려면 `systemd`를 사용합니다. C3 app container 방식이면 `systemd` 대신 C3의 start command와 environment variable 설정을 사용합니다.
 
 아래는 예시입니다. 실제 경로는 회사 서버 경로에 맞게 바꿔야 합니다.
 
