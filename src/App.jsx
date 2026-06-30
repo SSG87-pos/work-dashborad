@@ -60,6 +60,7 @@ import { summaryFilterLabels, summaryFilterMatches } from "./summaryFilters.js";
 import { collectWorkstreams, groupTasksByWorkstream, recommendWorkstream } from "./workstreams.js";
 import { authenticateWithDashboardStore } from "./features/auth/authAdapters.js";
 import { LoginScreen } from "./features/auth/LoginScreen.jsx";
+import { buildPeopleDirectory, shouldExposeLocalAccountSwitcher, shouldUsePrototypeFallbackData } from "./runtimeMode.js";
 
 const MindmapView = lazy(() => import("./MindmapView.jsx").then((module) => ({ default: module.MindmapView })));
 const SharedCanvasView = lazy(() => import("./SharedCanvasView.jsx").then((module) => ({ default: module.SharedCanvasView })));
@@ -2514,31 +2515,48 @@ function App() {
   const remoteDashboardStore = apiConfig.isConfigured ? apiDashboardStore : supabaseDashboardStore;
   const isApiReady = apiConfig.isConfigured;
   const isSupabaseReady = apiConfig.isConfigured || supabaseConfig.isConfigured;
+  const usePrototypeFallbackData = shouldUsePrototypeFallbackData({ isRemoteReady: isSupabaseReady });
+  const exposeLocalAccounts = shouldExposeLocalAccountSwitcher({ isRemoteReady: isSupabaseReady });
   const backendLabel = isApiReady ? "FastAPI" : "Supabase";
   const importInputRef = useRef(null);
   const detailColumnRef = useRef(null);
-  const initialPersistedTasks = useMemo(() => withSpotDemoTask(persistedArray(persisted.tasks, initialTasks)), [persisted]);
+  const initialPersistedTasks = useMemo(
+    () => usePrototypeFallbackData ? withSpotDemoTask(persistedArray(persisted.tasks, initialTasks)) : [],
+    [persisted, usePrototypeFallbackData]
+  );
   const initialPersistedTags = useMemo(
-    () => normalizeTags(persistedArray(persisted.availableTags, defaultAvailableTags)),
-    [persisted]
+    () => usePrototypeFallbackData ? normalizeTags(persistedArray(persisted.availableTags, defaultAvailableTags)) : [],
+    [persisted, usePrototypeFallbackData]
   );
   const initialPersistedEvents = useMemo(
-    () => persistedArray(persisted.calendarEvents, initialCalendarEvents),
-    [persisted]
+    () => usePrototypeFallbackData ? persistedArray(persisted.calendarEvents, initialCalendarEvents) : [],
+    [persisted, usePrototypeFallbackData]
   );
-  const initialMemoByPage = useMemo(() => initialMemoByPageFrom(persisted), [persisted]);
-  const initialBriefingItems = useMemo(() => initialBriefingItemsFrom(persisted), [persisted]);
-  const initialProfileOverrides = useMemo(() => persistedObject(persisted.profileOverrides), [persisted]);
+  const initialMemoByPage = useMemo(
+    () => usePrototypeFallbackData ? initialMemoByPageFrom(persisted) : { my: "", team: "" },
+    [persisted, usePrototypeFallbackData]
+  );
+  const initialBriefingItems = useMemo(
+    () => usePrototypeFallbackData ? initialBriefingItemsFrom(persisted) : [],
+    [persisted, usePrototypeFallbackData]
+  );
+  const initialProfileOverrides = useMemo(
+    () => usePrototypeFallbackData ? persistedObject(persisted.profileOverrides) : {},
+    [persisted, usePrototypeFallbackData]
+  );
   const initialTagGroups = useMemo(
-    () => Array.isArray(persisted.tagGroups) && persisted.tagGroups.length ? persisted.tagGroups : defaultTagFilterPresets,
-    [persisted]
+    () => {
+      if (!usePrototypeFallbackData) return [];
+      return Array.isArray(persisted.tagGroups) && persisted.tagGroups.length ? persisted.tagGroups : defaultTagFilterPresets;
+    },
+    [persisted, usePrototypeFallbackData]
   );
   const initialTaskPostCategories = useMemo(
-    () => normalizeTaskPostCategories(persisted.taskPostCategories),
-    [persisted]
+    () => usePrototypeFallbackData ? normalizeTaskPostCategories(persisted.taskPostCategories) : [],
+    [persisted, usePrototypeFallbackData]
   );
   const [tasks, setTasks] = useState(initialPersistedTasks);
-  const [selectedPersonId, setSelectedPersonId] = useState(() => persistedPerson(persisted.selectedPersonId));
+  const [selectedPersonId, setSelectedPersonId] = useState(() => usePrototypeFallbackData ? persistedPerson(persisted.selectedPersonId) : "");
   const [isAuthenticated, setIsAuthenticated] = useState(() => isSupabaseReady ? false : persisted.isAuthenticated === true);
   const [hasEnteredDashboard, setHasEnteredDashboard] = useState(false);
   const [authStatus, setAuthStatus] = useState(isSupabaseReady ? "checking" : "local");
@@ -2617,29 +2635,28 @@ function App() {
   const [wikiRecommendationError, setWikiRecommendationError] = useState("");
 
   const directory = useMemo(
-    () => {
-      const baseIds = new Set(people.map((person) => person.id));
-      const base = people.map((person) => ({ ...person, ...(profileOverrides[person.id] ?? {}) }));
-      const extras = Object.entries(profileOverrides)
-        .filter(([id]) => !baseIds.has(id))
-        .map(([id, profile]) => ({
-          id,
-          name: profile.name ?? "새 사용자",
-          role: profile.role ?? "팀원",
-          permissionRole: profile.permissionRole ?? "member",
-          color: profile.color ?? "#2563eb",
-          emoji: profile.emoji ?? "🌿",
-          isTeamMember: profile.isTeamMember ?? true,
-          isActive: profile.isActive ?? true,
-          expectedEmail: profile.expectedEmail ?? "",
-          authUserId: profile.authUserId ?? ""
-        }));
-      return [unassignedPerson, ...base, ...extras.filter((person) => person.id !== UNASSIGNED_OWNER_ID)];
-    },
-    [profileOverrides]
+    () => buildPeopleDirectory({
+      basePeople: people,
+      profileOverrides,
+      includePrototypePeople: usePrototypeFallbackData,
+      unassignedPerson
+    }),
+    [profileOverrides, usePrototypeFallbackData]
   );
   peopleDirectory = directory;
-  const selectedPerson = directory.find((person) => person.id === selectedPersonId) ?? directory.find((person) => person.id === "kmryu");
+  const selectedPerson = directory.find((person) => person.id === selectedPersonId)
+    ?? directory.find((person) => person.id === "kmryu")
+    ?? directory[0]
+    ?? {
+      id: "",
+      name: "사용자",
+      role: "팀원",
+      permissionRole: "member",
+      color: "#2563eb",
+      emoji: "•",
+      isTeamMember: true,
+      isActive: true
+    };
   const isSelectedAdmin = selectedPerson?.permissionRole === "admin";
   const defaultTaskOwnerId = selectedPerson?.isTeamMember === false ? "lead" : selectedPersonId;
   const canManageTags = canManageTagsFor(selectedPersonId);
@@ -2686,7 +2703,7 @@ function App() {
       setBriefingItems(snapshot.briefingItems.map(cleanBriefingItem).filter((item) => !item.deletedAt));
     }
     if (snapshot.profileOverrides) {
-      setProfileOverrides((current) => ({ ...current, ...snapshot.profileOverrides }));
+      setProfileOverrides((current) => isApiReady ? snapshot.profileOverrides : { ...current, ...snapshot.profileOverrides });
     }
     const snapshotProfile = snapshot.profileOverrides?.[snapshot.selectedPersonId];
     const shouldUseTeamPage = snapshotProfile?.permissionRole === "admin" && snapshotProfile?.isTeamMember === false;
@@ -3240,11 +3257,11 @@ function App() {
           setAuthStatus("signed-out");
           return;
         }
-        applySupabaseSnapshot(snapshot, { preservePrototypeTasks: true });
-        setProfileOverrides((current) => ({
+        applySupabaseSnapshot(snapshot, { preservePrototypeTasks: usePrototypeFallbackData });
+        setProfileOverrides((current) => isApiReady ? (snapshot.profileOverrides ?? {}) : {
           ...current,
           ...snapshot.profileOverrides
-        }));
+        });
         setIsAuthenticated(true);
         setAuthStatus("signed-in");
         supabaseHydratedRef.current = true;
@@ -4557,6 +4574,23 @@ function App() {
     setHasEnteredDashboard(false);
     setIsAccountOpen(false);
     setAuthStatus(isSupabaseReady ? "signed-out" : "local");
+    supabaseHydratedRef.current = false;
+    setNotificationState({ items: [], unreadCount: 0, urgentCount: 0, status: "idle", error: "" });
+    setIsNotificationPanelOpen(false);
+    setRemoteInsights(null);
+    if (isSupabaseReady) {
+      setTasks([]);
+      setCalendarEvents([]);
+      setBriefingItems([]);
+      setMemoByPage({ my: "", team: "" });
+      setProfileOverrides({});
+      setSelectedPersonId("");
+      setSelectedTaskId("");
+      setSelectedBriefingKey("");
+      setIsDetailOpen(false);
+      setActivePage("my");
+      setActiveView("board");
+    }
   }
 
   function updateProfileEmoji(personId, emoji) {
@@ -4938,14 +4972,14 @@ function App() {
   if (!hasEnteredDashboard || !isAuthenticated) {
     return (
       <LoginScreen
-        accounts={orderedAccounts(directory)}
+        accounts={exposeLocalAccounts ? orderedAccounts(directory) : []}
         authMessage={authMessage}
         authStatus={authStatus}
         isAlreadyAuthenticated={isAuthenticated}
         isAuthReady={isSupabaseReady}
         onAuthSubmit={authenticateWithSupabase}
         onEnterDashboard={() => setHasEnteredDashboard(true)}
-        onLocalLogin={enterDashboardAs}
+        onLocalLogin={exposeLocalAccounts ? enterDashboardAs : undefined}
         renderAssistantPanel={({ selectedLocalAccount }) => (
           <AiAssistantPanel
             className="entry-ai-panel"
@@ -5688,6 +5722,7 @@ function App() {
           onUpdateUserAdministration={updateUserAdministration}
           onUpdateEmoji={updateProfileEmoji}
           people={directory}
+          allowAccountSwitch={exposeLocalAccounts}
         />
       )}
       <DashboardAiWidget
@@ -7148,8 +7183,19 @@ function AdminWorkstreamsPanel({ groups, onLoadSuggestions, onRenameWorkstream, 
   );
 }
 
-function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmoji, onUpdateProfile, onUpdateUserAdministration, people }) {
-  const currentPerson = people.find((person) => person.id === currentPersonId) ?? people[0];
+function AccountModal({ allowAccountSwitch = true, currentPersonId, onClose, onLogin, onLogout, onUpdateEmoji, onUpdateProfile, onUpdateUserAdministration, people }) {
+  const currentPerson = people.find((person) => person.id === currentPersonId)
+    ?? people[0]
+    ?? {
+      id: currentPersonId || "",
+      name: "사용자",
+      role: "팀원",
+      permissionRole: "member",
+      color: "#2563eb",
+      emoji: "•",
+      isTeamMember: true,
+      isActive: true
+    };
   const [profileDraft, setProfileDraft] = useState({
     name: currentPerson.name,
     role: currentPerson.role,
@@ -7198,27 +7244,29 @@ function AccountModal({ currentPersonId, onClose, onLogin, onLogout, onUpdateEmo
         </div>
 
         <div className="account-modal-grid">
-          <section className="account-section">
-            <span className="panel-label">계정 전환</span>
-            <div className="account-switch-list">
-              {orderedAccounts(people).map((person) => (
-                <button
-                  className={`account-switch-card ${currentPersonId === person.id ? "selected" : ""}`}
-                  key={person.id}
-                  onClick={() => onLogin(person.id)}
-                  type="button"
-                >
-                  <span className="profile-emoji" style={avatarStyle(person)}>
-                    {person.emoji}
-                  </span>
-                  <span>
-                    <strong>{person.name}</strong>
-                    <small>{roleLine(person)}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
+          {allowAccountSwitch && (
+            <section className="account-section">
+              <span className="panel-label">계정 전환</span>
+              <div className="account-switch-list">
+                {orderedAccounts(people).map((person) => (
+                  <button
+                    className={`account-switch-card ${currentPersonId === person.id ? "selected" : ""}`}
+                    key={person.id}
+                    onClick={() => onLogin(person.id)}
+                    type="button"
+                  >
+                    <span className="profile-emoji" style={avatarStyle(person)}>
+                      {person.emoji}
+                    </span>
+                    <span>
+                      <strong>{person.name}</strong>
+                      <small>{roleLine(person)}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="account-section">
             <span className="panel-label">

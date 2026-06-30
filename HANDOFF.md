@@ -6,7 +6,7 @@ Mainline handoff for `/Users/seulgi/Documents/work-dashboard`.
 
 Project goal: build a clickable React/Vite prototype and evolve it into a usable shared work dashboard for `연구기획그룹-전략`. The dashboard is centered on personal daily briefing, public team workflow, task assignment, task detail/update logs, tag filtering, timeline/calendar, recurring work, archive, personal notes, performance reporting, and later real login/admin/backend support.
 
-Last updated: 2026-06-28
+Last updated: 2026-06-30
 
 ## Current State
 
@@ -34,6 +34,8 @@ Last updated: 2026-06-28
   - Supabase is active when `.env.local` contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
   - login/session/profile/preferences/shared memos/shared tags and first UUID-backed task/calendar write paths are now connected to Supabase.
   - prototype tasks assigned to temporary local people remain local until those people sign up and have real auth UUID profiles.
+- 2026-06-30 FastAPI runtime boundary: when `VITE_API_BASE_URL` is set, the frontend starts in remote-only mode instead of hydrating from local fallback/demo data. Local fallback tasks, calendar events, briefing notes, memo text, profile overrides, and built-in demo people are not attached to the company runtime. The visible people directory comes from `/me` and admin roster data, the local account switcher is hidden, and logout clears the hydrated dashboard state so stale pre-login data does not remain visible after sign-out. If old demo users appear in company mode, first check that `VITE_API_BASE_URL` is present in the built frontend environment and that the backend `/me`/`/admin/roster` responses are not returning seeded demo users.
+- 2026-06-30 company desktop-to-C3 deployment note: `docs/company-backend-apply-handoff.md` now documents the supported workflow where a company desktop first installs/verifies the backend and runs migrations, then commits/pushes only source, migration, test, and doc changes. C3 then pulls the same commit, installs dependencies again, sets its own secret/env values, and runs `alembic upgrade head` against the C3 PostgreSQL when it is a different DB. Do not commit `.env`, `.env.local`, `.venv`, `node_modules`, `dist`, DB dumps, passwords, JWT secrets, or tokens.
 - User-facing design direction: keep the first screen personal-first, but let all members access public team workflow.
 - 2026-06-27 phone layout direction: phone is now a selective working mode, not a full desktop-downscaled view. At `max-width: 639px`, top secondary actions are hidden so search, compact `🤖 AI`, and `업무 추가` stay touch-safe; insight cards collapse to number/label chips; team members are initial-only; the long briefing greeting, briefing side widgets, and advanced workflow filters are hidden by default; briefing/task/update cards suppress long descriptions, tag rows, extra logs, and other lower-priority text. Calendar originally kept the month/event grid first and exposed schedule registration through a compact collapsed `일정등록` action; the 2026-06-28 follow-up below supersedes that Calendar behavior for portrait tablet and phone widths. Highlights hides export/copy controls so report content moves up.
 - 2026-06-28 portrait-tablet/phone Calendar direction: at `max-width: 980px`, Calendar schedule registration stays collapsed behind `일정등록`, and the visible schedule view switches to a vertical selected-week list instead of a horizontally scrolling month grid. The week header has previous/next week controls with the selected date range centered between arrow buttons; the separate `오늘` shortcut stays only in the month toolbar. Month navigation resets the week list to the first week containing the displayed month's first day, so moving from June to July shows July's first week. Calendar chips can truncate in narrow cells, but task/event buttons expose full title/context/range/note through hover title text and still open the existing common calendar detail flow.
@@ -254,10 +256,12 @@ Key product decisions now in the prototype:
   - current company apply branch for this route: `codex/llm-wiki-architecture`
   - previous backend baseline branch: `release/company-fastapi-postgres`
   - final company apply handoff: `docs/company-backend-apply-handoff.md`
+  - company desktop first, C3 pull later is supported if only code/migration/docs are pushed and each runtime manages its own env/dependency install.
   - implementation spec: `docs/fastapi-postgres-backend-spec.md`
   - beginner company setup/runbook: `docs/company-fastapi-postgres-beginner-runbook.md`
   - Supabase/self-hosted Supabase is no longer the active operating target because the company backend environment may be Docker-based but does not appear to support a project-managed Supabase-style multi-container Docker Compose stack.
   - previous Supabase migrations and docs remain schema/permission reference material only.
+  - FastAPI company mode is intentionally isolated from local fallback/demo state. With `VITE_API_BASE_URL` set, company users should only see accounts and data returned by FastAPI/PostgreSQL.
   - current FastAPI implementation milestone is present: `backend/` has FastAPI health/db endpoints, PostgreSQL session config, Alembic migrations through `20260625_0012`, `.env.example`, and first-admin seed CLI.
   - auth/roster/profile APIs are present: `POST /api/v1/auth/login`, JWT access tokens, `GET/PATCH /api/v1/me`, and admin-only `GET/POST/PATCH /api/v1/admin/roster`.
   - task APIs are present: `GET/POST/PATCH/DELETE /api/v1/tasks`, task enum types, owner/creator links, progress validation, manager-only update checks, recurring rule persistence, and future recurring instance cleanup.

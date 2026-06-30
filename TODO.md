@@ -2,6 +2,19 @@
 
 ## Now
 
+- [x] Document desktop-validated Git-to-C3 backend deployment flow.
+  - Files: `docs/company-backend-apply-handoff.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a detailed company workflow for validating backend install/migrations on a company desktop, committing only source/migration/doc changes, pulling the same branch on C3, reinstalling dependencies there, and applying migrations again when C3 uses a different PostgreSQL.
+  - Guardrail: `.env`, `.env.local`, DB passwords, JWT secrets, access tokens, `.venv`, `node_modules`, `dist`, DB dumps, and install artifacts must not be committed.
+  - Verified: Markdown headings checked; `git diff --check` passed.
+
+- [x] Separate FastAPI runtime from prototype fallback data.
+  - Files: `src/App.jsx`, `src/runtimeMode.js`, `scripts/check-fastapi-runtime-mode.mjs`, `package.json`, `docs/company-backend-apply-handoff.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: when `VITE_API_BASE_URL` or Supabase config is present, the frontend no longer initializes from local fallback tasks, calendar events, briefing notes, memo text, local profile overrides, or demo account roster.
+  - Done: FastAPI mode builds the visible people directory from authenticated API profile/roster data only. The local account switcher and login-screen demo account list are hidden in remote mode.
+  - Done: FastAPI/Supabase logout now clears hydrated dashboard state, selected task/person, notifications, remote insights, profile overrides, and memo/briefing state so stale DB/demo-looking data does not remain visible after sign-out.
+  - Verified: `check:fastapi-runtime-mode`, `check:api-store`, and production build passed.
+
 - [x] Add final company backend apply handoff.
   - Files: `docs/company-backend-apply-handoff.md`, `docs/company-fastapi-postgres-beginner-runbook.md`, `docs/fastapi-postgres-backend-spec.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added a company backend apply handoff that names the repo, branch `codex/llm-wiki-architecture`, latest verified commit, implemented backend/frontend scope, clone commands, PostgreSQL/FastAPI/frontend setup commands, smoke checks, completion criteria, risks, and a copy-ready prompt for the company-side implementer.

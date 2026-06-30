@@ -53,6 +53,8 @@ Docker/C3 해석:
 - FastAPI mode switch through `src/apiStore.js`
 - `VITE_API_BASE_URL`이 있으면 FastAPI backend를 사용
 - `VITE_API_BASE_URL`이 없으면 기존 local/Supabase fallback 경계 유지
+- `VITE_API_BASE_URL`이 있으면 local fallback/demo 업무, 일정, 메모, 프로필, 내장 사용자 목록은 회사 화면에 붙지 않음
+- FastAPI mode의 사용자 목록은 `/me`와 admin roster API 응답에서 온 사용자만 표시
 
 ### Backend
 
@@ -358,6 +360,14 @@ VITE_API_BASE_URL=http://<company-server-ip>:18080/api/v1
 
 이 값이 있으면 `src/apiStore.js`가 FastAPI mode로 동작합니다.
 
+FastAPI mode 판정 기준:
+
+- local fallback/demo 계정 목록은 로그인 화면과 계정 모달에 표시되지 않아야 합니다.
+- 로그인 후 사용자 목록은 backend의 `/me`와 admin roster 응답 기준이어야 합니다.
+- 업무/일정/브리핑/메모가 비어 있는 신규 DB라면 화면도 비어 있는 상태에서 시작해야 합니다.
+- 예전 demo 사용자나 demo 업무가 보이면 frontend build 환경에 `VITE_API_BASE_URL`이 누락됐거나, backend seed/roster/API 응답에 demo 데이터가 들어간 것입니다.
+- 로그아웃 후에는 dashboard state가 비워지고 다시 로그인 화면으로 돌아와야 합니다.
+
 다시 frontend 실행:
 
 ```bash
@@ -384,6 +394,8 @@ http://<company-server-ip>:10097/
 - 브리핑/팀 체크 작성
 - 새로고침 후 데이터 유지
 - 다른 브라우저에서 같은 데이터 조회
+- 로그아웃 후 이전 dashboard data가 남아 보이지 않는지 확인
+- 신규/빈 회사 DB에서 예전 demo 사용자나 demo 업무가 자동으로 보이지 않는지 확인
 
 ## 12. systemd 또는 C3 container 운영 예시
 
@@ -430,10 +442,170 @@ database: DATABASE_URL로 외부 PostgreSQL 접속
 
 C3가 외부 노출 포트를 별도로 매핑한다면 `VITE_API_BASE_URL`은 C3가 제공하는 실제 API URL을 사용합니다.
 
-## 13. 회사 적용 완료 기준
+## 13. 회사 데스크탑 검증 후 Git에 올리고 C3에서 받는 방식
+
+회사 정책상 C3 서버에서 바로 개발/수정하기 어렵다면, 회사 데스크탑에서 먼저 backend 설치와 migration 검증을 한 뒤 필요한 코드 변경만 Git에 올리고, C3 서버에서 같은 브랜치를 다시 받아 실행해도 됩니다.
+
+단, 여기서 Git에 올리는 것은 "설치 결과"가 아니라 "소스 코드와 migration 파일"입니다.
+
+### 13.1 허용되는 전체 흐름
+
+```text
+회사 데스크탑
+  -> git clone 또는 git pull
+  -> backend/.env 작성
+  -> backend venv 설치
+  -> alembic upgrade head
+  -> seed-first-admin
+  -> health/db, login, CRUD smoke
+  -> 필요한 코드/migration 수정
+  -> 테스트/빌드
+  -> git commit/push
+
+C3 서버
+  -> 같은 branch pull
+  -> C3 secret/env 설정
+  -> backend venv 또는 container install 재실행
+  -> C3가 사용할 PostgreSQL에 alembic upgrade head
+  -> uvicorn 또는 C3 start command 실행
+  -> health/db, browser smoke
+```
+
+### 13.2 Git에 올려야 하는 것
+
+아래 항목은 회사 데스크탑에서 수정이 생기면 commit/push 대상입니다.
+
+- `backend/app/**`
+- `backend/alembic/versions/**`
+- `backend/tests/**`
+- `backend/pyproject.toml`
+- `src/**`
+- `scripts/**`
+- `docs/**`
+- `AGENTS.md`, `HANDOFF.md`, `TODO.md`
+- `package.json`, lockfile 변경이 실제로 생긴 경우의 `pnpm-lock.yaml`
+
+특히 DB 구조가 바뀌었다면 `backend/alembic/versions/` 아래 migration 파일은 반드시 Git에 올라가야 합니다. migration 파일이 없으면 C3 서버 DB는 같은 구조로 올라갈 수 없습니다.
+
+### 13.3 Git에 올리면 안 되는 것
+
+아래 항목은 절대 commit/push 하지 않습니다.
+
+- `backend/.env`
+- `.env.local`
+- DB password, JWT secret, access token, API key
+- `backend/.venv/`
+- `node_modules/`
+- `dist/`
+- 실제 회사 DB dump
+- 로그 파일, 임시 smoke 결과 파일
+- 개인 PC 경로가 들어간 설정 파일
+
+설치 결과물은 Git으로 이동하지 않습니다. C3에서는 C3 환경에 맞춰 다시 설치합니다.
+
+### 13.4 migration 실행 결과는 Git에 올라가지 않는다
+
+`alembic upgrade head`를 실행하면 DB 안의 schema가 바뀝니다. 이 실행 결과는 Git 파일이 아닙니다.
+
+Git에 남는 것은 migration을 정의한 Python 파일입니다.
+
+```text
+올리는 것: backend/alembic/versions/2026..._some_change.py
+올리지 않는 것: 회사 데스크탑 PostgreSQL 안에 적용된 schema 상태 자체
+```
+
+따라서 C3 서버가 회사 데스크탑과 다른 PostgreSQL을 바라보면, C3에서도 반드시 다시 실행합니다.
+
+```bash
+cd backend
+source .venv/bin/activate
+alembic upgrade head
+```
+
+반대로 회사 데스크탑과 C3가 같은 PostgreSQL을 바라보는 구조라면 migration을 한 번만 적용하면 됩니다. 그래도 C3 배포 시 아래 명령으로 현재 DB가 head인지 확인합니다.
+
+```bash
+cd backend
+source .venv/bin/activate
+alembic current
+alembic heads
+```
+
+### 13.5 회사 데스크탑에서 push하기 전 체크
+
+```bash
+git status --short
+git diff --check
+/Users/seulgi/Library/pnpm/bin/pnpm run check:api-store
+/Users/seulgi/Library/pnpm/bin/pnpm run check:fastapi-runtime-mode
+CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build
+cd backend
+source .venv/bin/activate
+python -m pytest
+alembic upgrade head
+curl http://127.0.0.1:18080/api/v1/health
+curl http://127.0.0.1:18080/api/v1/health/db
+```
+
+회사 데스크탑이 macOS가 아니면 `pnpm` 경로는 해당 PC의 설치 경로에 맞춥니다.
+
+commit 전에 `.env`류 파일이 섞이지 않았는지 다시 확인합니다.
+
+```bash
+git status --short
+git diff --name-only
+```
+
+### 13.6 C3 서버에서 pull 후 실행 체크
+
+```bash
+git fetch origin
+git checkout codex/llm-wiki-architecture
+git pull --ff-only origin codex/llm-wiki-architecture
+```
+
+backend 설치:
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+alembic upgrade head
+uvicorn app.main:app --host 0.0.0.0 --port 18080
+```
+
+C3가 container start command를 따로 받는 방식이면 위 명령을 C3의 install/start 설정으로 나눠 넣습니다.
+
+```text
+install command: cd backend && pip install -e .
+start command: cd backend && uvicorn app.main:app --host 0.0.0.0 --port 18080
+env/secret: backend/.env 값과 동일한 값을 C3 secret/env에 설정
+```
+
+frontend가 C3에서 같이 실행되거나 별도 정적 배포로 실행될 때는 build 환경에 아래 값이 반드시 들어가야 합니다.
+
+```bash
+VITE_API_BASE_URL=http://<c3-api-host-or-ip>:18080/api/v1
+```
+
+이 값이 없으면 회사 DB가 아니라 local fallback/demo 모드로 보일 수 있습니다.
+
+### 13.7 이 방식의 판정 기준
+
+이 방식은 문제가 없습니다. 다만 아래 조건을 지켜야 합니다.
+
+- 회사 데스크탑에서 검증한 코드와 C3 서버가 받은 commit이 같아야 합니다.
+- C3가 사용하는 PostgreSQL에도 migration이 head까지 적용되어야 합니다.
+- `.env`, `.env.local`, password, token은 Git이 아니라 각 환경의 secret/env로 관리해야 합니다.
+- C3에서는 `.venv`, dependency, start command를 다시 구성해야 합니다.
+- C3 smoke는 별도로 수행해야 합니다. 회사 데스크탑 smoke가 C3 smoke를 대체하지 않습니다.
+
+## 14. 회사 적용 완료 기준
 
 완료라고 말하려면 아래가 모두 확인되어야 합니다.
 
+- 회사 데스크탑에서 수정한 commit을 C3 서버가 받은 상태
 - `git status`가 clean
 - `pnpm run check:demo-readiness` 통과
 - `CI=true pnpm run build` 통과
@@ -445,19 +617,24 @@ C3가 외부 노출 포트를 별도로 매핑한다면 `VITE_API_BASE_URL`은 C
 - `curl /api/v1/health/db` 성공
 - admin login 성공
 - frontend `.env.local`의 `VITE_API_BASE_URL`이 회사 FastAPI 주소를 가리킴
+- FastAPI mode에서 local fallback/demo 사용자와 demo 업무가 보이지 않음
+- 로그아웃 후 이전 사용자/업무 화면이 남지 않음
 - 브라우저에서 생성/수정/삭제/새로고침/다른 브라우저 조회 QA 통과
 - member/lead/admin 역할별 접근 차이를 최소 2계정 이상으로 확인
 - `.env`, `.env.local`, token, DB password, JWT secret이 Git과 문서에 노출되지 않음
 
-## 14. 알려진 경계와 주의사항
+## 15. 알려진 경계와 주의사항
 
 - UI에서 admin 탭이 숨겨진다고 backend 보안이 완성되는 것은 아닙니다. 운영 판정은 FastAPI endpoint 권한 검사와 실제 계정 smoke로 합니다.
-- localStorage fallback은 계속 남아 있습니다. `VITE_API_BASE_URL`이 비어 있으면 회사 DB가 아니라 local fallback으로 동작할 수 있습니다.
+- localStorage fallback은 prototype/dev 용도로 계속 남아 있습니다. 단, `VITE_API_BASE_URL`이 있으면 회사 runtime에는 local fallback/demo 데이터가 붙지 않아야 합니다.
+- `VITE_API_BASE_URL`이 비어 있으면 회사 DB가 아니라 local fallback으로 동작할 수 있으므로, 운영 build/env에서 이 값을 반드시 확인합니다.
 - Supabase 문서와 migration은 과거 설계 참고입니다. 현재 회사 운영 기준은 FastAPI 단일 실행 단위 + 별도 PostgreSQL입니다.
 - `release/company-fastapi-postgres`는 backend 기준선이지만 최신 최종 검증본은 `codex/llm-wiki-architecture`입니다.
+- 회사 데스크탑에서 migration을 실행했더라도 C3가 다른 PostgreSQL을 쓰면 C3 DB에도 migration을 다시 실행해야 합니다.
+- `.venv`, `node_modules`, `dist`, `.env`류는 Git으로 배포하지 않습니다.
 - production backup, monitoring, HTTPS/reverse proxy, SSO, Teams, realtime은 회사 운영 정책 확정 후 별도 phase로 진행합니다.
 
-## 15. 다음 담당자에게 줄 Codex 요청문
+## 16. 다음 담당자에게 줄 Codex 요청문
 
 ```text
 AGENTS.md와 docs/company-backend-apply-handoff.md를 먼저 읽고 진행해줘.
@@ -479,7 +656,11 @@ frontend를 VITE_API_BASE_URL로 붙여 실제 브라우저 smoke까지 완료�
 9. frontend .env.local에 VITE_API_BASE_URL 설정
 10. 브라우저에서 admin login, 업무 생성/수정/삭제, 일정, 브리핑, 알림/관리자 화면 smoke
 11. member/lead/admin 권한 smoke
-12. 검증 결과와 남은 운영 리스크를 HANDOFF.md/TODO.md에 업데이트
+12. FastAPI mode에서 local fallback/demo 사용자와 demo 업무가 보이지 않는지 확인
+13. 로그아웃 후 이전 사용자/업무 화면이 남지 않는지 확인
+14. 회사 데스크탑에서 수정한 코드/migration만 commit/push하고, .env/.venv/node_modules/dist/DB dump는 올리지 않았는지 확인
+15. C3 서버에서 같은 commit을 pull한 뒤 C3 DB에 alembic upgrade head와 smoke를 별도로 수행
+16. 검증 결과와 남은 운영 리스크를 HANDOFF.md/TODO.md에 업데이트
 
 주의:
 - .env, .env.local, DB password, JWT secret, access token은 절대 커밋하거나 답변에 노출하지 말 것.
