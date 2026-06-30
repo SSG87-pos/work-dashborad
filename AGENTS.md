@@ -61,6 +61,7 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 - **[Backend planning docs](./docs/backend-api-spec.md)** — Future API/storage/auth contract reference.
 - **[FastAPI/PostgreSQL backend spec](./docs/fastapi-postgres-backend-spec.md)** — Current C3-friendly FastAPI/PostgreSQL backend target, PostgreSQL schema, FastAPI endpoints, and rollout sequence.
 - **[Beginner FastAPI/PostgreSQL runbook](./docs/company-fastapi-postgres-beginner-runbook.md)** — Step-by-step company Linux manual for cloning the branch, preparing PostgreSQL/FastAPI prerequisites, and connecting the app after backend implementation.
+- **[Company desktop-to-C3 same-PostgreSQL runbook](./docs/company-desktop-c3-same-postgres-runbook.md)** — Non-specialist step-by-step procedure for cloning the external GitHub source on a company desktop, validating backend, pushing verified code to company GitLab, applying migration once to the shared PostgreSQL, pulling the same commit from GitLab on C3, and running smoke checks.
 - **[Permission rules](./docs/permission-rules.md)** — Role and permission model reference.
 - **[AI agent readiness](./docs/ai-agent-readiness.md)** — Future read-only HERmes/AI answer and report-generation contract.
 - **[AI implementation guide](./docs/ai-agent-implementation-guide.md)** — Beginner-friendly starting point for future OpenAI/HERmes/MCP integration.

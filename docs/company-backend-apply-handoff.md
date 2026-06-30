@@ -4,6 +4,8 @@
 
 이 문서는 회사 C3/Ubuntu 환경에서 `연구기획그룹-전략` 대시보드에 FastAPI + PostgreSQL backend를 붙여 실행할 담당자를 위한 최종 인수인계 문서입니다. 목표는 새 기능 개발이 아니라, 이미 구현된 backend와 frontend API 연결을 회사 PostgreSQL/서버 환경에 적용하고 smoke 검증하는 것입니다.
 
+비전문가 담당자가 순서대로 따라 할 상세 절차는 `docs/company-desktop-c3-same-postgres-runbook.md`를 우선 사용합니다. 이 문서는 전체 범위와 인수인계 요약을 담당하고, 상세 runbook은 실제 실행 절차를 담당합니다. 현재 예정된 운영 전달 경로는 외부 GitHub 원본을 회사 데스크탑에서 받은 뒤, 검증된 코드를 회사 GitLab에 올리고, C3 서버가 회사 GitLab에서 pull하는 방식입니다.
+
 ## 1. 결론
 
 회사 담당자는 아래 브랜치를 받아 진행하면 됩니다.
@@ -32,6 +34,19 @@ latest verified commit: 25e0048 fix: refine mobile dashboard interactions
 2. `backend/.env`에 회사 DB/JWT/CORS 값 설정
 3. `alembic upgrade head`, 첫 관리자 seed, `/health/db` smoke
 4. frontend `.env.local`에 `VITE_API_BASE_URL`을 넣고 실제 브라우저 저장/수정/삭제 QA
+
+비전문가 실행 담당자에게는 먼저 아래 문서를 전달합니다.
+
+```text
+docs/company-desktop-c3-same-postgres-runbook.md
+```
+
+회사 GitLab을 쓰는 경우:
+
+- 외부 GitHub는 최초 코드 기준 또는 upstream 참고용입니다.
+- 회사 데스크탑은 검증 후 회사 GitLab에 push합니다.
+- C3 서버의 Git remote는 회사 GitLab을 바라보게 합니다.
+- C3는 회사 GitLab에서 검증된 commit을 pull해서 실행합니다.
 
 Docker/C3 해석:
 
@@ -463,13 +478,17 @@ C3가 외부 노출 포트를 별도로 매핑한다면 `VITE_API_BASE_URL`은 C
   -> git commit/push
 
 C3 서버
-  -> 같은 branch pull
+  -> 회사 GitLab에서 같은 branch pull
   -> C3 secret/env 설정
   -> backend venv 또는 container install 재실행
-  -> C3가 사용할 PostgreSQL에 alembic upgrade head
+  -> 같은 PostgreSQL의 alembic current/head 확인
   -> uvicorn 또는 C3 start command 실행
   -> health/db, browser smoke
 ```
+
+현재 예정된 회사 운영 방식은 회사 데스크탑과 C3 서버가 같은 PostgreSQL을 바라보는 구조입니다. 이 경우 migration은 회사 데스크탑에서 한 번 적용하면 되고, C3에서는 같은 DB가 이미 head인지 확인한 뒤 앱 실행 smoke를 수행합니다.
+
+또한 현재 예정된 코드 전달 방식은 회사 GitLab 경유입니다. 회사 데스크탑에서 외부 GitHub 원본을 받은 뒤 회사 GitLab에 검증 commit을 올리고, C3는 회사 GitLab에서 pull합니다.
 
 ### 13.2 Git에 올려야 하는 것
 
@@ -514,15 +533,17 @@ Git에 남는 것은 migration을 정의한 Python 파일입니다.
 올리지 않는 것: 회사 데스크탑 PostgreSQL 안에 적용된 schema 상태 자체
 ```
 
-따라서 C3 서버가 회사 데스크탑과 다른 PostgreSQL을 바라보면, C3에서도 반드시 다시 실행합니다.
+회사 데스크탑과 C3가 같은 PostgreSQL을 바라보는 구조라면 migration은 한 번만 적용하면 됩니다. 현재 예정된 회사 운영 방식은 이 구조입니다.
 
 ```bash
 cd backend
 source .venv/bin/activate
 alembic upgrade head
+alembic current
+alembic heads
 ```
 
-반대로 회사 데스크탑과 C3가 같은 PostgreSQL을 바라보는 구조라면 migration을 한 번만 적용하면 됩니다. 그래도 C3 배포 시 아래 명령으로 현재 DB가 head인지 확인합니다.
+C3 배포 시에는 같은 DB가 head인지 확인합니다. 이미 head라면 `alembic upgrade head`를 다시 실행해도 보통 적용할 새 migration이 없어 바로 끝나지만, 운영 절차상 C3에서는 확인 명령을 기본으로 둡니다.
 
 ```bash
 cd backend
@@ -530,6 +551,8 @@ source .venv/bin/activate
 alembic current
 alembic heads
 ```
+
+만약 나중에 C3가 별도의 PostgreSQL을 바라보는 구조로 바뀌면, 그때는 C3 DB에도 `alembic upgrade head`를 별도로 실행해야 합니다.
 
 ### 13.5 회사 데스크탑에서 push하기 전 체크
 
@@ -571,9 +594,12 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
-alembic upgrade head
+alembic current
+alembic heads
 uvicorn app.main:app --host 0.0.0.0 --port 18080
 ```
+
+같은 PostgreSQL을 쓰는 기준에서는 C3의 `alembic current`가 회사 데스크탑에서 확인한 head와 같아야 합니다. 다르면 C3가 다른 DB를 바라보는 것이거나, 회사 데스크탑 migration이 실제 운영 DB에 적용되지 않은 것입니다.
 
 C3가 container start command를 따로 받는 방식이면 위 명령을 C3의 install/start 설정으로 나눠 넣습니다.
 
@@ -595,22 +621,24 @@ VITE_API_BASE_URL=http://<c3-api-host-or-ip>:18080/api/v1
 
 이 방식은 문제가 없습니다. 다만 아래 조건을 지켜야 합니다.
 
-- 회사 데스크탑에서 검증한 코드와 C3 서버가 받은 commit이 같아야 합니다.
-- C3가 사용하는 PostgreSQL에도 migration이 head까지 적용되어야 합니다.
+- 회사 데스크탑에서 검증한 코드, 회사 GitLab에 올라간 commit, C3 서버가 받은 commit이 같아야 합니다.
+- 회사 데스크탑과 C3가 같은 PostgreSQL을 바라봐야 합니다.
+- 회사 데스크탑에서 적용한 migration 결과가 C3의 `alembic current`에서도 같은 head로 보여야 합니다.
 - `.env`, `.env.local`, password, token은 Git이 아니라 각 환경의 secret/env로 관리해야 합니다.
 - C3에서는 `.venv`, dependency, start command를 다시 구성해야 합니다.
-- C3 smoke는 별도로 수행해야 합니다. 회사 데스크탑 smoke가 C3 smoke를 대체하지 않습니다.
+- C3 smoke는 별도로 수행해야 합니다. 같은 DB를 쓰더라도 회사 데스크탑 smoke가 C3 app runtime smoke를 대체하지 않습니다.
 
 ## 14. 회사 적용 완료 기준
 
 완료라고 말하려면 아래가 모두 확인되어야 합니다.
 
-- 회사 데스크탑에서 수정한 commit을 C3 서버가 받은 상태
+- 회사 데스크탑에서 수정한 commit이 회사 GitLab에 올라가고, C3 서버가 그 commit을 받은 상태
 - `git status`가 clean
 - `pnpm run check:demo-readiness` 통과
 - `CI=true pnpm run build` 통과
 - `cd backend && python -m pytest` 통과
 - `cd backend && alembic upgrade head` 성공
+- C3에서 `cd backend && alembic current`가 같은 PostgreSQL의 head revision을 표시
 - `cd backend && alembic heads`가 `20260625_0012 (head)` 표시
 - `work-dashboard-api seed-first-admin` 성공
 - `curl /api/v1/health` 성공
@@ -630,7 +658,9 @@ VITE_API_BASE_URL=http://<c3-api-host-or-ip>:18080/api/v1
 - `VITE_API_BASE_URL`이 비어 있으면 회사 DB가 아니라 local fallback으로 동작할 수 있으므로, 운영 build/env에서 이 값을 반드시 확인합니다.
 - Supabase 문서와 migration은 과거 설계 참고입니다. 현재 회사 운영 기준은 FastAPI 단일 실행 단위 + 별도 PostgreSQL입니다.
 - `release/company-fastapi-postgres`는 backend 기준선이지만 최신 최종 검증본은 `codex/llm-wiki-architecture`입니다.
-- 회사 데스크탑에서 migration을 실행했더라도 C3가 다른 PostgreSQL을 쓰면 C3 DB에도 migration을 다시 실행해야 합니다.
+- 현재 예정 기준은 회사 데스크탑과 C3가 같은 PostgreSQL을 쓰는 구조입니다. 이 경우 migration은 회사 데스크탑에서 한 번 적용하고 C3에서는 `alembic current`와 `/health/db`로 같은 DB 상태를 확인합니다.
+- 현재 예정 기준은 C3가 외부 GitHub가 아니라 회사 GitLab에서 pull하는 구조입니다. C3의 `git remote -v`가 회사 GitLab URL을 가리키는지 확인합니다.
+- 나중에 C3가 다른 PostgreSQL을 쓰게 바뀌면 C3 DB에도 migration을 다시 실행해야 합니다.
 - `.venv`, `node_modules`, `dist`, `.env`류는 Git으로 배포하지 않습니다.
 - production backup, monitoring, HTTPS/reverse proxy, SSO, Teams, realtime은 회사 운영 정책 확정 후 별도 phase로 진행합니다.
 
@@ -640,27 +670,29 @@ VITE_API_BASE_URL=http://<c3-api-host-or-ip>:18080/api/v1
 AGENTS.md와 docs/company-backend-apply-handoff.md를 먼저 읽고 진행해줘.
 
 목표는 GitHub repo https://github.com/SSG87-pos/work-dashborad.git 의
-codex/llm-wiki-architecture 브랜치를 회사 서버에 받아서,
+codex/llm-wiki-architecture 브랜치를 회사 데스크탑에 받고,
+검증된 코드를 회사 GitLab에 올린 뒤 C3 서버가 회사 GitLab에서 같은 commit을 받아서,
 이미 구현된 FastAPI + PostgreSQL backend를 회사 PostgreSQL에 연결하고
 frontend를 VITE_API_BASE_URL로 붙여 실제 브라우저 smoke까지 완료하는 것이다.
 
 새 기능 개발은 하지 말고 다음만 진행해줘:
-1. git clone 또는 checkout 상태 확인
-2. PostgreSQL DB/user 준비
-3. backend/.env 작성
-4. backend venv 설치
-5. alembic upgrade head
-6. work-dashboard-api seed-first-admin
-7. uvicorn 실행
-8. /api/v1/health 와 /api/v1/health/db curl smoke
-9. frontend .env.local에 VITE_API_BASE_URL 설정
-10. 브라우저에서 admin login, 업무 생성/수정/삭제, 일정, 브리핑, 알림/관리자 화면 smoke
-11. member/lead/admin 권한 smoke
-12. FastAPI mode에서 local fallback/demo 사용자와 demo 업무가 보이지 않는지 확인
-13. 로그아웃 후 이전 사용자/업무 화면이 남지 않는지 확인
-14. 회사 데스크탑에서 수정한 코드/migration만 commit/push하고, .env/.venv/node_modules/dist/DB dump는 올리지 않았는지 확인
-15. C3 서버에서 같은 commit을 pull한 뒤 C3 DB에 alembic upgrade head와 smoke를 별도로 수행
-16. 검증 결과와 남은 운영 리스크를 HANDOFF.md/TODO.md에 업데이트
+1. 외부 GitHub clone 또는 checkout 상태 확인
+2. 회사 GitLab remote/repo 준비
+3. PostgreSQL DB/user 준비
+4. backend/.env 작성
+5. backend venv 설치
+6. alembic upgrade head
+7. work-dashboard-api seed-first-admin
+8. uvicorn 실행
+9. /api/v1/health 와 /api/v1/health/db curl smoke
+10. frontend .env.local에 VITE_API_BASE_URL 설정
+11. 브라우저에서 admin login, 업무 생성/수정/삭제, 일정, 브리핑, 알림/관리자 화면 smoke
+12. member/lead/admin 권한 smoke
+13. FastAPI mode에서 local fallback/demo 사용자와 demo 업무가 보이지 않는지 확인
+14. 로그아웃 후 이전 사용자/업무 화면이 남지 않는지 확인
+15. 회사 데스크탑에서 수정한 코드/migration만 회사 GitLab에 commit/push하고, .env/.venv/node_modules/dist/DB dump는 올리지 않았는지 확인
+16. C3 서버에서 회사 GitLab의 같은 commit을 pull한 뒤 같은 PostgreSQL의 alembic current/head와 smoke를 별도로 수행
+17. 검증 결과와 남은 운영 리스크를 HANDOFF.md/TODO.md에 업데이트
 
 주의:
 - .env, .env.local, DB password, JWT secret, access token은 절대 커밋하거나 답변에 노출하지 말 것.

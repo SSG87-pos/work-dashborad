@@ -2,6 +2,19 @@
 
 ## Now
 
+- [x] Add non-specialist same-PostgreSQL desktop-to-C3 backend runbook.
+  - Files: `docs/company-desktop-c3-same-postgres-runbook.md`, `docs/company-backend-apply-handoff.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a detailed step-by-step runbook for a non-specialist operator covering prerequisites, external GitHub clone/pull, company GitLab remote/push, backend `.env`, venv install, one-time migration on the shared PostgreSQL, first-admin seed, local backend/frontend smoke, safe Git commit/push boundaries, C3 pull from company GitLab, C3 env/install, C3 alembic current/head verification, C3 health/browser smoke, final completion checklist, and troubleshooting.
+  - Guardrail: the runbook keeps `.env`, `.env.local`, secrets, `.venv`, `node_modules`, `dist`, and DB dumps out of Git, and treats C3 migration as head verification when it uses the same PostgreSQL.
+  - Updated: clarified that company GitLab is the operating transfer remote for C3, while external GitHub is the initial source/upstream reference.
+  - Verified: runbook heading structure checked; links from `AGENTS.md`, `HANDOFF.md`, and `docs/company-backend-apply-handoff.md` confirmed; `git diff --check` passed.
+
+- [x] Clarify same-PostgreSQL desktop-to-C3 deployment assumption.
+  - Files: `docs/company-backend-apply-handoff.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: documented that the planned company flow uses one PostgreSQL shared by the company desktop and C3 server, so migration can be applied once from the desktop and C3 should verify `alembic current`/`alembic heads` plus `/health/db` rather than assuming a separate DB migration.
+  - Guardrail: if C3 later points to a different PostgreSQL, C3 must run `alembic upgrade head` against that DB separately.
+  - Verified: Markdown headings checked; `git diff --check` passed.
+
 - [x] Document desktop-validated Git-to-C3 backend deployment flow.
   - Files: `docs/company-backend-apply-handoff.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added a detailed company workflow for validating backend install/migrations on a company desktop, committing only source/migration/doc changes, pulling the same branch on C3, reinstalling dependencies there, and applying migrations again when C3 uses a different PostgreSQL.
