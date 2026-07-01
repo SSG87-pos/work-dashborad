@@ -1,9 +1,11 @@
-from datetime import date
+from datetime import UTC, date, datetime
+from uuid import UUID
 
+from app.models.task import TaskUpdateLog
 from tests.helpers import build_test_client, login_admin, seed_admin
 
 
-def seed_ai_evidence_fixture(client, token: str) -> tuple[str, str]:
+def seed_ai_evidence_fixture(client, token: str, session_factory) -> tuple[str, str]:
     roster_response = client.post(
         "/api/v1/admin/roster",
         headers={"Authorization": f"Bearer {token}"},
@@ -63,6 +65,13 @@ def seed_ai_evidence_fixture(client, token: str) -> tuple[str, str]:
         headers={"Authorization": f"Bearer {token}"},
         json={"body": "자료 수급 지연으로 확인 필요", "update_type": "issue"},
     )
+    with session_factory() as db:
+        first_update = db.get(TaskUpdateLog, UUID(first_update_response.json()["id"]))
+        issue_update = db.get(TaskUpdateLog, UUID(issue_update_response.json()["id"]))
+        first_update.created_at = datetime(2026, 6, 4, 9, 0, tzinfo=UTC)
+        issue_update.created_at = datetime(2026, 6, 6, 9, 0, tzinfo=UTC)
+        db.commit()
+
     category_response = client.post(
         "/api/v1/post-categories",
         headers={"Authorization": f"Bearer {token}"},
@@ -114,7 +123,7 @@ def test_ai_read_report_evidence_returns_grounded_items_and_exclusions() -> None
     client, session_factory = build_test_client()
     seed_admin(session_factory)
     token = login_admin(client)
-    task_id, source_ids = seed_ai_evidence_fixture(client, token)
+    task_id, source_ids = seed_ai_evidence_fixture(client, token, session_factory)
     first_update_id, issue_update_id, post_id = source_ids.split("|")
 
     response = client.get(
@@ -153,7 +162,7 @@ def test_ai_read_topic_person_workstream_and_recent_update_endpoints() -> None:
     client, session_factory = build_test_client()
     seed_admin(session_factory)
     token = login_admin(client)
-    task_id, source_ids = seed_ai_evidence_fixture(client, token)
+    task_id, source_ids = seed_ai_evidence_fixture(client, token, session_factory)
     first_update_id, issue_update_id, _post_id = source_ids.split("|")
 
     topic_response = client.get(

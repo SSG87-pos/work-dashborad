@@ -2,6 +2,18 @@
 
 ## Now
 
+- [x] Re-open self-hosted Supabase path without reverting the backend branch.
+  - Branch: `codex/company-self-hosted-supabase-refresh`.
+  - Files: `docs/company-supabase-platform-image-handoff.md`, `docs/supabase-aligned-backend-plan.md`, `scripts/check-supabase-handoff.mjs`, `package.json`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: documented that company self-hosted Supabase should be handled from the latest FastAPI/Wiki/AI branch, not by returning to the older `release/company-supabase-c3` branch.
+  - Done: added a company-facing Supabase platform image handoff with official self-hosting links, raw Docker Compose link, `.env.example` link, current image manifest, required platform questions, and the connection values to request after creation.
+  - Done: recorded that the company-side image information request was resolved by sending the Supabase release source archive `https://github.com/supabase/supabase/archive/refs/tags/v1.26.05.tar.gz`.
+  - Done: added a Supabase-aligned backend plan that keeps FastAPI for complex business logic while treating Supabase Postgres/Auth/API/Storage/Realtime as the managed platform direction.
+  - Done: added `check:supabase-handoff` to verify required official links, current image manifest entries, company questions, connection values, linked docs, and local migration file sequences.
+  - Fixed: backend AI evidence and notification tests no longer depend on the real current date. The AI fixture pins update timestamps to June 2026, and non-overdue notification tests use a future due date so automatic overdue alert creation stays isolated to the overdue test.
+  - Verified: `check:supabase-handoff`, `check:api-store`, `check:fastapi-runtime-mode`, `check:summary-filter`, `check:ai-evidence`, `check:ai-assistant`, backend pytest (`43 passed, 1 warning`), Alembic offline SQL render through head, `git diff --check`, and production build passed.
+  - Current image manifest was refreshed from the official Supabase Docker Compose on 2026-07-01. Refresh again before company submission because upstream image tags can change.
+
 - [x] Add non-specialist same-PostgreSQL desktop-to-C3 backend runbook.
   - Files: `docs/company-desktop-c3-same-postgres-runbook.md`, `docs/company-backend-apply-handoff.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
   - Done: added a detailed step-by-step runbook for a non-specialist operator covering prerequisites, external GitHub clone/pull, company GitLab remote/push, backend `.env`, venv install, one-time migration on the shared PostgreSQL, first-admin seed, local backend/frontend smoke, safe Git commit/push boundaries, C3 pull from company GitLab, C3 env/install, C3 alembic current/head verification, C3 health/browser smoke, final completion checklist, and troubleshooting.

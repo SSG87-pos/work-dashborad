@@ -43,7 +43,7 @@ def test_owner_receives_assignment_notification_and_actor_cannot_read_it() -> No
             "title": "새 배정 알림 업무",
             "owner_id": owner_profile["id"],
             "start_date": "2026-06-25",
-            "due_date": "2026-06-30",
+            "due_date": "2026-07-30",
         },
     )
 
@@ -77,7 +77,7 @@ def test_owner_receives_update_and_post_notifications_from_other_users() -> None
             "title": "내 로그 알림 업무",
             "owner_id": owner_id,
             "start_date": "2026-06-25",
-            "due_date": "2026-06-30",
+            "due_date": "2026-07-30",
         },
     ).json()["id"]
 
@@ -118,7 +118,7 @@ def test_mark_read_and_mark_all_read_only_affect_current_user_notifications() ->
         client.post(
             "/api/v1/tasks",
             headers=auth(admin_token),
-            json={"title": title, "owner_id": owner, "start_date": "2026-06-25", "due_date": "2026-06-30"},
+            json={"title": title, "owner_id": owner, "start_date": "2026-06-25", "due_date": "2026-07-30"},
         )
 
     owner_items = client.get("/api/v1/notifications", headers=auth(owner_token)).json()["items"]
