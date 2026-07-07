@@ -10,6 +10,7 @@
   - Expected share URL after the workflow deploys: `https://ssg87-pos.github.io/work-dashborad/`.
   - Guardrail: this Pages link is for sample/demo data only. Visitor edits remain in browser localStorage and must not be treated as company backend persistence.
   - Verified: `git diff --check`, `check:demo-readiness`, normal production build, Pages demo build, and Pages demo build with `VITE_BASE_PATH=/work-dashborad/` passed. `vite preview` returned `200 OK` for `/work-dashborad/`, and the built HTML references assets under `/work-dashborad/`.
+  - Fixed after first Pages publish: removed Vite manual vendor chunk splitting because the public build crashed before React render with initialization errors in `mindmap-vendor`/`lanyard-vendor`. Rebuilt and pushed `gh-pages` commit `ac18cf6`; cache-busted public URL rendered the POSLAB entry screen in headless Chrome.
   - Next GitHub-side step: push this branch and run the `Deploy demo to GitHub Pages` workflow, or enable Pages source `GitHub Actions` if GitHub asks for it.
 
 - [x] Re-open self-hosted Supabase path without reverting the backend branch.

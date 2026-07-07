@@ -51,3 +51,7 @@ To preview the built static app locally:
 - Visitor changes are stored only in that visitor's browser localStorage.
 - Do not enter real company secrets or operational records in the Pages demo.
 - Company runtime should still use a FastAPI/Supabase/PostgreSQL environment with explicit `VITE_API_BASE_URL` or approved backend configuration.
+
+## Troubleshooting
+
+If the public page is blank, check the browser console first. A previous manual vendor chunk split caused module initialization errors before React could render. Keep Vite chunk splitting conservative unless a new browser build proves the split is safe.
