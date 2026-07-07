@@ -2,6 +2,16 @@
 
 ## Now
 
+- [x] Add GitHub Pages static demo deployment for the current branch.
+  - Branch: `codex/company-self-hosted-supabase-refresh`.
+  - Files: `.github/workflows/pages-demo.yml`, `.env.pages-demo`, `vite.config.js`, `package.json`, `docs/github-pages-demo.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: added a GitHub Actions Pages workflow that builds the app with `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_ANON_KEY` empty so the public link stays in local fallback/demo mode.
+  - Done: made Vite honor `VITE_BASE_PATH` and automatically derive the repository subpath during GitHub Actions builds, so project Pages can load assets under `/work-dashborad/`.
+  - Expected share URL after the workflow deploys: `https://ssg87-pos.github.io/work-dashborad/`.
+  - Guardrail: this Pages link is for sample/demo data only. Visitor edits remain in browser localStorage and must not be treated as company backend persistence.
+  - Verified: `git diff --check`, `check:demo-readiness`, normal production build, Pages demo build, and Pages demo build with `VITE_BASE_PATH=/work-dashborad/` passed. `vite preview` returned `200 OK` for `/work-dashborad/`, and the built HTML references assets under `/work-dashborad/`.
+  - Next GitHub-side step: push this branch and run the `Deploy demo to GitHub Pages` workflow, or enable Pages source `GitHub Actions` if GitHub asks for it.
+
 - [x] Re-open self-hosted Supabase path without reverting the backend branch.
   - Branch: `codex/company-self-hosted-supabase-refresh`.
   - Files: `docs/company-supabase-platform-image-handoff.md`, `docs/supabase-aligned-backend-plan.md`, `scripts/check-supabase-handoff.mjs`, `package.json`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.

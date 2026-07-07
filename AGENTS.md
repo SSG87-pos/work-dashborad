@@ -64,6 +64,7 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 - **[Company desktop-to-C3 same-PostgreSQL runbook](./docs/company-desktop-c3-same-postgres-runbook.md)** — Non-specialist step-by-step procedure for cloning the external GitHub source on a company desktop, validating backend, pushing verified code to company GitLab, applying migration once to the shared PostgreSQL, pulling the same commit from GitLab on C3, and running smoke checks.
 - **[Company Supabase platform image handoff](./docs/company-supabase-platform-image-handoff.md)** — Official self-hosted Supabase Docker links, current image manifest, platform questions, and connection values to request if company C3 can create a Supabase backend stack.
 - **[Supabase-aligned backend plan](./docs/supabase-aligned-backend-plan.md)** — Current plan for aligning the implemented FastAPI/PostgreSQL backend with company self-hosted Supabase without reverting to the older Supabase branch.
+- **[GitHub Pages demo](./docs/github-pages-demo.md)** — Static share-link deployment path that intentionally keeps backend/Supabase env empty so the published app runs with local fallback/demo data.
 - **[Permission rules](./docs/permission-rules.md)** — Role and permission model reference.
 - **[AI agent readiness](./docs/ai-agent-readiness.md)** — Future read-only HERmes/AI answer and report-generation contract.
 - **[AI implementation guide](./docs/ai-agent-implementation-guide.md)** — Beginner-friendly starting point for future OpenAI/HERmes/MCP integration.

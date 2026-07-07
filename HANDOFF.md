@@ -6,7 +6,7 @@ Mainline handoff for `/Users/seulgi/Documents/work-dashboard`.
 
 Project goal: build a clickable React/Vite prototype and evolve it into a usable shared work dashboard for `연구기획그룹-전략`. The dashboard is centered on personal daily briefing, public team workflow, task assignment, task detail/update logs, tag filtering, timeline/calendar, recurring work, archive, personal notes, performance reporting, and later real login/admin/backend support.
 
-Last updated: 2026-06-30
+Last updated: 2026-07-08
 
 ## Current State
 
@@ -30,6 +30,7 @@ Last updated: 2026-06-30
 - Build command: `CI=true /Users/seulgi/Library/pnpm/bin/pnpm run build`.
 - GitHub remote: `https://github.com/SSG87-pos/work-dashborad.git`.
 - Current working branch: `codex/company-self-hosted-supabase-refresh`.
+- 2026-07-08 GitHub Pages static demo path: `.github/workflows/pages-demo.yml` can deploy the current branch as a shareable demo-data frontend. The workflow builds with `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_ANON_KEY` empty, uses Vite `VITE_BASE_PATH` for the repository subpath, and should publish to `https://ssg87-pos.github.io/work-dashborad/` after GitHub Pages is enabled with source `GitHub Actions` if required. This is local fallback/demo mode only; visitor edits stay in browser localStorage and must not be used for real company records. Verification passed for `git diff --check`, `check:demo-readiness`, normal build, Pages demo build, Pages demo build with `VITE_BASE_PATH=/work-dashborad/`, and `vite preview` on `/work-dashborad/`. See `docs/github-pages-demo.md`.
 - 2026-07-01 Supabase re-opened path: branch `codex/company-self-hosted-supabase-refresh` was created from the latest FastAPI/Wiki/AI branch to re-align the backend plan with possible company self-hosted Supabase. Do not return to the older `release/company-supabase-c3` branch as the active base; that branch only has one Supabase C3 Docker runbook commit not present in the latest work. New docs:
   - `docs/company-supabase-platform-image-handoff.md` gives the official Supabase self-hosting links, current Docker image manifest, company platform questions, and connection values to request.
   - `docs/supabase-aligned-backend-plan.md` explains the recommended `FastAPI 유지 + Supabase Postgres/Auth/API/Storage 활용` path and the phase order.

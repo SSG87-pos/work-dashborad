@@ -66,6 +66,12 @@ if (packageJson) {
     "build script is available",
     packageJson.scripts?.build || "missing build script"
   );
+
+  addCheck(
+    packageJson.scripts?.["build:pages-demo"] === "VITE_API_BASE_URL= VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= vite build --mode pages-demo",
+    "GitHub Pages demo build script is available",
+    packageJson.scripts?.["build:pages-demo"] || "missing build:pages-demo script"
+  );
 }
 
 addCheck(exists("pnpm-lock.yaml"), "pnpm lockfile exists");
@@ -73,6 +79,8 @@ addCheck(exists(".env.example"), "env example exists");
 addCheck(exists("docs/internal-port-demo-runbook.md"), "internal port runbook exists");
 addCheck(exists("docs/company-clone-runbook.md"), "company clone runbook exists");
 addCheck(exists("docs/company-demo-readiness-checklist.md"), "company demo checklist exists");
+addCheck(exists("docs/github-pages-demo.md"), "GitHub Pages demo guide exists");
+addCheck(exists(".github/workflows/pages-demo.yml"), "GitHub Pages demo workflow exists");
 
 if (exists(".env.example")) {
   const exampleKeys = new Set(readEnvKeys(".env.example"));
