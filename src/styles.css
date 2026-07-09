@@ -19782,3 +19782,293 @@ body {
 .team-stack .person-pill.selected .person-label small {
   color: #333333 !important;
 }
+
+/* Apple component scale pass: use the reference's surface rhythm, button grammar, and spacing more fully. */
+:root {
+  --apple-divider-soft: #f0f0f0;
+  --apple-sidebar: #ffffff;
+}
+
+.sidebar {
+  background: var(--apple-sidebar) !important;
+}
+
+.workspace,
+.main-area {
+  background: var(--apple-parchment) !important;
+}
+
+.sidebar .brand-block {
+  padding-bottom: 14px !important;
+}
+
+.sidebar .brand-block::before {
+  background: var(--apple-divider-soft) !important;
+}
+
+.nav-list {
+  padding-top: 2px !important;
+}
+
+.nav-list .nav-item {
+  min-height: 40px !important;
+  color: #333333 !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+.nav-list .nav-item span {
+  font-weight: 400 !important;
+}
+
+.nav-list .nav-item.active,
+.nav-list .nav-item.active span {
+  font-weight: 600 !important;
+}
+
+.team-stack {
+  border-top: 1px solid var(--apple-divider-soft) !important;
+  padding-top: 18px !important;
+}
+
+.team-stack .panel-label {
+  margin-bottom: 2px !important;
+  color: var(--apple-muted) !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+}
+
+.team-stack .person-pill {
+  min-height: 38px !important;
+  color: #333333 !important;
+}
+
+.team-stack .person-pill .person-label strong {
+  font-weight: 400 !important;
+}
+
+.team-stack .person-pill .person-label small {
+  color: var(--apple-muted) !important;
+  font-weight: 400 !important;
+}
+
+.topbar {
+  margin-bottom: 18px !important;
+}
+
+.top-actions {
+  gap: 10px !important;
+}
+
+.primary-button {
+  min-height: 44px !important;
+  height: 44px !important;
+  padding: 0 22px !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+}
+
+.secondary-button,
+.simple-today-actions .secondary-button {
+  min-height: 44px !important;
+  height: 44px !important;
+  padding: 0 22px !important;
+  border-color: var(--apple-divider-soft) !important;
+  background: #ffffff !important;
+  color: var(--apple-action-blue) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+}
+
+.dashboard-ai-button,
+.quiet-top-actions .dashboard-ai-button,
+.view-density-button,
+.notification-button {
+  min-height: 38px !important;
+  height: 38px !important;
+  border-color: var(--apple-divider-soft) !important;
+  border-radius: 11px !important;
+  background: var(--apple-pearl) !important;
+  color: #333333 !important;
+  padding: 0 14px !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+.dashboard-ai-button,
+.quiet-top-actions .dashboard-ai-button {
+  color: var(--apple-action-blue) !important;
+}
+
+.account-button,
+.quiet-top-actions .account-button {
+  min-height: 44px !important;
+  height: 44px !important;
+  border-color: var(--apple-divider-soft) !important;
+  border-radius: 9999px !important;
+  background: #ffffff !important;
+  padding: 0 18px !important;
+}
+
+.account-button strong {
+  color: var(--apple-ink) !important;
+  font-weight: 500 !important;
+}
+
+.account-button small {
+  color: var(--apple-muted) !important;
+  font-weight: 400 !important;
+}
+
+.search-box,
+.top-search,
+.task-knowledge-search {
+  height: 44px !important;
+  padding-inline: 20px !important;
+  border-color: var(--apple-divider-soft) !important;
+}
+
+.search-box input,
+.top-search input,
+.task-knowledge-search input {
+  font-size: 15px !important;
+  font-weight: 400 !important;
+}
+
+.briefing-panel,
+.detail-panel,
+.calendar-view,
+.updates-view,
+.performance-view,
+.dashboard-ai-panel,
+.account-menu,
+.notification-panel {
+  border-color: var(--apple-hairline) !important;
+  background: #ffffff !important;
+  padding: 24px !important;
+}
+
+.briefing-panel .section-heading {
+  margin-bottom: 18px !important;
+  padding-bottom: 14px !important;
+  border-bottom: 1px solid var(--apple-divider-soft) !important;
+}
+
+.briefing-panel .section-heading h2,
+.detail-header h2 {
+  color: var(--apple-ink) !important;
+  font-size: 17px !important;
+  font-weight: 600 !important;
+}
+
+.briefing-card,
+.briefing-card.briefing-row,
+.task-card,
+.task-list-section,
+.status-lane {
+  border-color: var(--apple-hairline) !important;
+  background: #ffffff !important;
+}
+
+.briefing-card,
+.briefing-card.briefing-row {
+  min-height: 56px !important;
+  padding: 14px 16px !important;
+}
+
+.task-card {
+  padding: 16px !important;
+}
+
+.briefing-card strong,
+.task-card strong,
+.task-list-title-line strong {
+  color: var(--apple-ink) !important;
+  font-weight: 600 !important;
+}
+
+.briefing-card p,
+.task-card p,
+.detail-description,
+.task-list-owner-cell,
+.task-list-period-cell {
+  color: var(--apple-muted) !important;
+  font-weight: 400 !important;
+}
+
+.control-row,
+.tag-library,
+.board-view,
+.task-list-view,
+.timeline-view,
+.recurring-view {
+  border-color: var(--apple-hairline) !important;
+  background: #ffffff !important;
+  padding: 16px !important;
+}
+
+.control-row {
+  gap: 12px !important;
+}
+
+.segmented,
+.filter-select,
+.workflow-filter-row .filter-select {
+  min-height: 44px !important;
+  border-color: var(--apple-divider-soft) !important;
+  border-radius: 9999px !important;
+  background: var(--apple-pearl) !important;
+  padding: 4px !important;
+}
+
+.segmented button {
+  min-height: 34px !important;
+  border-radius: 9999px !important;
+  color: #333333 !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+.segmented button.active {
+  background: #ffffff !important;
+  color: var(--apple-action-blue) !important;
+  font-weight: 500 !important;
+}
+
+.filter-select,
+.workflow-filter-row .filter-select {
+  padding-inline: 14px !important;
+}
+
+.filter-select select,
+.task-card select,
+.tag-filter-open-button {
+  color: #333333 !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+.tag-filter-chip,
+.briefing-tag-chip,
+.task-card .card-tag-row span,
+.task-card .task-status-chip,
+.task-card .status-chip {
+  min-height: 24px !important;
+  border-color: var(--apple-hairline) !important;
+  border-radius: 9999px !important;
+  background: #ffffff !important;
+  color: #333333 !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+
+.tag-filter-chip.active,
+.tag-filter-chip.active[class*="tag-tone-"] {
+  border-color: rgba(0, 102, 204, 0.22) !important;
+  background: #f5faff !important;
+  color: var(--apple-action-blue) !important;
+  font-weight: 500 !important;
+}
