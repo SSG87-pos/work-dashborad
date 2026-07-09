@@ -51,6 +51,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Team member row shows centered name and role only, without emoji/avatar/initial badges; treat it as a centered team selector, not a profile/avatar surface.
 - Selected team member should feel active but not flashy.
 - In the simplified dashboard shell, the sidebar brand divider and `전략 TEAM` sublabel should be neutral, not another blue/green decorative accent. Preserve the main top title gradient instead.
+- In the Apple-inspired simplified shell, sidebar selection should not look like a filled card or boxed control. Use quiet text/icon emphasis plus a thin Action Blue navigation indicator for the active page; selected team members should use text color/weight only, without a boxed background or left rail.
 
 ### Top Bar
 

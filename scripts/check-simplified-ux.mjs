@@ -74,6 +74,7 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "--apple-action-blue: #0066cc",
   "--apple-parchment: #f5f5f7",
   "--apple-hairline: #e0e0e0",
+  "Apple sidebar refinement",
   ".dashboard-ai-button",
   ".nav-list::before"
 ].forEach((text) => assertIncludes("src/styles.css", css, text));
@@ -99,7 +100,9 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "Keep `오늘 브리핑` rows recognizable",
   "preserving the top title gradient",
   "avoid decorative gradients and card shadows",
-  "sidebar brand divider"
+  "sidebar brand divider",
+  "sidebar selection should not look like a filled card or boxed control",
+  "selected team members should use text color/weight only"
 ].forEach((text) => assertIncludes("DESIGN.md", design, text));
 
 console.log("Simplified UX contract check passed.");

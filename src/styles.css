@@ -19704,3 +19704,81 @@ body {
   background: #f5faff !important;
   color: var(--apple-action-blue) !important;
 }
+
+/* Apple sidebar refinement: selection should read like quiet navigation, not a boxed card. */
+.sidebar {
+  border-right: 1px solid var(--apple-hairline) !important;
+  background: var(--apple-parchment) !important;
+  color: var(--apple-ink) !important;
+}
+
+.sidebar .panel-label,
+.sidebar .brand-wordmark span {
+  color: var(--apple-muted) !important;
+}
+
+.nav-list {
+  gap: 5px !important;
+}
+
+.nav-list::before {
+  top: calc(var(--active-nav-top, 0px) + 12px) !important;
+  left: 0 !important;
+  width: 2px !important;
+  height: 20px !important;
+  border-radius: 9999px !important;
+  background: var(--apple-action-blue) !important;
+  box-shadow: none !important;
+}
+
+.nav-list .nav-item {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #333333 !important;
+}
+
+.nav-list .nav-item:hover:not(.active) {
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+}
+
+.nav-list .nav-item.active,
+.nav-list .nav-item.active span,
+.nav-list .nav-item.active svg {
+  background: transparent !important;
+  color: var(--apple-action-blue) !important;
+  box-shadow: none !important;
+}
+
+.nav-list .nav-item.active {
+  font-weight: 620 !important;
+}
+
+.team-stack .person-pill {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.team-stack .person-pill:hover:not(.selected) {
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+}
+
+.team-stack .person-pill.selected {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.team-stack .person-pill.selected .person-label strong {
+  color: var(--apple-action-blue) !important;
+  font-weight: 650 !important;
+}
+
+.team-stack .person-pill.selected .person-label small {
+  color: #333333 !important;
+}
