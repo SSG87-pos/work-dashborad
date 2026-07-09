@@ -80,8 +80,8 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 ### Today Briefing
 
 - `오늘 브리핑` is the first meaningful screen.
-- For the simplified dashboard direction approved on 2026-07-09, the first `오늘` screen should use a 작은 안내판 above the work list, not a large hero panel. The strip uses four plain actions: `오늘 확인`, `업무 등록`, `팀 상황`, and `자료 찾기`.
-- The guidance strip is intentionally smaller than `오늘 할 일`/`오늘 브리핑` content. It should help 40대 이상 and non-specialist users find the next place to go without pushing the real work list below the fold.
+- For the simplified dashboard direction approved on 2026-07-09 and corrected after browser review, the first `오늘` screen should not add a four-button 작은 안내판 above the work list. It should show `오늘 브리핑`/오늘 할 일 first, then offer one quiet `전체 업무 보기` action for users who need board, filters, timeline, materials, mindmap, recurring work, or archive.
+- `전체 업무 보기` is intentionally a secondary action. It should help 40대 이상 and non-specialist users discover the fuller workflow without making the first screen look like another dashboard/control center.
 - Use plain Korean labels over product jargon. Top-level user-facing navigation should prefer `오늘`, `팀 업무`, `일정`, and `자료/보고` over English labels where practical.
 - Top insight cards should stay number-first, but act as compact action filters: nonzero cards show a small `보기 →` action and clicking them filters the board to that cohort. Keep the first screen to the core daily signals: 진행 업무, 3일 내 마감, 지연 업무, and 완료 업무. Do not show `업데이트 정체` or `흐름 미지정` as top cards; those signals can remain available to backend/AI/admin diagnostics without making My Desk busier.
 - Insight cards should stay short on 1280-1366px widths: use the right-side space for status copy/action text instead of adding a taller third text row.

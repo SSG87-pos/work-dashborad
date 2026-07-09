@@ -19,18 +19,16 @@ const design = read("DESIGN.md");
   "팀 업무",
   "일정",
   "자료/보고",
-  "오늘 확인",
-  "업무 등록",
-  "팀 상황",
-  "자료 찾기",
-  "GuidedActionStrip",
-  "guided-action-strip"
+  "전체 업무 보기",
+  "isSimpleTodayMode",
+  "shouldShowWorkflowArea",
+  "setIsWorkflowAreaOpen(false)"
 ].forEach((text) => assertIncludes("src/App.jsx", app, text));
 
 [
-  ".guided-action-strip",
-  ".guided-action-button",
-  ".guided-action-copy",
+  ".simple-today-actions",
+  ".poslab-entry-visual",
+  "display: none",
   "#0066cc",
   "#f5f5f7"
 ].forEach((text) => assertIncludes("src/styles.css", css, text));
@@ -38,6 +36,7 @@ const design = read("DESIGN.md");
 [
   "작은 안내판",
   "오늘 할 일",
+  "전체 업무 보기",
   "40대",
   "Apple-inspired operational"
 ].forEach((text) => assertIncludes("DESIGN.md", design, text));

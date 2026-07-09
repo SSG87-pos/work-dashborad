@@ -8,6 +8,8 @@
 
 **Tech Stack:** React 19, Vite 4, lucide-react, motion, plain CSS in `src/styles.css`, Node-based static check scripts.
 
+**Correction after browser review:** The first implementation added a four-button guidance strip, but user review found that it made the first screen feel more complex. The final implementation should not render that guidance strip by default. It should show `오늘 브리핑`/today work first and keep the full board/filter workflow behind one quiet `전체 업무 보기` action.
+
 ---
 
 ## File Structure

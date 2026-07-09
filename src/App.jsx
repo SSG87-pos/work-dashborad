@@ -2566,6 +2566,7 @@ function App() {
   const [workKindFilter, setWorkKindFilter] = useState(() => persistedOption(persisted.workKindFilter, workKindFilters, "전체"));
   const [ownerFilter, setOwnerFilter] = useState(() => persistedString(persisted.ownerFilter, "전체"));
   const [summaryFilter, setSummaryFilter] = useState("");
+  const [isWorkflowAreaOpen, setIsWorkflowAreaOpen] = useState(false);
   const [remoteInsights, setRemoteInsights] = useState(null);
   const [query, setQuery] = useState("");
   const [activeView, setActiveView] = useState(() => persistedOption(persisted.activeView, viewOptions, "board"));
@@ -4477,6 +4478,7 @@ function App() {
   }
 
   function changeWorkflowView(view) {
+    setIsWorkflowAreaOpen(true);
     setActiveView(view);
     setDetailContext("workflow");
     closeTaskDetail();
@@ -4500,6 +4502,7 @@ function App() {
         && summaryFilterMatches(task, filterKey, TODAY)
       ));
     setSummaryFilter(filterKey);
+    setIsWorkflowAreaOpen(true);
     setCategory("전체");
     setPriorityFilter("전체");
     setQuery("");
@@ -4546,15 +4549,13 @@ function App() {
     setSelectedBriefingKey("");
     setIsDetailOpen(false);
     setIsAccountOpen(false);
-    if (nextPerson.permissionRole === "admin") {
-      setActivePage("team");
-      setActiveView("board");
-      setSelectedTaskId(tasks.find((task) => !isDeletedTask(task) && !task.archived)?.id ?? tasks.find((task) => !isDeletedTask(task))?.id ?? "");
-      return;
-    }
     setActivePage("my");
     setActiveView("board");
-    setSelectedTaskId(tasks.find((task) => !isDeletedTask(task) && !task.archived && task.ownerId === personId)?.id ?? tasks.find((task) => !isDeletedTask(task) && !task.archived)?.id ?? tasks.find((task) => !isDeletedTask(task))?.id ?? "");
+    setSummaryFilter("");
+    setQuery("");
+    setIsWorkflowAreaOpen(false);
+    setDetailContext("briefing");
+    setSelectedTaskId("");
   }
 
   function enterDashboardAs(personId) {
@@ -4969,6 +4970,19 @@ function App() {
     };
   }, [activeNavIndex, hasEnteredDashboard, isAuthenticated, isSelectedAdmin]);
 
+  function enterDashboardHome() {
+    setActivePage("my");
+    setActiveView("board");
+    setSummaryFilter("");
+    setQuery("");
+    setIsWorkflowAreaOpen(false);
+    setDetailContext("briefing");
+    setIsDetailOpen(false);
+    setSelectedBriefingKey("");
+    setSelectedTaskId("");
+    setHasEnteredDashboard(true);
+  }
+
   if (!hasEnteredDashboard || !isAuthenticated) {
     return (
       <LoginScreen
@@ -4978,7 +4992,7 @@ function App() {
         isAlreadyAuthenticated={isAuthenticated}
         isAuthReady={isSupabaseReady}
         onAuthSubmit={authenticateWithSupabase}
-        onEnterDashboard={() => setHasEnteredDashboard(true)}
+        onEnterDashboard={enterDashboardHome}
         onLocalLogin={exposeLocalAccounts ? enterDashboardAs : undefined}
         renderAssistantPanel={({ selectedLocalAccount }) => (
           <AiAssistantPanel
@@ -5046,16 +5060,22 @@ function App() {
   ) : null;
   const isWorkflowDetailContext = hasTaskDetail && !fullPageViews.includes(activeView) && detailContext === "workflow";
   const isBriefingDetailContext = isDetailOpen && !fullPageViews.includes(activeView) && detailContext === "briefing";
+  const isSimpleTodayMode = activePage === "my" && activeView === "board" && !isWorkflowAreaOpen && !summaryFilter && !query;
+  const shouldShowWorkflowSummary = !fullPageViews.includes(activeView) && !isSimpleTodayMode;
+  const shouldShowWorkflowArea = !fullPageViews.includes(activeView) && !isSimpleTodayMode;
 
   function focusTodayWork() {
     setActivePage("my");
-    changeWorkflowView("board");
+    setActiveView("board");
     setSummaryFilter("");
+    setIsWorkflowAreaOpen(false);
+    setDetailContext("briefing");
     closeTaskDetail();
   }
 
   function openTeamWork() {
     setActivePage("team");
+    setIsWorkflowAreaOpen(true);
     changeWorkflowView("board");
     closeTaskDetail();
   }
@@ -5063,6 +5083,7 @@ function App() {
   function openMaterialsView() {
     setActivePage("team");
     setActiveView("performance");
+    setIsWorkflowAreaOpen(true);
     closeTaskDetail();
   }
 
@@ -5086,8 +5107,7 @@ function App() {
           <button
             className={`nav-item ${activePage === "my" && !fullPageViews.includes(activeView) ? "active" : ""}`}
             onClick={() => {
-              changePage("my");
-              changeWorkflowView("board");
+              focusTodayWork();
             }}
             type="button"
             title="오늘"
@@ -5098,8 +5118,7 @@ function App() {
           <button
             className={`nav-item ${activePage === "team" && !fullPageViews.includes(activeView) ? "active" : ""}`}
             onClick={() => {
-              changePage("team");
-              changeWorkflowView("board");
+              openTeamWork();
             }}
             type="button"
             title="팀 업무"
@@ -5111,6 +5130,7 @@ function App() {
             className={`nav-item ${activeView === "calendar" ? "active" : ""}`}
             onClick={() => {
               setActivePage("team");
+              setIsWorkflowAreaOpen(true);
               setActiveView("calendar");
               closeTaskDetail();
             }}
@@ -5123,6 +5143,7 @@ function App() {
           <button
             className={`nav-item ${activeView === "updates" ? "active" : ""}`}
             onClick={() => {
+              setIsWorkflowAreaOpen(true);
               setActiveView("updates");
               closeTaskDetail();
             }}
@@ -5136,6 +5157,7 @@ function App() {
             className={`nav-item ${activeView === "performance" ? "active" : ""}`}
             onClick={() => {
               setActivePage("team");
+              setIsWorkflowAreaOpen(true);
               setActiveView("performance");
               closeTaskDetail();
             }}
@@ -5149,6 +5171,7 @@ function App() {
             className={`nav-item ${activeView === "canvas" ? "active" : ""}`}
             onClick={() => {
               setActivePage("team");
+              setIsWorkflowAreaOpen(true);
               setActiveView("canvas");
               closeTaskDetail();
             }}
@@ -5163,6 +5186,7 @@ function App() {
               className={`nav-item ${activeView === "admin" ? "active" : ""}`}
               onClick={() => {
                 setActivePage("team");
+                setIsWorkflowAreaOpen(true);
                 setActiveView("admin");
                 closeTaskDetail();
               }}
@@ -5365,17 +5389,7 @@ function App() {
           ))}
         </div>
 
-        {!fullPageViews.includes(activeView) && (
-          <>
-            <GuidedActionStrip
-              onAddTask={() => openTaskEditor(createBlankTask(defaultTaskOwnerId, selectedPersonId))}
-              onOpenMaterials={openMaterialsView}
-              onOpenTeam={openTeamWork}
-              onTodayFocus={focusTodayWork}
-            />
-            <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />
-          </>
-        )}
+        {shouldShowWorkflowSummary && <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />}
 
         <section className={`dashboard-grid ${activeView === "timeline" ? "timeline-layout" : ""} ${fullPageViews.includes(activeView) ? "calendar-layout" : ""} ${activeView === "admin" ? "admin-layout" : ""} ${isWorkflowDetailContext ? "workflow-detail-mode" : ""} ${isBriefingDetailContext ? "briefing-detail-mode" : ""}`}>
           <div className="main-column">
@@ -5399,7 +5413,17 @@ function App() {
               />
             )}
 
-            {!fullPageViews.includes(activeView) && (
+            {isSimpleTodayMode && (
+              <div className="simple-today-actions" aria-label="전체 업무 보기">
+                <button className="secondary-button" onClick={() => setIsWorkflowAreaOpen(true)} type="button">
+                  <ListChecks size={16} />
+                  전체 업무 보기
+                </button>
+                <span>보드, 필터, 타임라인은 필요할 때만 엽니다.</span>
+              </div>
+            )}
+
+            {shouldShowWorkflowArea && (
               <div className="control-row">
                 <div className="segmented" role="tablist" aria-label="보기 전환">
                   {[
@@ -5431,7 +5455,7 @@ function App() {
               </div>
             )}
 
-            {!fullPageViews.includes(activeView) && (
+            {shouldShowWorkflowArea && (
               <TagLibrary
                 activeTags={selectedTagFilters}
                 canManageTags={canManageTags}
@@ -5495,7 +5519,7 @@ function App() {
               />
             )}
 
-            {activeView === "board" && (
+            {shouldShowWorkflowArea && activeView === "board" && (
               <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`} ref={workflowSurfaceRef}>
                 <BoardView
                   canManageTask={(task) => canManageTaskFor(task, selectedPersonId)}
@@ -5518,7 +5542,7 @@ function App() {
                 )}
               </section>
             )}
-            {activeView === "list" && (
+            {shouldShowWorkflowArea && activeView === "list" && (
               <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`} ref={workflowSurfaceRef}>
                 <TaskListView
                   defaultExpanded={activePage === "my" ? "nonEmpty" : false}
@@ -5534,7 +5558,7 @@ function App() {
                 )}
               </section>
             )}
-            {activeView === "timeline" && (
+            {shouldShowWorkflowArea && activeView === "timeline" && (
               <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`}>
                 <TimelineView
                   mode={timelineMode}
@@ -5580,7 +5604,7 @@ function App() {
                 tasks={filteredTasks}
               />
             )}
-            {activeView === "recurring" && (
+            {shouldShowWorkflowArea && activeView === "recurring" && (
               <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`}>
                 <RecurringView
                   canManageTask={(task) => canManageTaskFor(task, selectedPersonId)}
@@ -5597,7 +5621,7 @@ function App() {
                 )}
               </section>
             )}
-            {activeView === "archive" && (
+            {shouldShowWorkflowArea && activeView === "archive" && (
               <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`}>
                 <ArchiveView
                   isTeamScope={activePage === "team"}
@@ -5614,7 +5638,7 @@ function App() {
                 )}
               </section>
             )}
-            {activeView === "mindmap" && (
+            {shouldShowWorkflowArea && activeView === "mindmap" && (
               <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`}>
                 <Suspense fallback={<div className="mindmap-loading">마인드맵을 불러오는 중입니다.</div>}>
                   <MindmapView
@@ -5633,7 +5657,7 @@ function App() {
                 )}
               </section>
             )}
-            {activeView === "knowledge" && (
+            {shouldShowWorkflowArea && activeView === "knowledge" && (
               <section className={`workflow-context-grid ${isWorkflowDetailContext ? "has-context-detail" : ""}`} ref={workflowSurfaceRef}>
                 <TaskKnowledgeView
                   activePage={activePage}
@@ -7386,55 +7410,6 @@ function InsightStrip({ activeFilter, onSelect, summary }) {
           </motion.button>
         );
       })}
-    </section>
-  );
-}
-
-function GuidedActionStrip({ onAddTask, onOpenMaterials, onOpenTeam, onTodayFocus }) {
-  const actions = [
-    {
-      key: "today",
-      icon: Sparkles,
-      title: "오늘 확인",
-      description: "내 브리핑과 마감 업무",
-      onClick: onTodayFocus
-    },
-    {
-      key: "add",
-      icon: Plus,
-      title: "업무 등록",
-      description: "새 업무나 간단 메모",
-      onClick: onAddTask
-    },
-    {
-      key: "team",
-      icon: ClipboardList,
-      title: "팀 상황",
-      description: "공유 업무 진행판",
-      onClick: onOpenTeam
-    },
-    {
-      key: "materials",
-      icon: FileText,
-      title: "자료 찾기",
-      description: "노트, 로그, Wiki",
-      onClick: onOpenMaterials
-    }
-  ];
-
-  return (
-    <section className="guided-action-strip" aria-label="주요 업무 바로가기">
-      {actions.map(({ description, icon: Icon, key, onClick, title }) => (
-        <button className="guided-action-button" key={key} onClick={onClick} type="button">
-          <span className="guided-action-icon" aria-hidden="true">
-            <Icon size={17} />
-          </span>
-          <span className="guided-action-copy">
-            <strong>{title}</strong>
-            <small>{description}</small>
-          </span>
-        </button>
-      ))}
     </section>
   );
 }

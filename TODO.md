@@ -3,11 +3,11 @@
 ## Now
 
 - [x] Implement simplified dashboard first-screen UX on `codex/simplified-dashboard-ux`.
-  - Direction: compact guidance strip plus immediately visible today work list.
+  - Direction: immediately visible today work list, with the fuller board/filter/timeline workflow hidden behind one quiet `전체 업무 보기` action.
   - Guardrail: preserve existing task detail contexts, backend mode behavior, and workflow views.
   - Apple-inspired operational scope: absorb only the restrained Action Blue, white/soft-gray surfaces, thin hairlines, readable body sizing, pill search/action grammar, and reduced decorative gradients/shadows from `DESIGN-apple.md`; do not convert the app into a product-gallery or marketing hero layout.
-  - Done: added `GuidedActionStrip` with `오늘 확인`, `업무 등록`, `팀 상황`, and `자료 찾기`; simplified top-level labels to `오늘`, `팀 업무`, `일정`, `업데이트`, and `자료/보고`; and applied restrained Apple-inspired operational surface tokens without replacing the dashboard with a marketing layout.
-  - Verified: `check:simplified-ux`, `check:summary-filter`, `git diff --check`, production build, and browser QA on fallback Vite `http://127.0.0.1:5174/` at 1366x768, 768x1024, and 390x844. Browser QA confirmed the guidance strip renders above `오늘 브리핑`, `업무 등록` opens the task modal, `팀 상황` switches to `팀 업무`, `자료 찾기` opens `자료/보고`, tablet/phone guidance buttons wrap to two columns, phone hides helper descriptions, and no page-level horizontal overflow appears.
+  - Done: simplified top-level labels to `오늘`, `팀 업무`, `일정`, `업데이트`, and `자료/보고`; made entry/login start in `오늘` focus mode; removed the added four-button guidance strip from the default work screen; hid board/filter/workflow controls until `전체 업무 보기`; and applied restrained Apple-inspired operational surface tokens without replacing the dashboard with a marketing layout.
+  - Verified: `check:simplified-ux`, `check:summary-filter`, `git diff --check`, production build, and browser QA on fallback Vite `http://127.0.0.1:5174/`. Browser QA confirmed the simplified entry screen hides lanyard/entry AI, `오늘` opens with no guidance strip/insight cards/board/filter controls, `전체 업무 보기` restores the full workflow, and 390px phone width has no page-level horizontal overflow.
 
 - [x] Add GitHub Pages static demo deployment for the current branch.
   - Branch: `codex/company-self-hosted-supabase-refresh`.
