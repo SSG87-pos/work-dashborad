@@ -4594,24 +4594,6 @@ function App() {
     }
   }
 
-  function updateProfileEmoji(personId, emoji) {
-    setProfileOverrides((current) => ({
-      ...current,
-      [personId]: {
-        ...(current[personId] ?? {}),
-        emoji
-      }
-    }));
-    if (isSupabaseReady && isAuthenticated) {
-      remoteDashboardStore.profiles.updateEmoji(personId, emoji).then((result) => {
-        handleSupabaseWriteResult(result, "샘플 계정 이모지는 로컬에만 저장됐습니다.");
-      }).catch((error) => {
-        console.warn("Supabase 프로필 이모지 저장에 실패했습니다.", error);
-        showSyncNotice("프로필 이모지를 Supabase에 반영하지 못했습니다.");
-      });
-    }
-  }
-
   function updateProfile(personId, profile) {
     const cleanProfile = {
       name: profile.name?.trim(),
@@ -5214,7 +5196,7 @@ function App() {
               type="button"
             >
               <span className="profile-emoji" data-initials={initials(person.name)} style={avatarStyle(person)}>
-                {person.emoji}
+                {initials(person.name)}
               </span>
               <span className="person-label">
                 <strong>{person.name}</strong>
@@ -5359,7 +5341,7 @@ function App() {
               )}
               <button className="account-button" onClick={() => setIsAccountOpen(true)} type="button" title="계정 및 프로필">
                 <span className="profile-emoji" data-initials={initials(selectedPerson.name)} style={avatarStyle(selectedPerson)}>
-                  {selectedPerson.emoji}
+                  {initials(selectedPerson.name)}
                 </span>
                 <span className="account-identity">
                   <strong>{selectedPerson.name}</strong>
@@ -5393,7 +5375,7 @@ function App() {
               type="button"
             >
               <span className="profile-emoji" data-initials={initials(person.name)} style={avatarStyle(person)}>
-                {person.emoji}
+                {initials(person.name)}
               </span>
               <span className="person-label">
                 <strong>{person.name}</strong>
@@ -5784,8 +5766,6 @@ function App() {
           onLogin={loginAs}
           onLogout={logout}
           onUpdateProfile={updateProfile}
-          onUpdateUserAdministration={updateUserAdministration}
-          onUpdateEmoji={updateProfileEmoji}
           people={directory}
           allowAccountSwitch={exposeLocalAccounts}
         />
@@ -6632,7 +6612,7 @@ function AdminPeoplePanel({ currentPersonId, onUpdateUserAdministration, people 
         {adminManageablePeople.map((person) => (
           <div className="admin-user-row admin-page-user-row" key={person.id}>
             <span className="profile-emoji" style={avatarStyle(person)}>
-              {person.emoji}
+              {initials(person.name)}
             </span>
             <span className="admin-user-identity">
               {isRosterProfile(person) ? (
@@ -7248,7 +7228,7 @@ function AdminWorkstreamsPanel({ groups, onLoadSuggestions, onRenameWorkstream, 
   );
 }
 
-function AccountModal({ allowAccountSwitch = true, currentPersonId, onClose, onLogin, onLogout, onUpdateEmoji, onUpdateProfile, onUpdateUserAdministration, people }) {
+function AccountModal({ allowAccountSwitch = true, currentPersonId, onClose, onLogin, onLogout, onUpdateProfile, people }) {
   const currentPerson = people.find((person) => person.id === currentPersonId)
     ?? people[0]
     ?? {
@@ -7263,17 +7243,15 @@ function AccountModal({ allowAccountSwitch = true, currentPersonId, onClose, onL
     };
   const [profileDraft, setProfileDraft] = useState({
     name: currentPerson.name,
-    role: currentPerson.role,
-    emoji: currentPerson.emoji
+    role: currentPerson.role
   });
 
   useEffect(() => {
     setProfileDraft({
       name: currentPerson.name,
-      role: currentPerson.role,
-      emoji: currentPerson.emoji
+      role: currentPerson.role
     });
-  }, [currentPerson.id, currentPerson.name, currentPerson.role, currentPerson.emoji]);
+  }, [currentPerson.id, currentPerson.name, currentPerson.role]);
 
   function saveProfile(event) {
     event.preventDefault();
@@ -7296,7 +7274,7 @@ function AccountModal({ allowAccountSwitch = true, currentPersonId, onClose, onL
 
         <div className="account-summary-card">
           <span className="profile-emoji large" style={avatarStyle(currentPerson)}>
-            {currentPerson.emoji}
+            {initials(currentPerson.name)}
           </span>
           <div>
             <strong>{currentPerson.name}</strong>
@@ -7321,7 +7299,7 @@ function AccountModal({ allowAccountSwitch = true, currentPersonId, onClose, onL
                     type="button"
                   >
                     <span className="profile-emoji" style={avatarStyle(person)}>
-                      {person.emoji}
+                      {initials(person.name)}
                     </span>
                     <span>
                       <strong>{person.name}</strong>
@@ -7340,7 +7318,7 @@ function AccountModal({ allowAccountSwitch = true, currentPersonId, onClose, onL
             </span>
             <form className="profile-edit-form" onSubmit={saveProfile}>
               <span className="profile-emoji large" style={avatarStyle(currentPerson)}>
-                {profileDraft.emoji}
+                {initials(profileDraft.name || currentPerson.name)}
               </span>
               <label>
                 <small>이름</small>
@@ -7356,20 +7334,11 @@ function AccountModal({ allowAccountSwitch = true, currentPersonId, onClose, onL
                   value={profileDraft.role}
                 />
               </label>
-              <EmojiPopover
-                selectedEmoji={profileDraft.emoji}
-                onSelect={(emoji) => {
-                  setProfileDraft((current) => ({ ...current, emoji }));
-                  onUpdateEmoji(currentPersonId, emoji);
-                }}
-                triggerLabel="프로필 이모지 선택"
-                triggerClassName="profile-emoji-trigger"
-              />
               <button className="secondary-button small" type="submit">
                 저장
               </button>
             </form>
-            <p className="account-help">이름, 직책, 이모지는 팀 구성과 계정 버튼에 바로 반영됩니다.</p>
+            <p className="account-help">이름과 직책은 팀 구성과 계정 버튼에 바로 반영됩니다.</p>
           </section>
         </div>
 
@@ -9975,7 +9944,7 @@ function ArchiveView({ isTeamScope, onFillDemo, onRestore, onSelect, people: arc
     { id: "전체", label: "전체 담당", count: tasks.filter((task) => periodFilter === "전체" || archivePeriod(task) === periodFilter).length },
     ...archivePeople.map((person) => ({
       id: person.id,
-      label: `${person.emoji ?? ""} ${person.name}`.trim(),
+      label: person.name,
       count: tasks.filter((task) => task.ownerId === person.id && (periodFilter === "전체" || archivePeriod(task) === periodFilter)).length
     }))
   ];

@@ -14161,6 +14161,27 @@ button.post-scope-chip svg {
   font-size: 18px !important;
 }
 
+.person-pill .profile-emoji,
+.account-button .profile-emoji,
+.account-summary-card .profile-emoji,
+.account-switch-card .profile-emoji,
+.profile-edit-form .profile-emoji,
+.admin-user-row .profile-emoji {
+  display: inline-grid;
+  place-items: center;
+  color: var(--avatar, #2563eb);
+  font-family: inherit !important;
+  font-size: 11px !important;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.account-summary-card .profile-emoji.large,
+.profile-edit-form .profile-emoji.large {
+  font-size: 13px !important;
+}
+
 .person-pill .person-label {
   gap: 4px !important;
 }

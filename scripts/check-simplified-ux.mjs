@@ -32,7 +32,10 @@ const design = read("DESIGN.md");
   "showSecondaryTopActions",
   "shouldShowWorkflowArea",
   "setIsWorkflowAreaOpen(false)",
-  "aria-label=\"오늘 브리핑\""
+  "aria-label=\"오늘 브리핑\"",
+  "이름과 직책은 팀 구성과 계정 버튼에 바로 반영됩니다.",
+  "{initials(person.name)}",
+  "{initials(selectedPerson.name)}"
 ].forEach((text) => assertIncludes("src/App.jsx", app, text));
 
 if (app.includes("shouldShowWorkflowSummary")) {
@@ -43,7 +46,11 @@ if (app.includes("shouldShowWorkflowSummary")) {
   "자동 선별",
   "팀 전체 오늘 업무 흐름",
   "personalBriefingGreeting(briefing)",
-  "briefing-chip"
+  "briefing-chip",
+  "triggerLabel=\"프로필 이모지 선택\"",
+  "onUpdateEmoji",
+  "updateProfileEmoji",
+  "이름, 직책, 이모지는 팀 구성과 계정 버튼에 바로 반영됩니다."
 ].forEach((text) => assertNotIncludes("src/App.jsx", app, text));
 
 assertNotIncludes("src/styles.css", css, "briefing-chip");
@@ -64,7 +71,9 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "오늘 할 일",
   "전체 업무 보기",
   "40대",
-  "Apple-inspired operational"
+  "Apple-inspired operational",
+  "quiet initials badge",
+  "profile/team-member emoji selection"
 ].forEach((text) => assertIncludes("DESIGN.md", design, text));
 
 console.log("Simplified UX contract check passed.");
