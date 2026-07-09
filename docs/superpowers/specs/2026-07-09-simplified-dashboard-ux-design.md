@@ -2,7 +2,7 @@
 
 Date: 2026-07-09
 Branch: `codex/simplified-dashboard-ux`
-Status: Draft for user review
+Status: Approved direction for implementation
 
 ## Goal
 
@@ -112,20 +112,26 @@ Move density, home, backend/demo indicators, and rarely used actions out of the 
 
 ### First Screen
 
-Use four plain action tiles:
+Use a balanced first-screen structure: compact guidance first, real work immediately below.
+
+Top compact guidance buttons:
 
 - `오늘 확인`: my briefing, today tasks, due items
 - `업무 등록`: create task or quick memo/note
 - `팀 상황`: team work board/list
 - `자료 찾기`: notes, logs, wiki/highlights
 
-Below that, show a short `오늘 할 일` list with:
+The guidance buttons should be visually smaller than the work list. Their job is navigation and orientation, not to become a large hero area.
+
+Immediately below, show a concise `오늘 할 일` list with:
 
 - task title
 - owner only when needed
 - due signal
 - status
 - one clear detail action
+
+This is the approved direction because it balances first-week learnability with daily repeated use. New users get clear routes, while regular users see the work list without scrolling past a large introductory panel.
 
 ### Workflow Area
 
@@ -176,9 +182,6 @@ After implementation:
 - Verify first screen is understandable without opening task detail.
 - Verify briefing detail, board/list task detail, calendar detail, and Highlights still render correctly.
 
-## Open Review Question
+## Approved First-Screen Default
 
-Before implementation, confirm the first-screen default:
-
-- Recommended default: `오늘` opens with the four guided action tiles above a concise `오늘 할 일` list.
-- Alternative: `오늘` opens directly to a simplified list, with action tiles in a compact right panel.
+`오늘` opens with compact guidance buttons above a concise `오늘 할 일` list. Do not use a large hero-like tile section, and do not hide guidance entirely behind a list-only layout.
