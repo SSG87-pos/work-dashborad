@@ -5047,6 +5047,25 @@ function App() {
   const isWorkflowDetailContext = hasTaskDetail && !fullPageViews.includes(activeView) && detailContext === "workflow";
   const isBriefingDetailContext = isDetailOpen && !fullPageViews.includes(activeView) && detailContext === "briefing";
 
+  function focusTodayWork() {
+    setActivePage("my");
+    changeWorkflowView("board");
+    setSummaryFilter("");
+    closeTaskDetail();
+  }
+
+  function openTeamWork() {
+    setActivePage("team");
+    changeWorkflowView("board");
+    closeTaskDetail();
+  }
+
+  function openMaterialsView() {
+    setActivePage("team");
+    setActiveView("performance");
+    closeTaskDetail();
+  }
+
   return (
     <div className={`app-shell ${displayDensity === "comfortable" ? "comfortable-density" : ""}`}>
       <aside className="sidebar" aria-label="주요 메뉴">
@@ -5071,10 +5090,10 @@ function App() {
               changeWorkflowView("board");
             }}
             type="button"
-            title="My Desk"
+            title="오늘"
           >
             <LayoutDashboard size={18} />
-            <span>My Desk</span>
+            <span>오늘</span>
           </button>
           <button
             className={`nav-item ${activePage === "team" && !fullPageViews.includes(activeView) ? "active" : ""}`}
@@ -5083,10 +5102,10 @@ function App() {
               changeWorkflowView("board");
             }}
             type="button"
-            title="Team Flow"
+            title="팀 업무"
           >
             <ClipboardList size={18} />
-            <span>Team Flow</span>
+            <span>팀 업무</span>
           </button>
           <button
             className={`nav-item ${activeView === "calendar" ? "active" : ""}`}
@@ -5096,10 +5115,10 @@ function App() {
               closeTaskDetail();
             }}
             type="button"
-            title="Calendar"
+            title="일정"
           >
             <CalendarDays size={18} />
-            <span>Calendar</span>
+            <span>일정</span>
           </button>
           <button
             className={`nav-item ${activeView === "updates" ? "active" : ""}`}
@@ -5108,10 +5127,10 @@ function App() {
               closeTaskDetail();
             }}
             type="button"
-            title="Updates"
+            title="업데이트"
           >
             <MessageSquareText size={18} />
-            <span>Updates</span>
+            <span>업데이트</span>
           </button>
           <button
             className={`nav-item ${activeView === "performance" ? "active" : ""}`}
@@ -5121,10 +5140,10 @@ function App() {
               closeTaskDetail();
             }}
             type="button"
-            title="Highlights"
+            title="자료/보고"
           >
             <Sparkles size={18} />
-            <span>Highlights</span>
+            <span>자료/보고</span>
           </button>
           <button
             className={`nav-item ${activeView === "canvas" ? "active" : ""}`}
@@ -5346,7 +5365,17 @@ function App() {
           ))}
         </div>
 
-        {!fullPageViews.includes(activeView) && <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />}
+        {!fullPageViews.includes(activeView) && (
+          <>
+            <GuidedActionStrip
+              onAddTask={() => openTaskEditor(createBlankTask(defaultTaskOwnerId, selectedPersonId))}
+              onOpenMaterials={openMaterialsView}
+              onOpenTeam={openTeamWork}
+              onTodayFocus={focusTodayWork}
+            />
+            <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />
+          </>
+        )}
 
         <section className={`dashboard-grid ${activeView === "timeline" ? "timeline-layout" : ""} ${fullPageViews.includes(activeView) ? "calendar-layout" : ""} ${activeView === "admin" ? "admin-layout" : ""} ${isWorkflowDetailContext ? "workflow-detail-mode" : ""} ${isBriefingDetailContext ? "briefing-detail-mode" : ""}`}>
           <div className="main-column">
@@ -7357,6 +7386,55 @@ function InsightStrip({ activeFilter, onSelect, summary }) {
           </motion.button>
         );
       })}
+    </section>
+  );
+}
+
+function GuidedActionStrip({ onAddTask, onOpenMaterials, onOpenTeam, onTodayFocus }) {
+  const actions = [
+    {
+      key: "today",
+      icon: Sparkles,
+      title: "오늘 확인",
+      description: "내 브리핑과 마감 업무",
+      onClick: onTodayFocus
+    },
+    {
+      key: "add",
+      icon: Plus,
+      title: "업무 등록",
+      description: "새 업무나 간단 메모",
+      onClick: onAddTask
+    },
+    {
+      key: "team",
+      icon: ClipboardList,
+      title: "팀 상황",
+      description: "공유 업무 진행판",
+      onClick: onOpenTeam
+    },
+    {
+      key: "materials",
+      icon: FileText,
+      title: "자료 찾기",
+      description: "노트, 로그, Wiki",
+      onClick: onOpenMaterials
+    }
+  ];
+
+  return (
+    <section className="guided-action-strip" aria-label="주요 업무 바로가기">
+      {actions.map(({ description, icon: Icon, key, onClick, title }) => (
+        <button className="guided-action-button" key={key} onClick={onClick} type="button">
+          <span className="guided-action-icon" aria-hidden="true">
+            <Icon size={17} />
+          </span>
+          <span className="guided-action-copy">
+            <strong>{title}</strong>
+            <small>{description}</small>
+          </span>
+        </button>
+      ))}
     </section>
   );
 }
