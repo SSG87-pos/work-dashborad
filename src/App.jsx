@@ -4980,6 +4980,8 @@ function App() {
     setIsDetailOpen(false);
     setSelectedBriefingKey("");
     setSelectedTaskId("");
+    setIsDashboardAiOpen(false);
+    setIsNotificationPanelOpen(false);
     setHasEnteredDashboard(true);
   }
 
@@ -5062,6 +5064,9 @@ function App() {
   const isBriefingDetailContext = isDetailOpen && !fullPageViews.includes(activeView) && detailContext === "briefing";
   const isSimpleTodayMode = activePage === "my" && activeView === "board" && !isWorkflowAreaOpen && !summaryFilter && !query;
   const shouldShowWorkflowArea = !fullPageViews.includes(activeView) && !isSimpleTodayMode;
+  const showNotificationButton = !isSimpleTodayMode || unreadNotificationCount > 0 || isNotificationPanelOpen;
+  const showDashboardAiButton = !isSimpleTodayMode || isDashboardAiOpen;
+  const showSecondaryTopActions = !isSimpleTodayMode;
 
   function focusTodayWork() {
     setActivePage("my");
@@ -5069,6 +5074,8 @@ function App() {
     setSummaryFilter("");
     setIsWorkflowAreaOpen(false);
     setDetailContext("briefing");
+    setIsDashboardAiOpen(false);
+    setIsNotificationPanelOpen(false);
     closeTaskDetail();
   }
 
@@ -5225,94 +5232,97 @@ function App() {
             <span>{syncNotice}</span>
           </div>
         )}
-        <header className="topbar">
+        <header className={`topbar ${isSimpleTodayMode ? "quiet-topbar" : ""}`}>
           <div className="topbar-title-row">
             <h1>Strategy Work Hub</h1>
-            <div className="top-actions">
-              <div className="notification-menu">
-                <button
-                  aria-expanded={isNotificationPanelOpen}
-                  aria-label={`알림${unreadNotificationCount ? ` ${unreadNotificationCount}건` : ""}`}
-                  className={`icon-button notification-bell ${unreadNotificationCount ? "has-unread" : ""} ${hasUrgentNotifications ? "has-urgent" : ""}`}
-                  onClick={() => {
-                    const nextOpen = !isNotificationPanelOpen;
-                    setIsNotificationPanelOpen(nextOpen);
-                    if (nextOpen) loadNotifications({ unreadOnly: notificationFilter === "unread" });
-                  }}
-                  type="button"
-                  title="알림"
-                >
-                  <Bell size={18} />
-                  {unreadNotificationCount > 0 && <span className="notification-badge">{notificationBadgeLabel}</span>}
-                </button>
-                {isNotificationPanelOpen && (
-                  <div className="notification-panel" role="dialog" aria-label="알림">
-                    <div className="notification-panel-head">
-                      <div>
-                        <strong>알림</strong>
-                        <span>안읽음 {unreadNotificationCount}</span>
-                      </div>
-                      <button
-                        className="text-button"
-                        disabled={!unreadNotificationCount}
-                        onClick={handleMarkAllNotificationsRead}
-                        type="button"
-                      >
-                        모두 읽음
-                      </button>
-                    </div>
-                    <div className="notification-tabs" role="tablist" aria-label="알림 필터">
-                      <button
-                        aria-selected={notificationFilter === "unread"}
-                        className={notificationFilter === "unread" ? "active" : ""}
-                        onClick={() => handleNotificationFilter("unread")}
-                        role="tab"
-                        type="button"
-                      >
-                        안읽음
-                      </button>
-                      <button
-                        aria-selected={notificationFilter === "all"}
-                        className={notificationFilter === "all" ? "active" : ""}
-                        onClick={() => handleNotificationFilter("all")}
-                        role="tab"
-                        type="button"
-                      >
-                        전체
-                      </button>
-                    </div>
-                    <div className="notification-list">
-                      {notificationState.status === "loading" && <p className="notification-empty">알림을 불러오는 중입니다.</p>}
-                      {notificationState.status === "error" && <p className="notification-empty">{notificationState.error}</p>}
-                      {notificationState.status !== "loading" && notificationState.status !== "error" && !visibleNotifications.length && (
-                        <p className="notification-empty">
-                          {notificationFilter === "unread" ? "확인할 새 알림이 없습니다." : "표시할 알림이 없습니다."}
-                        </p>
-                      )}
-                      {visibleNotifications.map((notification) => (
+            <div className={`top-actions ${isSimpleTodayMode ? "quiet-top-actions" : ""}`}>
+              {showNotificationButton && (
+                <div className="notification-menu">
+                  <button
+                    aria-expanded={isNotificationPanelOpen}
+                    aria-label={`알림${unreadNotificationCount ? ` ${unreadNotificationCount}건` : ""}`}
+                    className={`icon-button notification-bell ${unreadNotificationCount ? "has-unread" : ""} ${hasUrgentNotifications ? "has-urgent" : ""}`}
+                    onClick={() => {
+                      const nextOpen = !isNotificationPanelOpen;
+                      setIsNotificationPanelOpen(nextOpen);
+                      if (nextOpen) loadNotifications({ unreadOnly: notificationFilter === "unread" });
+                    }}
+                    type="button"
+                    title="알림"
+                  >
+                    <Bell size={18} />
+                    {unreadNotificationCount > 0 && <span className="notification-badge">{notificationBadgeLabel}</span>}
+                  </button>
+                  {isNotificationPanelOpen && (
+                    <div className="notification-panel" role="dialog" aria-label="알림">
+                      <div className="notification-panel-head">
+                        <div>
+                          <strong>알림</strong>
+                          <span>안읽음 {unreadNotificationCount}</span>
+                        </div>
                         <button
-                          className={`notification-row severity-${notification.severity} ${notification.readAt ? "is-read" : "is-unread"}`}
-                          key={notification.id}
-                          onClick={() => handleNotificationClick(notification)}
+                          className="text-button"
+                          disabled={!unreadNotificationCount}
+                          onClick={handleMarkAllNotificationsRead}
                           type="button"
                         >
-                          <span className="notification-row-top">
-                            <span className="notification-type">{notificationTypeLabel(notification.type)}</span>
-                            <span className="notification-time">{notificationRelativeTime(notification.createdAt)}</span>
-                          </span>
-                          <strong>{notification.title}</strong>
-                          <span className="notification-body">{notification.body}</span>
-                          <span className="notification-meta">
-                            {notification.taskTitle || "관련 업무"}
-                            {notification.actorName ? ` · ${notification.actorName}` : ""}
-                            {notification.severity !== "normal" ? ` · ${notificationSeverityLabel(notification.severity)}` : ""}
-                          </span>
+                          모두 읽음
                         </button>
-                      ))}
+                      </div>
+                      <div className="notification-tabs" role="tablist" aria-label="알림 필터">
+                        <button
+                          aria-selected={notificationFilter === "unread"}
+                          className={notificationFilter === "unread" ? "active" : ""}
+                          onClick={() => handleNotificationFilter("unread")}
+                          role="tab"
+                          type="button"
+                        >
+                          안읽음
+                        </button>
+                        <button
+                          aria-selected={notificationFilter === "all"}
+                          className={notificationFilter === "all" ? "active" : ""}
+                          onClick={() => handleNotificationFilter("all")}
+                          role="tab"
+                          type="button"
+                        >
+                          전체
+                        </button>
+                      </div>
+                      <div className="notification-list">
+                        {notificationState.status === "loading" && <p className="notification-empty">알림을 불러오는 중입니다.</p>}
+                        {notificationState.status === "error" && <p className="notification-empty">{notificationState.error}</p>}
+                        {notificationState.status !== "loading" && notificationState.status !== "error" && !visibleNotifications.length && (
+                          <p className="notification-empty">
+                            {notificationFilter === "unread" ? "확인할 새 알림이 없습니다." : "표시할 알림이 없습니다."}
+                          </p>
+                        )}
+                        {visibleNotifications.map((notification) => (
+                          <button
+                            className={`notification-row severity-${notification.severity} ${notification.readAt ? "is-read" : "is-unread"}`}
+                            key={notification.id}
+                            onClick={() => handleNotificationClick(notification)}
+                            type="button"
+                          >
+                            <span className="notification-row-top">
+                              <span className="notification-type">{notificationTypeLabel(notification.type)}</span>
+                              <span className="notification-time">{notificationRelativeTime(notification.createdAt)}</span>
+                            </span>
+                            <strong>{notification.title}</strong>
+                            <span className="notification-body">{notification.body}</span>
+                            <span className="notification-meta">
+                              {notification.taskTitle || "관련 업무"}
+                              {notification.actorName ? ` · ${notification.actorName}` : ""}
+                              {notification.severity !== "normal" ? ` · ${notificationSeverityLabel(notification.severity)}` : ""}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
+              {showDashboardAiButton && (
               <button
                 aria-expanded={isDashboardAiOpen}
                 className={`dashboard-ai-button ${isDashboardAiOpen ? "active" : ""}`}
@@ -5323,6 +5333,8 @@ function App() {
                 <span aria-hidden="true">🤖</span>
                 <strong>AI</strong>
               </button>
+              )}
+              {showSecondaryTopActions && (
               <button
                 aria-pressed={displayDensity === "comfortable"}
                 className={`view-density-button ${displayDensity === "comfortable" ? "active" : ""}`}
@@ -5333,6 +5345,8 @@ function App() {
                 <PanelRightOpen size={16} />
                 <span>{displayDensity === "comfortable" ? "기본" : "넓게"}</span>
               </button>
+              )}
+              {showSecondaryTopActions && (
               <button
                 className="icon-button"
                 onClick={() => setHasEnteredDashboard(false)}
@@ -5342,6 +5356,7 @@ function App() {
               >
                 <House size={18} />
               </button>
+              )}
               <button className="account-button" onClick={() => setIsAccountOpen(true)} type="button" title="계정 및 프로필">
                 <span className="profile-emoji" data-initials={initials(selectedPerson.name)} style={avatarStyle(selectedPerson)}>
                   {selectedPerson.emoji}

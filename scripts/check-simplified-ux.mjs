@@ -21,6 +21,8 @@ const design = read("DESIGN.md");
   "자료/보고",
   "전체 업무 보기",
   "isSimpleTodayMode",
+  "showSecondaryTopActions",
+  "showDashboardAiButton",
   "shouldShowWorkflowArea",
   "setIsWorkflowAreaOpen(false)"
 ].forEach((text) => assertIncludes("src/App.jsx", app, text));
@@ -31,6 +33,8 @@ if (app.includes("shouldShowWorkflowSummary")) {
 
 [
   ".simple-today-actions",
+  ".quiet-topbar",
+  ".quiet-top-actions",
   ".poslab-entry-visual",
   "radial-gradient(125% 125% at 36% 8%",
   ".entry-ai-panel",

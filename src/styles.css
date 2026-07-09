@@ -261,6 +261,11 @@ button {
   margin-bottom: 18px;
 }
 
+.quiet-topbar {
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
 .topbar-title-row {
   display: flex;
   align-items: center;
@@ -292,6 +297,10 @@ h1 {
   justify-content: flex-end;
   min-width: 0;
   position: relative;
+}
+
+.quiet-top-actions {
+  gap: 8px;
 }
 
 .dashboard-ai-button {
@@ -603,6 +612,22 @@ h1 {
   background: linear-gradient(180deg, #f8fbff 0%, #edf5ff 100%);
 }
 
+.quiet-top-actions .account-button {
+  min-width: 0;
+  border-color: #e2e8f0;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.quiet-top-actions .account-button:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.quiet-top-actions .primary-button {
+  box-shadow: none;
+}
+
 .account-button .profile-emoji {
   width: 26px;
   height: 26px;
@@ -784,13 +809,13 @@ h1 {
 .simple-today-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
-  margin-top: -4px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #ffffff;
+  margin-top: -6px;
+  padding: 0 2px 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
@@ -801,11 +826,14 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 38px;
-  border-radius: 999px;
-  color: #0066cc;
+  min-height: 34px;
+  border-color: #dbe5ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1d4ed8;
   font-weight: 650;
   white-space: nowrap;
+  box-shadow: none;
 }
 
 .simple-today-actions span {
