@@ -25,7 +25,6 @@ const design = read("DESIGN.md");
   "팀 업무",
   "일정",
   "자료/보고",
-  "전체 업무 보기",
   "isSimpleTodayMode",
   "is-briefing-only",
   "showDashboardAiButton",
@@ -33,10 +32,11 @@ const design = read("DESIGN.md");
   "showSecondaryTopActions",
   "shouldShowWorkflowArea",
   "setIsWorkflowAreaOpen(false)",
-  "!isSimpleTodayMode && (",
   "workspace-team-strip",
   "<span className=\"panel-label\">팀원</span>",
   "aria-label=\"오늘 브리핑\"",
+  "card-meta-line",
+  "card-tag-row-compact",
   "이름과 직책은 팀 구성과 계정 버튼에 바로 반영됩니다."
 ].forEach((text) => assertIncludes("src/App.jsx", app, text));
 
@@ -54,6 +54,10 @@ if (app.includes("shouldShowWorkflowSummary")) {
   "updateProfileEmoji",
   "이름, 직책, 이모지는 팀 구성과 계정 버튼에 바로 반영됩니다.",
   "보드, 필터, 타임라인은 필요할 때만 엽니다.",
+  "전체 업무 보기",
+  "view-density-button",
+  "넓게 보기로 전환",
+  "PanelRightOpen",
   "data-initials={initials(person.name)}",
   "data-initials={initials(selectedPerson.name)}",
   "Team Members"
@@ -62,7 +66,6 @@ if (app.includes("shouldShowWorkflowSummary")) {
 assertNotIncludes("src/styles.css", css, "briefing-chip");
 
 [
-  ".simple-today-actions",
   ".quiet-topbar",
   ".quiet-top-actions",
   ".poslab-entry-visual",
@@ -82,8 +85,11 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "Apple sidebar refinement",
   "Apple workflow surface repair pass",
   "Apple board mat alignment pass",
+  "Simplified workflow clarity pass",
   "rebuild context after over-flattening",
   ".main-column > .control-row",
+  ".card-meta-line",
+  ".card-tag-row-compact",
   ".dashboard-ai-button",
   ".nav-list::before"
 ].forEach((text) => assertIncludes("src/styles.css", css, text));
@@ -92,7 +98,6 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "작은 안내판",
   "나의 업무",
   "오늘 할 일",
-  "전체 업무 보기",
   "40대",
   "Apple-inspired operational",
   "full component grammar",
@@ -111,11 +116,14 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "centered team selector",
   "plain Korean",
   "profile/team-member emoji selection",
-  "button only",
   "Hide the duplicated workspace team-member strip",
   "Show those side widgets again only when they contain actual records",
   "Keep `오늘 브리핑` rows recognizable",
   "preserving the top title gradient",
+  "should not hide the workflow behind a separate `전체 업무 보기` action",
+  "one compact priority/status row",
+  "`+n` summary",
+  "should not expose a `넓게/기본` viewing-density toggle",
   "avoid decorative gradients and card shadows",
   "sidebar brand divider",
   "sidebar selection should not look like a filled card or boxed control",

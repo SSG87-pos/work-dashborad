@@ -30,7 +30,6 @@ import {
   MessageSquareText,
   Network,
   NotebookPen,
-  PanelRightOpen,
   Plus,
   Search,
   Send,
@@ -5044,8 +5043,8 @@ function App() {
   ) : null;
   const isWorkflowDetailContext = hasTaskDetail && !fullPageViews.includes(activeView) && detailContext === "workflow";
   const isBriefingDetailContext = isDetailOpen && !fullPageViews.includes(activeView) && detailContext === "briefing";
-  const isSimpleTodayMode = activePage === "my" && activeView === "board" && !isWorkflowAreaOpen && !summaryFilter && !query;
-  const shouldShowWorkflowArea = !fullPageViews.includes(activeView) && !isSimpleTodayMode;
+  const isSimpleTodayMode = activePage === "my" && activeView === "board" && !summaryFilter && !query;
+  const shouldShowWorkflowArea = !fullPageViews.includes(activeView);
   const showNotificationButton = !isSimpleTodayMode || unreadNotificationCount > 0 || isNotificationPanelOpen;
   const showDashboardAiButton = true;
   const showSecondaryTopActions = !isSimpleTodayMode;
@@ -5076,7 +5075,7 @@ function App() {
   }
 
   return (
-    <div className={`app-shell ${displayDensity === "comfortable" ? "comfortable-density" : ""}`}>
+    <div className="app-shell">
       <aside className="sidebar" aria-label="주요 메뉴">
         <div className="brand-block">
           <div className="brand-wordmark">
@@ -5315,18 +5314,6 @@ function App() {
               )}
               {showSecondaryTopActions && (
               <button
-                aria-pressed={displayDensity === "comfortable"}
-                className={`view-density-button ${displayDensity === "comfortable" ? "active" : ""}`}
-                onClick={() => setDisplayDensity((current) => current === "comfortable" ? "standard" : "comfortable")}
-                title={displayDensity === "comfortable" ? "기본 보기로 전환" : "넓게 보기로 전환"}
-                type="button"
-              >
-                <PanelRightOpen size={16} />
-                <span>{displayDensity === "comfortable" ? "기본" : "넓게"}</span>
-              </button>
-              )}
-              {showSecondaryTopActions && (
-              <button
                 className="icon-button"
                 onClick={() => setHasEnteredDashboard(false)}
                 type="button"
@@ -5399,15 +5386,6 @@ function App() {
                 tasks={tasks}
                 todayAgenda={todayAgenda}
               />
-            )}
-
-            {isSimpleTodayMode && (
-              <div className="simple-today-actions" aria-label="전체 업무 보기">
-                <button className="secondary-button" onClick={() => setIsWorkflowAreaOpen(true)} type="button">
-                  <ListChecks size={16} />
-                  전체 업무 보기
-                </button>
-              </div>
             )}
 
             {shouldShowWorkflowArea && (
@@ -8376,7 +8354,7 @@ function TagLibrary({ activeTags, canManageTags, filterControls = null, isOpen, 
             <Tag size={16} />
             태그
           </span>
-          <small>{`Category ${presets.length} · 태그 ${tags.length}`}</small>
+          <small>{`분류 ${presets.length} · 태그 ${tags.length}`}</small>
           {activeTags.length > 0 && <em>{activeTagLabel}</em>}
         </div>
         <div className="tag-library-head-actions">
@@ -8846,9 +8824,12 @@ function TaskListRow({ onSelect, selected, showOwner, task }) {
 
 function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEdit, onSelect, onStatusChange, pulsing, selected, showOwner, statusPulsing, task }) {
   const tags = taskTags(task);
-  const badges = taskBadges(task);
   const title = displayTaskTitle(task);
   const spot = isSpotTask(task);
+  const displayableTags = tags.filter((tag) => !(spot && tag === "스팟 업무"));
+  const visibleTags = displayableTags.slice(0, 1);
+  const hiddenTagCount = Math.max(0, displayableTags.length - visibleTags.length);
+  const cardStatusLabel = statusStickerLabels[task.status] ?? task.status;
   return (
     <article
       className={`task-card ${spot ? "spot-task-card" : ""} ${selected ? "selected" : ""} ${pulsing ? "is-select-pulsing" : ""} ${dragging ? "dragging" : ""}`}
@@ -8866,7 +8847,7 @@ function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEd
           <strong>{title}</strong>
           {task.recurring && <span className="recurring-icon-only" title="반복 업무">🔁</span>}
         </div>
-        <div className="card-chip-row">
+        <div className="card-meta-line">
           {spot ? (
             <span className="priority-square spot-work-chip" title="스팟 업무: 주간·월간 실적에 포함, 분기·년간 요약에서는 기본 제외">
               스팟
@@ -8874,16 +8855,16 @@ function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEd
           ) : (
             <span className={`priority-square priority-square-${task.priority}`}>{task.priority}</span>
           )}
-          <span className={`task-status-chip status-${task.status.replace("/", "")} ${statusPulsing ? "is-status-popping" : ""}`}>{statusStickerLabels[task.status] ?? task.status}</span>
-          {badges.map((badge) => (
-            <span className={`status-chip badge-${badge.tone}`} key={`${task.id}-${badge.label}`}>{badge.label}</span>
-          ))}
+          <span className={`task-status-chip status-${task.status.replace("/", "")} ${statusPulsing ? "is-status-popping" : ""}`}>{cardStatusLabel}</span>
         </div>
-        <div className="card-tag-row">
-          {tags.slice(0, 3).map((tag) => (
-            <span className={`tag-tone-${tagTone(tag)}`} key={`${task.id}-${tag}`}>{tag}</span>
-          ))}
-        </div>
+        {(visibleTags.length > 0 || hiddenTagCount > 0) && (
+          <div className="card-tag-row card-tag-row-compact">
+            {visibleTags.map((tag) => (
+              <span className={`tag-tone-${tagTone(tag)}`} key={`${task.id}-${tag}`}>{tag}</span>
+            ))}
+            {hiddenTagCount > 0 && <span className="tag-more-chip">+{hiddenTagCount}</span>}
+          </div>
+        )}
         <div className="card-owner-period">
           {showOwner && (
             <span className="owner-identity">

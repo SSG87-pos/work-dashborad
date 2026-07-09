@@ -9,7 +9,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 ## Design Principles
 
 - Personal-first entry, public team visibility.
-- Show the user's own daily briefing first; keep full team workflow one click away.
+- Show the user's own daily briefing first; keep the main workflow visible directly below it.
 - Prefer dense but readable operational layouts over marketing-style hero sections.
 - Use quiet surfaces, thin borders, compact chips, and clear hierarchy.
 - Avoid visual noise from too many colors, oversized stickers, or overly bold text.
@@ -60,7 +60,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - The title can be slightly larger than the surrounding toolbar controls, but should remain compact enough for 1366px desktop layouts.
 - Search input is compact; placeholder text should not dominate the page.
 - The top search should feel broad even though it stays visually quiet: it searches task title/description, tags, 담당자/배정자/작성자, status/priority, 상위 업무흐름, dates, checklist detail, update logs, change history, related links, 업무 노트/posts, attachment evidence text, and calendar event title/note/owner metadata where that view can use it.
-- The top bar may include a compact `넓게/기본` viewing-density toggle for demo-room and low-legibility monitor conditions. It should adjust readability and detail width without changing the dashboard's approved navigation, color, or card structure.
+- The simplified top bar should not expose a `넓게/기본` viewing-density toggle. Keep top actions limited to daily-use commands so the first screen does not feel like a control console.
 - On phone widths, secondary top-bar actions such as alert, density, home, and account detail can be hidden from the main row so `검색`, compact `🤖 AI`, and `업무 추가` stay touch-safe. The AI entry point should remain visible across responsive sizes.
 - Account button shows name and role only in the top bar, without a leading avatar/initial badge.
 - Admin indication belongs in the top account area, not in every team list row.
@@ -84,10 +84,10 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 ### Today Briefing
 
 - `오늘 브리핑` is the first meaningful screen.
-- For the simplified dashboard direction approved on 2026-07-09 and corrected after browser review, the first `나의 업무` screen should not add a four-button 작은 안내판 above the work list. It should show `오늘 브리핑`/오늘 할 일 first, then offer one quiet `전체 업무 보기` action for users who need board, filters, timeline, materials, mindmap, recurring work, or archive.
-- `전체 업무 보기` is intentionally a secondary action. It should help 40대 이상 and non-specialist users discover the fuller workflow without making the first screen look like another dashboard/control center. The duplicated four-card workflow summary (`내 진행 업무`, `3일 내 마감`, `지연 업무`, `완료 업무`) should stay hidden because it repeats the briefing.
-- On the default `나의 업무` first screen, keep persistent controls to the minimum: search, compact `AI`, account, `업무 추가`, and the quiet `전체 업무 보기` affordance. Keep the AI entry point visible, but use a quieter treatment than the full workflow toolbar. Hide secondary utilities such as density toggle and entry-return unless the user leaves the simple first-screen state; show notification only when there is unread work.
-- Keep the `전체 업무 보기` affordance as a button only; do not add adjacent helper text explaining that board/filter/timeline are hidden.
+- For the simplified dashboard direction approved on 2026-07-09 and corrected after browser review, the first `나의 업무` screen for 40대 이상/non-specialist users should not add a four-button 작은 안내판 above the work list and should not hide the workflow behind a separate `전체 업무 보기` action. It should show `오늘 브리핑`/오늘 할 일 first, then show the board/list/timeline workflow surface directly below it.
+- The duplicated four-card workflow summary (`내 진행 업무`, `3일 내 마감`, `지연 업무`, `완료 업무`) should stay hidden because it repeats the briefing. The workflow itself remains visible so users can immediately understand where tasks live.
+- On the default `나의 업무` first screen, keep persistent controls to the minimum: search, compact `AI`, account, `업무 추가`, and the visible workflow tabs/filters below the briefing. Keep the AI entry point visible, but use a quieter treatment than the full workflow toolbar. Hide secondary utilities such as density toggle and entry-return in the simple first-screen state; show notification only when there is unread work.
+- Do not add helper text explaining the board/filter/timeline area; the visible tabs, filters, and board should carry the meaning.
 - Hide the duplicated workspace team-member strip on the default first screen; the persistent sidebar team list is enough there.
 - Keep the visible briefing header minimal: show `오늘 브리핑` only. Do not show greeting/helper copy under it, and do not show count/status stickers such as `자동 선별 n건`.
 - Hide empty `오늘 일정` and empty `업무 Note`/`팀 체크` side widgets so the briefing list can use the width. Show those side widgets again only when they contain actual records.
@@ -153,6 +153,7 @@ Greetings:
 - Board cards do not show long description text; description belongs in task detail.
 - Owner initials must remain clear on team workflow cards.
 - `스팟 업무` marks short or one-time work. Board cards should use a subtle teal card edge and show one compact `스팟` chip in the top chip row. Do not duplicate `스팟` again in the card tag row.
+- Board cards in the simplified shell should avoid sticker buildup: show title first, then one compact priority/status row, then at most one visible tag plus a `+n` summary. Schedule urgency badges belong in briefing/detail, not as a stack of stickers inside the board card.
 - Board filters may include `스팟만 보기`; this filter is for board scanning only and should not replace status, tag, or owner filters.
 - If the user cannot manage the task, hide unavailable status controls instead of showing disabled gray controls.
 - Archive/edit actions stay grouped tightly.
