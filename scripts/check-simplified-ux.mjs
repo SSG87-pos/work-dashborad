@@ -69,7 +69,11 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   ".poslab-entry-visual",
   "radial-gradient(125% 125% at 36% 8%",
   ".entry-ai-panel",
-  ".poslab-lanyard-wrapper"
+  ".poslab-lanyard-wrapper",
+  "Simplified dashboard quiet-tone pass",
+  ".topbar h1",
+  ".dashboard-ai-button",
+  ".nav-list::before"
 ].forEach((text) => assertIncludes("src/styles.css", css, text));
 
 [
@@ -87,7 +91,8 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "button only",
   "Hide the duplicated workspace team-member strip",
   "hide empty `오늘 일정` and empty `업무 Note`/`팀 체크` side widgets",
-  "hide the round status emoji and tag chips"
+  "hide the round status emoji and tag chips",
+  "avoid decorative gradients and card shadows"
 ].forEach((text) => assertIncludes("DESIGN.md", design, text));
 
 console.log("Simplified UX contract check passed.");

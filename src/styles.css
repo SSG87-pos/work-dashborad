@@ -19502,3 +19502,80 @@ button.post-scope-chip svg {
     display: none !important;
   }
 }
+
+/* Simplified dashboard quiet-tone pass: reduce decorative color, gradients, and shadows. */
+.topbar h1 {
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033;
+  font-weight: 780 !important;
+}
+
+.dashboard-ai-button,
+.quiet-top-actions .dashboard-ai-button {
+  border-color: #dbe2ea !important;
+  background: #ffffff !important;
+  color: #243044 !important;
+  box-shadow: none !important;
+  font-weight: 720 !important;
+  transform: none !important;
+}
+
+.dashboard-ai-button:hover,
+.dashboard-ai-button.active,
+.quiet-top-actions .dashboard-ai-button:hover,
+.quiet-top-actions .dashboard-ai-button.active {
+  border-color: #b8c7d9 !important;
+  background: #f8fafc !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.account-button,
+.quiet-top-actions .account-button {
+  border-color: #dbe2ea !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.account-button:hover,
+.quiet-top-actions .account-button:hover {
+  border-color: #b8c7d9 !important;
+  background: #f8fafc !important;
+}
+
+.primary-button {
+  box-shadow: none !important;
+}
+
+.nav-list::before {
+  background: #f1f5f9 !important;
+  box-shadow: inset 3px 0 0 #2563eb !important;
+}
+
+.nav-list .nav-item.active,
+.nav-list .nav-item.active span,
+.nav-list .nav-item.active svg {
+  color: #172033 !important;
+}
+
+.team-stack .person-pill.selected {
+  border-color: #d6dde7 !important;
+  background: #f8fafc !important;
+  box-shadow: inset 2px 0 0 #64748b !important;
+}
+
+.briefing-panel,
+.card,
+.memo-card,
+.control-row,
+.task-card,
+.lane,
+.tag-library,
+.dashboard-ai-panel,
+.account-menu,
+.notification-panel {
+  box-shadow: none !important;
+}
