@@ -6135,6 +6135,10 @@ body[data-page="team"] .briefing-panel {
   gap: 12px;
 }
 
+.briefing-content.is-briefing-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .briefing-side {
   display: grid;
   grid-template-columns: 1.1fr 0.95fr 1fr;
@@ -6143,6 +6147,10 @@ body[data-page="team"] .briefing-panel {
   gap: 8px;
   border-left: 1px solid var(--line);
   padding-left: 12px;
+}
+
+.briefing-side.is-sparse {
+  grid-template-columns: minmax(220px, 1fr);
 }
 
 .briefing-side-section {

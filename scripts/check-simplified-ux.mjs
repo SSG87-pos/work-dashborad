@@ -27,6 +27,7 @@ const design = read("DESIGN.md");
   "자료/보고",
   "전체 업무 보기",
   "isSimpleTodayMode",
+  "is-briefing-only",
   "showDashboardAiButton",
   "const showDashboardAiButton = true",
   "showSecondaryTopActions",
@@ -83,7 +84,8 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "plain Korean",
   "profile/team-member emoji selection",
   "button only",
-  "Hide the duplicated workspace team-member strip"
+  "Hide the duplicated workspace team-member strip",
+  "hide empty `오늘 일정` and empty `업무 Note`/`팀 체크` side widgets"
 ].forEach((text) => assertIncludes("DESIGN.md", design, text));
 
 console.log("Simplified UX contract check passed.");

@@ -5385,6 +5385,7 @@ function App() {
                 briefing={briefing}
                 briefingFeedbackKey={briefingFeedbackKey}
                 briefingItems={briefingItems}
+                isSimpleTodayMode={isSimpleTodayMode}
                 isTeam={activePage === "team"}
                 onAddBriefingItem={addBriefingItem}
                 onDeleteBriefingItem={deleteBriefingItem}
@@ -7814,6 +7815,7 @@ function BriefingPanel({
   briefing,
   briefingFeedbackKey,
   briefingItems,
+  isSimpleTodayMode = false,
   isTeam,
   onAddBriefingItem,
   onDeleteBriefingItem,
@@ -7866,6 +7868,9 @@ function BriefingPanel({
   const activeItem = ["read", "edit"].includes(activeItemDialog?.mode)
     ? scopedItems.find((item) => item.id === activeItemDialog.itemId)
     : null;
+  const showAgendaSide = !isSimpleTodayMode || todayAgenda.length > 0;
+  const showCaptureSide = !isSimpleTodayMode || listItems.length > 0;
+  const showBriefingSide = showAgendaSide || showCaptureSide;
 
   function updateDraft(patch) {
     setDraft((current) => ({ ...current, ...patch }));
@@ -7943,7 +7948,7 @@ function BriefingPanel({
           <span className="panel-label">오늘 브리핑</span>
         </div>
       </div>
-      <div className="briefing-content" style={{ "--briefing-side-max-height": `${briefingSideMaxHeight}px` }}>
+      <div className={`briefing-content ${showBriefingSide ? "" : "is-briefing-only"}`} style={{ "--briefing-side-max-height": `${briefingSideMaxHeight}px` }}>
         <div className="briefing-list">
           {briefing.map((group) => (
             <button
@@ -7972,7 +7977,9 @@ function BriefingPanel({
             </button>
           ))}
         </div>
-        <aside className="briefing-side" aria-label="오늘 일정과 업무 Note">
+        {showBriefingSide && (
+        <aside className={`briefing-side ${showAgendaSide && showCaptureSide ? "" : "is-sparse"}`} aria-label="오늘 일정과 업무 Note">
+          {showAgendaSide && (
           <div className={`briefing-side-section today-agenda ${todayAgenda.length ? "" : "is-empty"}`}>
             <span className="panel-label">오늘 일정</span>
             {todayAgenda.length ? (
@@ -7991,6 +7998,8 @@ function BriefingPanel({
               <p className="agenda-empty-note">오늘 등록된 일정 없음</p>
             )}
           </div>
+          )}
+          {showCaptureSide && (
           <div className={`briefing-side-section briefing-capture ${isTeam ? "team-check" : "work-inbox"}`}>
             <div className="briefing-capture-head">
               <span className="panel-label">
@@ -8054,7 +8063,9 @@ function BriefingPanel({
               )}
             </div>
           </div>
+          )}
         </aside>
+        )}
       </div>
       {activeItemDialog && (
         <div className="briefing-item-dialog-layer" role="dialog" aria-label={activeItemDialog.mode === "read" ? "브리핑 항목 상세" : activeItemDialog.mode === "edit" ? "브리핑 항목 수정" : activeItemDialog.mode === "list" ? "브리핑 항목 전체 보기" : isTeam ? "팀 체크 추가" : "업무 Note 기록"}>
