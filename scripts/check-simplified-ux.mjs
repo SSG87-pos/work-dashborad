@@ -80,6 +80,9 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "border-radius: 9999px !important",
   "border-radius: 11px !important",
   "Apple sidebar refinement",
+  "Apple flattening pass",
+  "remove nested-card buildup",
+  ".main-column > .control-row",
   ".dashboard-ai-button",
   ".nav-list::before"
 ].forEach((text) => assertIncludes("src/styles.css", css, text));
@@ -95,6 +98,8 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "white sidebar",
   "38px pearl utility capsules",
   "44px pill search",
+  "Avoid nested-card buildup",
+  "Briefing rows should use separators rather than row cards",
   "`#0066cc` Action Blue",
   "`#f5f5f7`",
   "`#e0e0e0` hairlines",
