@@ -2,6 +2,12 @@
 
 ## Now
 
+- [ ] Implement simplified dashboard first-screen UX on `codex/simplified-dashboard-ux`.
+  - Direction: compact guidance strip plus immediately visible today work list.
+  - Guardrail: preserve existing task detail contexts, backend mode behavior, and workflow views.
+  - Apple-inspired operational scope: absorb only the restrained Action Blue, white/soft-gray surfaces, thin hairlines, readable body sizing, pill search/action grammar, and reduced decorative gradients/shadows from `DESIGN-apple.md`; do not convert the app into a product-gallery or marketing hero layout.
+  - Verification: `check:simplified-ux`, `check:summary-filter`, production build, and browser QA across desktop/tablet/phone.
+
 - [x] Add GitHub Pages static demo deployment for the current branch.
   - Branch: `codex/company-self-hosted-supabase-refresh`.
   - Files: `.github/workflows/pages-demo.yml`, `.env.pages-demo`, `vite.config.js`, `package.json`, `docs/github-pages-demo.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
