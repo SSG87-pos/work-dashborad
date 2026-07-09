@@ -5337,9 +5337,6 @@ function App() {
               </button>
               )}
               <button className="account-button" onClick={() => setIsAccountOpen(true)} type="button" title="계정 및 프로필">
-                <span className="profile-emoji" data-initials={initials(selectedPerson.name)} style={avatarStyle(selectedPerson)}>
-                  {initials(selectedPerson.name)}
-                </span>
                 <span className="account-identity">
                   <strong>{selectedPerson.name}</strong>
                   {selectedPerson.role !== "관리자" && <small>{roleLine(selectedPerson)}</small>}

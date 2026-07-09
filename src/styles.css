@@ -608,6 +608,7 @@ h1 {
 .account-button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   min-width: 142px;
   max-width: 190px;
@@ -616,8 +617,8 @@ h1 {
   border-radius: var(--radius);
   background: linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%);
   color: var(--text);
-  padding: 0 10px 0 8px;
-  text-align: left;
+  padding: 0 10px;
+  text-align: center;
   box-shadow: 0 5px 14px rgba(37, 99, 235, 0.07);
 }
 
@@ -651,6 +652,7 @@ h1 {
 .account-button .account-identity {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-width: 0;
   gap: 6px;
   max-width: 100%;
@@ -4676,11 +4678,18 @@ body {
   height: 38px;
 }
 
+.team-stack .person-pill {
+  justify-content: center;
+  text-align: center;
+}
+
 .person-pill .person-label {
   display: inline-flex;
   align-items: baseline;
+  justify-content: center;
   gap: 6px;
   min-width: 0;
+  text-align: center;
   white-space: nowrap;
 }
 
@@ -13382,13 +13391,16 @@ button.post-scope-chip svg {
 .account-button {
   height: 46px !important;
   align-items: center !important;
+  justify-content: center !important;
   overflow: visible !important;
   padding-top: 4px !important;
   padding-bottom: 4px !important;
+  text-align: center !important;
 }
 
 .account-button .account-identity {
   align-items: center !important;
+  justify-content: center !important;
   height: auto !important;
   min-height: 20px !important;
   overflow: visible !important;
@@ -13776,7 +13788,7 @@ button.post-scope-chip svg {
   max-width: 154px !important;
   height: 40px !important;
   gap: 7px !important;
-  padding: 3px 9px 3px 7px !important;
+  padding: 3px 10px !important;
 }
 
 .account-button .profile-emoji {
@@ -13787,6 +13799,7 @@ button.post-scope-chip svg {
 
 .account-button .account-identity {
   flex: 0 1 auto;
+  justify-content: center;
   max-width: 104px;
 }
 
@@ -14174,6 +14187,8 @@ button.post-scope-chip svg {
 
 .person-pill .person-label {
   gap: 4px !important;
+  justify-content: center !important;
+  text-align: center !important;
 }
 
 .team-stack .person-pill .person-label strong {

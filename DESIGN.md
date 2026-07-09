@@ -48,7 +48,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Navigation text must be readable and moderately weighted.
 - Team list order is `그룹장`, `팀장`, then 가나다 order.
 - Team list label should be plain Korean such as `팀원`, not English product copy.
-- Team member row shows name and role only, without emoji/avatar/initial badges.
+- Team member row shows centered name and role only, without emoji/avatar/initial badges; treat it as a centered team selector, not a profile/avatar surface.
 - Selected team member should feel active but not flashy.
 
 ### Top Bar
@@ -59,7 +59,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - The top search should feel broad even though it stays visually quiet: it searches task title/description, tags, 담당자/배정자/작성자, status/priority, 상위 업무흐름, dates, checklist detail, update logs, change history, related links, 업무 노트/posts, attachment evidence text, and calendar event title/note/owner metadata where that view can use it.
 - The top bar may include a compact `넓게/기본` viewing-density toggle for demo-room and low-legibility monitor conditions. It should adjust readability and detail width without changing the dashboard's approved navigation, color, or card structure.
 - On phone widths, secondary top-bar actions such as alert, density, home, and account detail can be hidden from the main row so `검색`, compact `🤖 AI`, and `업무 추가` stay touch-safe. The AI entry point should remain visible across responsive sizes.
-- Account button shows initials/profile, name, and role on one line when possible.
+- Account button shows name and role only in the top bar, without a leading avatar/initial badge.
 - Admin indication belongs in the top account area, not in every team list row.
 - Account modal stays focused on account switching and personal profile edits.
 - Admin-only operational management belongs in the sidebar `관리자` tab, not inside the account modal.
@@ -127,7 +127,7 @@ Greetings:
 ## Emoji Picker Contract
 
 - Emoji selection is a shared interaction for `업무 Note` body text, calendar notes, and update logs.
-- Do not expose profile/team-member emoji selection in the simplified dashboard shell; people should be identified by initials, name, and role.
+- Do not expose profile/team-member emoji selection in the simplified dashboard shell; the sidebar team selector and top account button should stay text-first and avoid avatar/initial badges.
 - The shared picker now uses `emoji-picker-react` for the full emoji set, search, categories, and recent emojis.
 - Load the picker only when the popover opens, so the main dashboard bundle stays light.
 - Use native emoji rendering rather than image/CDN emoji styles for company-network reliability.

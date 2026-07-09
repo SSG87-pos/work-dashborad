@@ -36,8 +36,7 @@ const design = read("DESIGN.md");
   "workspace-team-strip",
   "<span className=\"panel-label\">팀원</span>",
   "aria-label=\"오늘 브리핑\"",
-  "이름과 직책은 팀 구성과 계정 버튼에 바로 반영됩니다.",
-  "{initials(selectedPerson.name)}"
+  "이름과 직책은 팀 구성과 계정 버튼에 바로 반영됩니다."
 ].forEach((text) => assertIncludes("src/App.jsx", app, text));
 
 if (app.includes("shouldShowWorkflowSummary")) {
@@ -55,6 +54,7 @@ if (app.includes("shouldShowWorkflowSummary")) {
   "이름, 직책, 이모지는 팀 구성과 계정 버튼에 바로 반영됩니다.",
   "보드, 필터, 타임라인은 필요할 때만 엽니다.",
   "data-initials={initials(person.name)}",
+  "data-initials={initials(selectedPerson.name)}",
   "Team Members"
 ].forEach((text) => assertNotIncludes("src/App.jsx", app, text));
 
@@ -79,6 +79,7 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "Apple-inspired operational",
   "name and role only",
   "without avatar/initial badges",
+  "centered team selector",
   "plain Korean",
   "profile/team-member emoji selection",
   "button only",
