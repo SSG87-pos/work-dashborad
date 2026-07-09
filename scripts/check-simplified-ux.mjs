@@ -32,9 +32,11 @@ const design = read("DESIGN.md");
   "showSecondaryTopActions",
   "shouldShowWorkflowArea",
   "setIsWorkflowAreaOpen(false)",
+  "!isSimpleTodayMode && (",
+  "workspace-team-strip",
+  "<span className=\"panel-label\">팀원</span>",
   "aria-label=\"오늘 브리핑\"",
   "이름과 직책은 팀 구성과 계정 버튼에 바로 반영됩니다.",
-  "{initials(person.name)}",
   "{initials(selectedPerson.name)}"
 ].forEach((text) => assertIncludes("src/App.jsx", app, text));
 
@@ -51,7 +53,9 @@ if (app.includes("shouldShowWorkflowSummary")) {
   "onUpdateEmoji",
   "updateProfileEmoji",
   "이름, 직책, 이모지는 팀 구성과 계정 버튼에 바로 반영됩니다.",
-  "보드, 필터, 타임라인은 필요할 때만 엽니다."
+  "보드, 필터, 타임라인은 필요할 때만 엽니다.",
+  "data-initials={initials(person.name)}",
+  "Team Members"
 ].forEach((text) => assertNotIncludes("src/App.jsx", app, text));
 
 assertNotIncludes("src/styles.css", css, "briefing-chip");
@@ -73,9 +77,12 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "전체 업무 보기",
   "40대",
   "Apple-inspired operational",
-  "quiet initials badge",
+  "name and role only",
+  "without avatar/initial badges",
+  "plain Korean",
   "profile/team-member emoji selection",
-  "button only"
+  "button only",
+  "Hide the duplicated workspace team-member strip"
 ].forEach((text) => assertIncludes("DESIGN.md", design, text));
 
 console.log("Simplified UX contract check passed.");

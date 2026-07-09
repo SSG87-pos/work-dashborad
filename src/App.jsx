@@ -5187,7 +5187,7 @@ function App() {
           )}
         </nav>
         <div className="team-stack">
-          <span className="panel-label">Team Members</span>
+          <span className="panel-label">팀원</span>
           {teamMembers.map((person) => (
             <button
               className={`person-pill ${selectedPersonId === person.id ? "selected" : ""} ${teamMemberPulseId === person.id ? "is-pulsing" : ""}`}
@@ -5195,9 +5195,6 @@ function App() {
               onClick={() => changePerson(person.id)}
               type="button"
             >
-              <span className="profile-emoji" data-initials={initials(person.name)} style={avatarStyle(person)}>
-                {initials(person.name)}
-              </span>
               <span className="person-label">
                 <strong>{person.name}</strong>
                 <small>{person.role}</small>
@@ -5365,25 +5362,24 @@ function App() {
             />
           </label>
         </header>
-        <div className="team-stack workspace-team-strip" aria-label="팀 멤버">
-          <span className="panel-label">Team Members</span>
-          {teamMembers.map((person) => (
-            <button
-              className={`person-pill ${selectedPersonId === person.id ? "selected" : ""} ${teamMemberPulseId === person.id ? "is-pulsing" : ""}`}
-              key={`workspace-${person.id}`}
-              onClick={() => changePerson(person.id)}
-              type="button"
-            >
-              <span className="profile-emoji" data-initials={initials(person.name)} style={avatarStyle(person)}>
-                {initials(person.name)}
-              </span>
-              <span className="person-label">
-                <strong>{person.name}</strong>
-                <small>{person.role}</small>
-              </span>
-            </button>
-          ))}
-        </div>
+        {!isSimpleTodayMode && (
+          <div className="team-stack workspace-team-strip" aria-label="팀 멤버">
+            <span className="panel-label">팀원</span>
+            {teamMembers.map((person) => (
+              <button
+                className={`person-pill ${selectedPersonId === person.id ? "selected" : ""} ${teamMemberPulseId === person.id ? "is-pulsing" : ""}`}
+                key={`workspace-${person.id}`}
+                onClick={() => changePerson(person.id)}
+                type="button"
+              >
+                <span className="person-label">
+                  <strong>{person.name}</strong>
+                  <small>{person.role}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         <section className={`dashboard-grid ${activeView === "timeline" ? "timeline-layout" : ""} ${fullPageViews.includes(activeView) ? "calendar-layout" : ""} ${activeView === "admin" ? "admin-layout" : ""} ${isWorkflowDetailContext ? "workflow-detail-mode" : ""} ${isBriefingDetailContext ? "briefing-detail-mode" : ""}`}>
           <div className="main-column">

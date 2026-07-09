@@ -20,7 +20,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Korean text should break by word, not inside words, whenever possible.
 - Desktop and tablet remain the primary work surfaces, but phone layout must stay usable for quick checking, filtering, reading detail, and lightweight updates without page-level horizontal overflow.
 - Common notebook layouts should treat Notebook L at 100 percent browser zoom as a desktop baseline. Notebook L at roughly 81 percent can be used as a density reference, but the app should not require users to zoom out to avoid tablet-style composition. Keep desktop and landscape-tablet composition until about 980px, then apply tablet/portrait compaction below that point.
-- Phone layout is intentionally more selective than desktop/tablet: keep the top area to search plus primary task creation, compress insight cards to number/label chips, show team members as initial-only selectors, hide the long personal greeting, hide briefing side widgets and advanced workflow filters by default, and shorten briefing/task/update cards so mobile users can reach the actual work faster. Calendar should prioritize month/event checking on phone while keeping schedule registration behind a compact collapsed `일정등록` action, and Highlights should prioritize report/read surfaces over export/copy controls.
+- Phone layout is intentionally more selective than desktop/tablet: keep the top area to search plus primary task creation, compress insight cards to number/label chips, show team members as short name selectors without avatar/initial badges, hide the long personal greeting, hide briefing side widgets and advanced workflow filters by default, and shorten briefing/task/update cards so mobile users can reach the actual work faster. Calendar should prioritize month/event checking on phone while keeping schedule registration behind a compact collapsed `일정등록` action, and Highlights should prioritize report/read surfaces over export/copy controls.
 - On phone widths, show team members only once in the top navigation area as equal short-name chips, matching the portrait-tablet name-chip behavior; do not repeat the workspace team strip below the title/search area.
 
 ## Current Layout Contract
@@ -47,7 +47,8 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Brand mark uses a meaningful simple symbol, not a generic text square.
 - Navigation text must be readable and moderately weighted.
 - Team list order is `그룹장`, `팀장`, then 가나다 order.
-- Team member row shows a quiet initials badge, name, and role on one line when space allows.
+- Team list label should be plain Korean such as `팀원`, not English product copy.
+- Team member row shows name and role only, without emoji/avatar/initial badges.
 - Selected team member should feel active but not flashy.
 
 ### Top Bar
@@ -84,6 +85,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - `전체 업무 보기` is intentionally a secondary action. It should help 40대 이상 and non-specialist users discover the fuller workflow without making the first screen look like another dashboard/control center. The duplicated four-card workflow summary (`내 진행 업무`, `3일 내 마감`, `지연 업무`, `완료 업무`) should stay hidden because it repeats the briefing.
 - On the default `나의 업무` first screen, keep persistent controls to the minimum: search, compact `AI`, account, `업무 추가`, and the quiet `전체 업무 보기` affordance. Keep the AI entry point visible, but use a quieter treatment than the full workflow toolbar. Hide secondary utilities such as density toggle and entry-return unless the user leaves the simple first-screen state; show notification only when there is unread work.
 - Keep the `전체 업무 보기` affordance as a button only; do not add adjacent helper text explaining that board/filter/timeline are hidden.
+- Hide the duplicated workspace team-member strip on the default first screen; the persistent sidebar team list is enough there.
 - Keep the visible briefing header minimal: show `오늘 브리핑` only. Do not show greeting/helper copy under it, and do not show count/status stickers such as `자동 선별 n건`.
 - Use plain Korean labels over product jargon. Top-level user-facing navigation should prefer `나의 업무`, `팀 업무`, `일정`, and `자료/보고` over English labels where practical.
 - Legacy top insight cards should not render on the simplified `나의 업무` workflow because they duplicate `오늘 브리핑`. If a future screen reintroduces summary filters, they should stay number-first, compact, and secondary to the briefing.
