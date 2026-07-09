@@ -10,6 +10,12 @@ function assertIncludes(file, source, expected) {
   }
 }
 
+function assertNotIncludes(file, source, unexpected) {
+  if (source.includes(unexpected)) {
+    throw new Error(`${file} still includes removed text: ${unexpected}`);
+  }
+}
+
 const app = read("src/App.jsx");
 const css = read("src/styles.css");
 const design = read("DESIGN.md");
@@ -24,12 +30,22 @@ const design = read("DESIGN.md");
   "showSecondaryTopActions",
   "showDashboardAiButton",
   "shouldShowWorkflowArea",
-  "setIsWorkflowAreaOpen(false)"
+  "setIsWorkflowAreaOpen(false)",
+  "aria-label=\"오늘 브리핑\""
 ].forEach((text) => assertIncludes("src/App.jsx", app, text));
 
 if (app.includes("shouldShowWorkflowSummary")) {
   throw new Error("src/App.jsx should not render the duplicated workflow summary cards.");
 }
+
+[
+  "자동 선별",
+  "팀 전체 오늘 업무 흐름",
+  "personalBriefingGreeting(briefing)",
+  "briefing-chip"
+].forEach((text) => assertNotIncludes("src/App.jsx", app, text));
+
+assertNotIncludes("src/styles.css", css, "briefing-chip");
 
 [
   ".simple-today-actions",

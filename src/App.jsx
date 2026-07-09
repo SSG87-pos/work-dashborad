@@ -7882,10 +7882,8 @@ function BriefingPanel({
   const defaultNoteTaskId = noteLinkTasks[0]?.id || NOTE_OTHER_TASK_ID;
   const [draft, setDraft] = useState({ type: defaultNoteType, taskId: defaultNoteTaskId, title: "", body: "", url: "", status: "new" });
   const [activeItemDialog, setActiveItemDialog] = useState(null);
-  const itemCount = briefing.reduce((sum, group) => sum + group.tasks.length, 0);
   const briefingUnits = briefing.reduce((sum, group) => sum + Math.max(1, group.tasks.length), 0);
   const briefingSideMaxHeight = Math.min(360, Math.max(172, 58 + briefingUnits * 38));
-  const greeting = personalBriefingGreeting(briefing);
   const pageScope = isTeam ? "team" : "my";
   const scopedItems = briefingItems
     .filter((item) => {
@@ -7974,6 +7972,7 @@ function BriefingPanel({
   return (
     <motion.section
       animate={{ opacity: 1, y: 0 }}
+      aria-label="오늘 브리핑"
       className="briefing-panel"
       initial={{ opacity: 0, y: 10 }}
       transition={{ duration: 0.24 }}
@@ -7981,11 +7980,6 @@ function BriefingPanel({
       <div className="section-heading">
         <div>
           <span className="panel-label">오늘 브리핑</span>
-          <h2>{isTeam ? "팀 전체 오늘 업무 흐름" : `${selectedPerson.name}님, ${greeting}`}</h2>
-        </div>
-        <div className="briefing-chip">
-          <Sparkles size={16} />
-          자동 선별 {itemCount}건
         </div>
       </div>
       <div className="briefing-content" style={{ "--briefing-side-max-height": `${briefingSideMaxHeight}px` }}>

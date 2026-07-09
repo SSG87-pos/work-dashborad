@@ -1536,19 +1536,6 @@ h1 {
   font-size: 17px;
 }
 
-.briefing-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid rgba(15, 148, 136, 0.2);
-  color: #0f766e;
-  background: #ecfdf5;
-  padding: 8px 10px;
-  border-radius: var(--radius);
-  font-size: 13px;
-  font-weight: 800;
-}
-
 .briefing-list {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -4835,14 +4822,6 @@ h1 {
 
 .section-heading h2 {
   font-size: 16px;
-}
-
-.briefing-chip {
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 6px;
-  background: #ecfdf5;
-  font-size: 12px;
 }
 
 .briefing-list {
@@ -18838,10 +18817,6 @@ button.post-scope-chip svg {
   }
 
   .briefing-panel .section-heading h2 {
-    display: none !important;
-  }
-
-  .briefing-chip {
     display: none !important;
   }
 
