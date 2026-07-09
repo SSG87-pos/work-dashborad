@@ -14233,6 +14233,112 @@ button.post-scope-chip svg {
   }
 }
 
+/* Header title-bar polish: use a frosted app toolbar, not a floating color block. */
+.quiet-topbar {
+  position: relative !important;
+  isolation: isolate !important;
+  gap: 0 !important;
+  margin: -22px -20px 18px !important;
+  padding: 0 20px !important;
+  border-bottom: 0 !important;
+  background: transparent !important;
+}
+
+.quiet-topbar::before {
+  content: "" !important;
+  position: absolute !important;
+  z-index: -1 !important;
+  top: 0 !important;
+  right: 0 !important;
+  left: 0 !important;
+  height: 64px !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+  background: rgba(245, 246, 248, 0.96) !important;
+  backdrop-filter: saturate(150%) blur(18px) !important;
+}
+
+.quiet-topbar .topbar-title-row {
+  min-height: 64px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.quiet-topbar .top-search {
+  width: min(420px, 52vw) !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  margin: 8px 0 0 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  background: #ffffff !important;
+}
+
+.quiet-topbar .quiet-top-actions {
+  gap: 8px !important;
+}
+
+.quiet-topbar .quiet-top-actions .dashboard-ai-button,
+.quiet-topbar .quiet-top-actions .account-button,
+.quiet-topbar .quiet-top-actions .primary-button {
+  justify-content: center !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  border-radius: 9999px !important;
+  padding: 0 12px !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+}
+
+.quiet-topbar .quiet-top-actions .dashboard-ai-button {
+  flex: 0 0 78px !important;
+  width: 78px !important;
+  min-width: 78px !important;
+  max-width: 78px !important;
+  border-color: rgba(0, 102, 204, 0.24) !important;
+  background: #f5faff !important;
+  color: var(--apple-action-blue) !important;
+  font-weight: 700 !important;
+}
+
+.quiet-topbar .quiet-top-actions .dashboard-ai-button span {
+  font-size: 14px !important;
+}
+
+.quiet-topbar .quiet-top-actions .dashboard-ai-button strong {
+  font-weight: 700 !important;
+}
+
+.quiet-topbar .quiet-top-actions .account-button {
+  flex: 0 0 98px !important;
+  width: 98px !important;
+  min-width: 98px !important;
+  max-width: 98px !important;
+}
+
+.quiet-topbar .quiet-top-actions .primary-button {
+  flex: 0 0 106px !important;
+  width: 106px !important;
+  min-width: 106px !important;
+  max-width: 106px !important;
+}
+
+.quiet-topbar .quiet-top-actions .account-button .account-identity {
+  align-items: center !important;
+  min-width: 0 !important;
+  text-align: center !important;
+}
+
+.quiet-topbar .quiet-top-actions .account-button strong,
+.quiet-topbar .quiet-top-actions .account-button small {
+  max-width: 72px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
 .calendar-events button {
   grid-template-columns: auto minmax(0, 1fr) auto !important;
   row-gap: 2px !important;
@@ -19549,7 +19655,7 @@ button.post-scope-chip svg {
   --apple-action-blue-focus: #0071e3;
   --apple-ink: #1d1d1f;
   --apple-muted: #7a7a7a;
-  --apple-parchment: #f5f5f7;
+  --apple-parchment: #fbfcff;
   --apple-pearl: #fafafc;
   --apple-hairline: #e0e0e0;
 }
@@ -19786,11 +19892,12 @@ body {
 /* Apple component scale pass: use the reference's surface rhythm, button grammar, and spacing more fully. */
 :root {
   --apple-divider-soft: #f0f0f0;
-  --apple-sidebar: #ffffff;
+  --apple-sidebar: #f6f7f9;
 }
 
 .sidebar {
   background: var(--apple-sidebar) !important;
+  border-right-color: rgba(15, 23, 42, 0.08) !important;
 }
 
 .workspace,
@@ -20091,8 +20198,8 @@ body {
 .briefing-panel .section-heading {
   min-height: 0 !important;
   margin-bottom: 8px !important;
-  padding-bottom: 10px !important;
-  border-bottom: 1px solid var(--apple-divider-soft) !important;
+  padding-bottom: 0 !important;
+  border-bottom: 0 !important;
 }
 
 .briefing-panel .section-heading > div {
@@ -20799,6 +20906,14 @@ body {
   background: #ef4444 !important;
 }
 
+.task-card.spot-task-card {
+  border-color: #b8e7df !important;
+}
+
+.task-card.spot-task-card::before {
+  background: #14b8a6 !important;
+}
+
 .task-card .card-main {
   gap: 0 !important;
 }
@@ -20832,6 +20947,13 @@ body {
   border-color: #cfe0f4 !important;
   background: #f5faff !important;
   color: var(--apple-action-blue) !important;
+}
+
+.task-card .card-meta-line .spot-work-chip,
+.task-list-chip-line .spot-work-chip {
+  border-color: #99f6e4 !important;
+  background: #ecfeff !important;
+  color: #0f766e !important;
 }
 
 .task-card .card-meta-line .task-status-chip.status-검토대기 {
@@ -20894,4 +21016,346 @@ body {
 
 .task-card .progress-wrap {
   margin-top: 7px !important;
+}
+
+/* Workflow continuity polish: connect tabs, filters, and board into one clear work surface. */
+.main-column > .control-row {
+  min-height: 50px !important;
+  border-color: #cfe0f4 !important;
+  border-bottom: 0 !important;
+  background: #ffffff !important;
+  margin-bottom: -14px !important;
+  padding: 9px 12px 7px !important;
+}
+
+.main-column > .tag-library {
+  border-color: #cfe0f4 !important;
+  border-top: 1px solid #edf4fb !important;
+  border-bottom: 0 !important;
+  background: #ffffff !important;
+  margin-bottom: -14px !important;
+  padding: 0 12px 8px !important;
+}
+
+.control-row .segmented {
+  min-height: 36px !important;
+  height: 36px !important;
+  border: 1px solid #c8d9ee !important;
+  background: #e8f2fd !important;
+  padding: 4px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.control-row .segmented button {
+  min-height: 28px !important;
+  color: #405266 !important;
+  padding: 0 12px !important;
+  font-weight: 650 !important;
+}
+
+.control-row .segmented button.active {
+  border-color: rgba(0, 102, 204, 0.22) !important;
+  background: #ffffff !important;
+  color: var(--apple-action-blue) !important;
+  box-shadow: 0 1px 3px rgba(0, 76, 153, 0.14) !important;
+}
+
+.tag-library-head {
+  border-top: 1px solid #edf4fb !important;
+  border-bottom: 1px solid #edf4fb !important;
+}
+
+.tag-library-title span {
+  color: #34475c !important;
+}
+
+.workflow-filter-row .filter-select,
+.workflow-filter-row .tag-library-toggle {
+  border-color: #d9e6f4 !important;
+  background: #ffffff !important;
+}
+
+.board-view,
+.task-list-view,
+.timeline-view,
+.recurring-view {
+  border-color: #d8e4f0 !important;
+  background: #ffffff !important;
+  padding: 10px 12px 16px !important;
+}
+
+.board-view.is-comparison-mode {
+  align-items: start !important;
+}
+
+.status-guide {
+  border-color: #e3edf8 !important;
+  background: #ffffff !important;
+}
+
+.board-view.is-comparison-mode .status-lane {
+  display: flex !important;
+  flex-direction: column !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.board-view.is-comparison-mode .lane-stack {
+  align-content: start !important;
+  align-items: start !important;
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+}
+
+.board-view.is-comparison-mode .lane-stack .task-card {
+  align-self: start !important;
+  height: auto !important;
+}
+
+.board-view.is-comparison-mode .lane-stack .task-card .card-main {
+  height: auto !important;
+}
+
+.status-lane.is-collapsed,
+.board-view.is-comparison-mode .status-lane.is-collapsed {
+  align-self: start !important;
+  height: auto !important;
+  min-height: 42px !important;
+  padding: 7px 8px !important;
+}
+
+.status-lane.is-collapsed .lane-header,
+.board-view.is-comparison-mode .status-lane.is-collapsed .lane-header {
+  min-height: 28px !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  border-bottom: 0 !important;
+}
+
+.status-lane.is-collapsed .lane-stack,
+.board-view.is-comparison-mode .status-lane.is-collapsed .lane-stack {
+  display: none !important;
+  min-height: 0 !important;
+}
+
+.task-card {
+  border-color: #d7e2ee !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06) !important;
+}
+
+.task-card .card-meta-line {
+  gap: 6px !important;
+}
+
+.task-card .card-meta-line .priority-square,
+.task-card .card-meta-line .status-chip {
+  min-height: 21px !important;
+  height: 21px !important;
+  padding: 0 7px !important;
+  font-size: 10.5px !important;
+  font-weight: 650 !important;
+}
+
+.task-card .card-tag-row-compact {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 4px 8px !important;
+  margin-top: 8px !important;
+  padding-top: 7px !important;
+  border-top: 1px solid #edf2f7 !important;
+  color: #5f7083 !important;
+}
+
+.task-card .card-tag-row-compact .card-tag-text,
+.task-card .card-tag-row-compact .card-tag-more {
+  min-height: 0 !important;
+  height: auto !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  color: #5c6b7c !important;
+  font-size: 10.75px !important;
+  font-weight: 520 !important;
+  line-height: 1.35 !important;
+}
+
+.task-card .card-tag-row-compact .card-tag-more {
+  color: var(--apple-action-blue) !important;
+  font-weight: 650 !important;
+}
+
+/* Simple shell separation and compact board-card rhythm. */
+
+.quiet-top-actions {
+  align-items: center !important;
+}
+
+.quiet-top-actions .dashboard-ai-button,
+.quiet-top-actions .account-button,
+.quiet-top-actions .primary-button {
+  min-height: 44px !important;
+  height: 44px !important;
+  border-radius: 9999px !important;
+}
+
+.quiet-top-actions .dashboard-ai-button,
+.quiet-top-actions .account-button {
+  padding: 0 14px !important;
+}
+
+.quiet-top-actions .primary-button {
+  padding: 0 20px !important;
+  font-size: 14px !important;
+}
+
+.sidebar .team-stack {
+  border-top: 1px solid #edf1f6 !important;
+  padding-top: 16px !important;
+}
+
+.sidebar .team-stack .panel-label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  color: #7b8797 !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+}
+
+.sidebar .team-stack .panel-label::after {
+  content: "" !important;
+  flex: 1 1 auto !important;
+  height: 1px !important;
+  background: #eef2f7 !important;
+}
+
+.briefing-content {
+  grid-template-columns: minmax(0, 56fr) minmax(0, 44fr) !important;
+}
+
+.briefing-side {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.briefing-side-section {
+  min-height: 112px !important;
+}
+
+.agenda-empty-note,
+.briefing-capture-empty {
+  color: #8a97a6 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+.task-card {
+  padding: 0 !important;
+}
+
+.task-card .card-main {
+  padding: 11px 12px 10px 15px !important;
+}
+
+.task-card .card-title-row {
+  margin-bottom: 6px !important;
+}
+
+.task-card .card-meta-line {
+  gap: 5px !important;
+}
+
+.task-card .card-owner-period,
+.task-card .progress-wrap {
+  margin-top: 6px !important;
+}
+
+.task-card .card-tag-row-compact {
+  margin-top: 6px !important;
+  padding-top: 6px !important;
+}
+
+.task-card .card-meta-line .priority-square-높음 {
+  border-color: #ffd6de !important;
+  background: #fff5f7 !important;
+  color: #b4234a !important;
+}
+
+.task-card .card-meta-line .priority-square-보통 {
+  border-color: #dce7ff !important;
+  background: #f1f6ff !important;
+  color: #2457bf !important;
+}
+
+.task-card .card-meta-line .priority-square-낮음 {
+  border-color: #e2e8f0 !important;
+  background: #f8fafc !important;
+  color: #526070 !important;
+}
+
+@media (min-width: 981px) and (max-width: 1240px) {
+  .briefing-content {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .briefing-side {
+    border-left: 0 !important;
+    border-top: 1px solid var(--apple-divider-soft) !important;
+    padding-left: 0 !important;
+    padding-top: 12px !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .quiet-topbar {
+    margin: 0 0 14px !important;
+    padding: 0 !important;
+  }
+
+  .quiet-topbar::before {
+    right: -12px !important;
+    left: -12px !important;
+    height: 58px !important;
+  }
+
+  .quiet-topbar .topbar-title-row {
+    display: contents !important;
+    min-height: 0 !important;
+  }
+
+  .quiet-topbar h1 {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .quiet-topbar .top-search {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 8px 0 0 !important;
+  }
+
+  .quiet-topbar .quiet-top-actions {
+    grid-template-columns: 96px 106px !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+
+  .quiet-topbar .quiet-top-actions .dashboard-ai-button,
+  .quiet-topbar .quiet-top-actions .primary-button {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .quiet-topbar .quiet-top-actions .dashboard-ai-button {
+    width: 96px !important;
+    min-width: 96px !important;
+    max-width: 96px !important;
+  }
+
+  .quiet-topbar .quiet-top-actions .primary-button {
+    width: 106px !important;
+    min-width: 106px !important;
+    max-width: 106px !important;
+  }
 }

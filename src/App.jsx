@@ -5051,10 +5051,11 @@ function App() {
   const isWorkflowDetailContext = hasTaskDetail && !fullPageViews.includes(activeView) && detailContext === "workflow";
   const isBriefingDetailContext = isDetailOpen && !fullPageViews.includes(activeView) && detailContext === "briefing";
   const isSimpleTodayMode = activePage === "my" && activeView === "board" && !summaryFilter && !query;
+  const isQuietDashboardShell = true;
   const shouldShowWorkflowArea = !fullPageViews.includes(activeView);
-  const showNotificationButton = !isSimpleTodayMode || unreadNotificationCount > 0 || isNotificationPanelOpen;
+  const showNotificationButton = unreadNotificationCount > 0 || isNotificationPanelOpen;
   const showDashboardAiButton = true;
-  const showSecondaryTopActions = !isSimpleTodayMode;
+  const showSecondaryTopActions = false;
 
   function focusTodayWork() {
     setActivePage("my");
@@ -5217,10 +5218,10 @@ function App() {
             <span>{syncNotice}</span>
           </div>
         )}
-        <header className={`topbar ${isSimpleTodayMode ? "quiet-topbar" : ""}`}>
+        <header className={`topbar ${isQuietDashboardShell ? "quiet-topbar" : ""}`}>
           <div className="topbar-title-row">
             <h1>Strategy Work Hub</h1>
-            <div className={`top-actions ${isSimpleTodayMode ? "quiet-top-actions" : ""}`}>
+            <div className={`top-actions ${isQuietDashboardShell ? "quiet-top-actions" : ""}`}>
               {showNotificationButton && (
                 <div className="notification-menu">
                   <button
@@ -5496,7 +5497,7 @@ function App() {
                 <BoardView
                   canManageTask={(task) => canManageTaskFor(task, selectedPersonId)}
                   counts={counts}
-                  defaultExpanded={activePage === "my"}
+                  defaultExpanded={activePage === "my" ? "nonEmpty" : false}
                   onEdit={(task) => openTaskEditor(task)}
                   onArchive={(task) => toggleArchive(task.id, true)}
                   onSelect={(taskId) => selectTask(taskId, "workflow")}
@@ -7853,9 +7854,9 @@ function BriefingPanel({
   const activeItem = ["read", "edit"].includes(activeItemDialog?.mode)
     ? scopedItems.find((item) => item.id === activeItemDialog.itemId)
     : null;
-  const showAgendaSide = todayAgenda.length > 0;
-  const showCaptureSide = listItems.length > 0;
-  const showBriefingSide = showAgendaSide || showCaptureSide;
+  const showAgendaSide = true;
+  const showCaptureSide = true;
+  const showBriefingSide = true;
 
   function updateDraft(patch) {
     setDraft((current) => ({ ...current, ...patch }));
@@ -7962,9 +7963,7 @@ function BriefingPanel({
             </button>
           ))}
         </div>
-        {showBriefingSide && (
         <aside className={`briefing-side ${showAgendaSide && showCaptureSide ? "" : "is-sparse"}`} aria-label="오늘 일정과 업무 Note">
-          {showAgendaSide && (
           <div className={`briefing-side-section today-agenda ${todayAgenda.length ? "" : "is-empty"}`}>
             <span className="panel-label">오늘 일정</span>
             {todayAgenda.length ? (
@@ -7983,8 +7982,6 @@ function BriefingPanel({
               <p className="agenda-empty-note">오늘 등록된 일정 없음</p>
             )}
           </div>
-          )}
-          {showCaptureSide && (
           <div className={`briefing-side-section briefing-capture ${isTeam ? "team-check" : "work-inbox"}`}>
             <div className="briefing-capture-head">
               <span className="panel-label">
@@ -8048,9 +8045,7 @@ function BriefingPanel({
               )}
             </div>
           </div>
-          )}
         </aside>
-        )}
       </div>
       {activeItemDialog && (
         <div className="briefing-item-dialog-layer" role="dialog" aria-label={activeItemDialog.mode === "read" ? "브리핑 항목 상세" : activeItemDialog.mode === "edit" ? "브리핑 항목 수정" : activeItemDialog.mode === "list" ? "브리핑 항목 전체 보기" : isTeam ? "팀 체크 추가" : "업무 Note 기록"}>
@@ -8623,7 +8618,7 @@ function BoardView({ canManageTask, counts, defaultExpanded = false, onArchive, 
     setExpandedStatuses((current) => ({ ...current, [status]: !current[status] }));
   }
 
-  const expandedStatusCount = boardStatuses.filter((status) => expandedStatuses[status]).length;
+  const expandedStatusCount = boardStatuses.filter((status) => expandedStatuses[status] && (tasksByStatus[status] ?? []).length > 0).length;
   const hasContextDetail = Boolean(selectedTaskId);
   const isComparisonMode = expandedStatusCount > 1 || hasContextDetail;
 
@@ -8640,7 +8635,7 @@ function BoardView({ canManageTask, counts, defaultExpanded = false, onArchive, 
       </div>
       {boardStatuses.map((status) => {
         const statusTasks = tasksByStatus[status] ?? [];
-        const isExpanded = Boolean(expandedStatuses[status]);
+        const isExpanded = statusTasks.length > 0 && Boolean(expandedStatuses[status]);
         const isWideExpanded = isExpanded && !hasContextDetail && !isComparisonMode && statusTasks.length >= 3;
         return (
           <div
@@ -8686,7 +8681,6 @@ function BoardView({ canManageTask, counts, defaultExpanded = false, onArchive, 
                     pulsing={selectedTaskPulseId === task.id}
                     selected={selectedTaskId === task.id}
                     showOwner={showOwner}
-                    statusPulsing={statusPulseTaskId === task.id}
                     task={task}
                   />
                 ))}
@@ -8829,15 +8823,14 @@ function TaskListRow({ onSelect, selected, showOwner, task }) {
   );
 }
 
-function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEdit, onSelect, onStatusChange, pulsing, selected, showOwner, statusPulsing, task }) {
+function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEdit, onSelect, onStatusChange, pulsing, selected, showOwner, task }) {
   const tags = taskTags(task);
   const title = displayTaskTitle(task);
   const spot = isSpotTask(task);
   const displayableTags = tags.filter((tag) => !(spot && tag === "스팟 업무"));
-  const visibleTags = displayableTags.slice(0, 1);
+  const visibleTags = displayableTags.slice(0, 3);
   const hiddenTagCount = Math.max(0, displayableTags.length - visibleTags.length);
   const visibleBadges = taskBadges(task).slice(0, 1);
-  const cardStatusLabel = boardStatusLabels[task.status] ?? task.status;
   return (
     <article
       className={`task-card ${spot ? "spot-task-card" : ""} ${selected ? "selected" : ""} ${pulsing ? "is-select-pulsing" : ""} ${dragging ? "dragging" : ""}`}
@@ -8863,17 +8856,16 @@ function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEd
           ) : (
             <span className={`priority-square priority-square-${task.priority}`}>{task.priority}</span>
           )}
-          <span className={`task-status-chip status-${task.status.replace("/", "")} ${statusPulsing ? "is-status-popping" : ""}`}>{cardStatusLabel}</span>
           {visibleBadges.map((badge) => (
             <span className={`status-chip badge-${badge.tone}`} key={`${task.id}-${badge.label}`}>{badge.label}</span>
           ))}
         </div>
         {(visibleTags.length > 0 || hiddenTagCount > 0) && (
-          <div className="card-tag-row card-tag-row-compact">
+          <div className="card-tag-row card-tag-row-compact" aria-label="업무 태그">
             {visibleTags.map((tag) => (
-              <span className={`tag-tone-${tagTone(tag)}`} key={`${task.id}-${tag}`}>{tag}</span>
+              <span className={`card-tag-text tag-tone-${tagTone(tag)}`} key={`${task.id}-${tag}`}>{tag}</span>
             ))}
-            {hiddenTagCount > 0 && <span className="tag-more-chip">+{hiddenTagCount}</span>}
+            {hiddenTagCount > 0 && <span className="card-tag-more tag-more-chip">+{hiddenTagCount}</span>}
           </div>
         )}
         <div className="card-owner-period">

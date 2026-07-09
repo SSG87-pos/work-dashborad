@@ -13,8 +13,9 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Prefer dense but readable operational layouts over marketing-style hero sections.
 - Use quiet surfaces, thin borders, compact chips, and clear hierarchy.
 - Avoid visual noise from too many colors, oversized stickers, or overly bold text.
-- Apple-inspired operational styling may be used as a full component grammar, not only a color reference: use a white sidebar against the `#f5f5f7` parchment work canvas, `#0066cc` Action Blue for primary actions/selection, `#ffffff` cards with `#e0e0e0` hairlines, 44px pill primary/secondary buttons, 38px pearl utility capsules, 44px pill search, and no decorative shadows on common dashboard chrome. Keep operational cards at the dashboard's compact 8px radius even though `DESIGN-apple.md` includes larger marketing-card radii. Do not apply Apple marketing-page patterns such as full-viewport product tiles, photography-first heroes, ultra-thin 12px nav, or negative letter spacing to this work dashboard.
-- Avoid nested-card buildup without making controls feel detached. When full workflow opens, tabs, filters, tags, status guide, and board/list/timeline content should read as one connected work surface. The workflow surface should be a bright white-to-blue-tinted work panel, not a heavy gray mat; lane columns should stay subtly grounded with restrained status tint, and task cards should be the primary white information objects. Briefing rows should use separators rather than row cards.
+- The dashboard work canvas should stay near-white and airy, not a dark gray/blue field. Large background areas should recede behind cards rather than becoming a noticeable color block.
+- Apple-inspired operational styling may be used as a full component grammar, not only a color reference: use a very light neutral sidebar against the `#fbfcff` parchment work canvas, `#0066cc` Action Blue for primary actions/selection, `#ffffff` cards with `#e0e0e0` hairlines, 44px pill primary/secondary buttons, 38px pearl utility capsules, 44px pill search, and no decorative shadows on common dashboard chrome. Keep operational cards at the dashboard's compact 8px radius even though `DESIGN-apple.md` includes larger marketing-card radii. Do not apply Apple marketing-page patterns such as full-viewport product tiles, photography-first heroes, ultra-thin 12px nav, or negative letter spacing to this work dashboard.
+- Avoid nested-card buildup without making controls feel detached. When full workflow opens, tabs, filters, tags, status guide, and board/list/timeline content should read as one connected work surface, not abruptly cut-off sibling boxes. The workflow surface should be a bright white work panel without a broad blue gradient or heavy gray mat; lane columns should stay subtly grounded with restrained status tint and equal comparable height in board comparison mode, but equal lane height must not stretch task cards beyond their natural content height. Task cards should be the primary white information objects. Briefing rows should use separators rather than row cards.
 - Use motion only as short functional feedback. Subtle point motion can confirm selection, saving, or Canvas linking, but should not become a looping decorative layer across operational screens.
 - Preferred dashboard micro-motion examples are task-card selection pulse, status-chip pop after a status change, and sidebar active-indicator glide. Avoid adding graph-like decoration to top insight cards unless it becomes a real reporting requirement.
 - Preserve enough whitespace for scanning, but do not reserve empty detail areas before the user clicks something.
@@ -53,6 +54,7 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Selected team member should feel active but not flashy.
 - In the simplified dashboard shell, the sidebar brand divider and `전략 TEAM` sublabel should be neutral, not another blue/green decorative accent. Preserve the main top title gradient instead.
 - In the Apple-inspired simplified shell, sidebar selection should not look like a filled card or boxed control. Use quiet text/icon emphasis plus a thin Action Blue navigation indicator for the active page; selected team members should use text color/weight only, without a boxed background or left rail.
+- The sidebar may use a very light neutral gray surface to create Apple/Finder-like hierarchy, but it should not become a dark gray panel. Keep the main canvas brighter and use the active Action Blue indicator for orientation.
 
 ### Top Bar
 
@@ -61,6 +63,9 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Search input is compact; placeholder text should not dominate the page.
 - The top search should feel broad even though it stays visually quiet: it searches task title/description, tags, 담당자/배정자/작성자, status/priority, 상위 업무흐름, dates, checklist detail, update logs, change history, related links, 업무 노트/posts, attachment evidence text, and calendar event title/note/owner metadata where that view can use it.
 - The simplified top bar should not expose a `넓게/기본` viewing-density toggle. Keep top actions limited to daily-use commands so the first screen does not feel like a control console.
+- The simplified top title/actions area should read as a thin frosted neutral-gray app toolbar, not as a floating rounded card or a large colored block. Preserve the title gradient inside that toolbar, separate the toolbar from the page with a subtle hairline and a very light neutral header fill rather than a blue-tinted band, and let search sit below it as a quiet command field on the work canvas.
+- Top toolbar action buttons should share one rhythm without becoming oversized: matching height, matching pill radius, centered labels, and compact role-based widths. Keep AI visibly discoverable with a light Action Blue treatment, keep account secondary, and keep `업무 추가` primary through color rather than extra size.
+- The top toolbar is common dashboard chrome. Apply the same simplified toolbar treatment across `나의 업무`, `팀 업무`, `일정`, `업데이트`, `자료/보고`, and other dashboard tabs rather than limiting it to the default `나의 업무` board state.
 - On phone widths, secondary top-bar actions such as alert, density, home, and account detail can be hidden from the main row so `검색`, compact `🤖 AI`, and `업무 추가` stay touch-safe. The AI entry point should remain visible across responsive sizes.
 - Account button shows name and role only in the top bar, without a leading avatar/initial badge.
 - Admin indication belongs in the top account area, not in every team list row.
@@ -90,7 +95,8 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Do not add helper text explaining the board/filter/timeline area; the visible tabs, filters, and board should carry the meaning.
 - Hide the duplicated workspace team-member strip on the default first screen; the persistent sidebar team list is enough there.
 - Keep the visible briefing header minimal: show `오늘 브리핑` only. Do not show greeting/helper copy under it, and do not show count/status stickers such as `자동 선별 n건`.
-- Hide empty `오늘 일정` and empty `업무 Note`/`팀 체크` side widgets so the briefing list can use the width. Show those side widgets again only when they contain actual records.
+- Do not add a divider directly under the visible `오늘 브리핑` label; the briefing rows and side widgets provide enough structure.
+- Show `오늘 일정` and `업무 Note`/`팀 체크` side widgets on the desktop/tablet briefing surface even when they are empty, using quiet empty-state copy for consistency. Phone layouts may still hide the briefing side widgets by default so the main briefing and task controls remain reachable.
 - Keep `오늘 브리핑` rows recognizable with their existing compact icon/category/task/due structure; do not over-simplify that surface unless a later review proves it is the main source of confusion.
 - For the simplified dashboard shell, avoid decorative gradients and card shadows on AI/account controls, selected team rows, sidebar decoration, and common cards, while preserving the top title gradient as the product's primary identity signal. Prefer white or soft-gray surfaces, thin borders, and one restrained active accent.
 - Use plain Korean labels over product jargon. Top-level user-facing navigation should prefer `나의 업무`, `팀 업무`, `일정`, and `자료/보고` over English labels where practical.
@@ -147,13 +153,15 @@ Greetings:
 
 - Board order is fixed: `검토/대기`, `계획`, `진행중`, `완료`, `보류`.
 - My Desk board status lanes should start expanded so the selected person's work is visible immediately. Team Flow board status lanes should start collapsed so busy team boards remain scannable. Clicking the lane header expands/collapses that status.
+- In the simplified board, empty `0건` status lanes should stay fully collapsed as header-only lanes. A lane should only open into a tall card column when it has visible tasks or a selected task detail requires that context.
+- Expanded board lanes should hug their visible task-card content. Avoid fixed tall lane boxes that leave large empty vertical space below one-card lanes.
 - Board expansion has two modes. When multiple status lanes are open, keep them in comparable status columns so users can scan status-to-status flow without large lanes dropping below each other. When only one status lane is open and no task detail is open, treat it as focus mode; if it has three or more visible cards, span the board's full available width and lay cards out in a wider responsive grid instead of forcing a narrow column. Once task detail is open beside the board, return the board to compact comparable columns so the detail panel remains the focus and the board does not force horizontal scrolling.
 - Card titles should be readable but not heavy enough to fight the page title.
 - Workflow task titles are primary content. In board cards and list rows, show the full title with Korean word-preserving wrapping instead of ellipsizing the title.
 - Board cards do not show long description text; description belongs in task detail.
 - Owner initials must remain clear on team workflow cards.
 - `스팟 업무` marks short or one-time work. Board cards should use a subtle teal card edge and show one compact `스팟` chip in the top chip row. Do not duplicate `스팟` again in the card tag row.
-- Board cards in the simplified shell should avoid sticker buildup without becoming empty: show title first, then one compact priority/status row with at most one schedule/context badge, then at most one visible tag plus a `+n` summary. Use a restrained status accent so the card keeps useful color and scan rhythm.
+- Board cards in the simplified shell should avoid sticker buildup without becoming empty: show title first, then one compact priority/context row with at most one schedule/context badge, then up to three visible tags as quiet inline metadata plus a `+n` summary. Do not repeat the lane status inside each card because the lane header already owns that context. Use a restrained status edge accent so the card keeps useful color and scan rhythm.
 - Board filters may include `스팟만 보기`; this filter is for board scanning only and should not replace status, tag, or owner filters.
 - If the user cannot manage the task, hide unavailable status controls instead of showing disabled gray controls.
 - Archive/edit actions stay grouped tightly.
@@ -164,6 +172,7 @@ Greetings:
 - `보드`, `리스트`, `타임라인`, `업무자료`, `마인드맵`, `반복 업무`, and `보관함` should share the same primary filters: tags, owner, priority, and spot-work scope.
 - Owner filtering must include `미지정` because some tasks may intentionally have no owner yet.
 - Filter controls should stay compact and use short labels such as `사람`, `태그`, `중요`, and `스팟`; avoid oversized select boxes that crowd the workflow toolbar.
+- Workflow tabs, tag/filter rows, and status guide rows should use white surfaces. Avoid blue-tinted background bands behind these controls unless a specific active state needs the Action Blue accent.
 
 ### List
 
