@@ -333,6 +333,20 @@ h1 {
   transform: translateY(-1px);
 }
 
+.quiet-top-actions .dashboard-ai-button {
+  border-color: #dbe5ef;
+  background: #ffffff;
+  color: #1d4ed8;
+  box-shadow: none;
+}
+
+.quiet-top-actions .dashboard-ai-button:hover,
+.quiet-top-actions .dashboard-ai-button.active {
+  border-color: #bfdbfe;
+  background: #f8fbff;
+  box-shadow: none;
+}
+
 .search-box {
   width: 282px;
   height: 42px;

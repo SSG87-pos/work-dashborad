@@ -27,8 +27,9 @@ const design = read("DESIGN.md");
   "자료/보고",
   "전체 업무 보기",
   "isSimpleTodayMode",
-  "showSecondaryTopActions",
   "showDashboardAiButton",
+  "const showDashboardAiButton = true",
+  "showSecondaryTopActions",
   "shouldShowWorkflowArea",
   "setIsWorkflowAreaOpen(false)",
   "aria-label=\"오늘 브리핑\""

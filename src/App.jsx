@@ -5065,7 +5065,7 @@ function App() {
   const isSimpleTodayMode = activePage === "my" && activeView === "board" && !isWorkflowAreaOpen && !summaryFilter && !query;
   const shouldShowWorkflowArea = !fullPageViews.includes(activeView) && !isSimpleTodayMode;
   const showNotificationButton = !isSimpleTodayMode || unreadNotificationCount > 0 || isNotificationPanelOpen;
-  const showDashboardAiButton = !isSimpleTodayMode || isDashboardAiOpen;
+  const showDashboardAiButton = true;
   const showSecondaryTopActions = !isSimpleTodayMode;
 
   function focusTodayWork() {
@@ -5323,16 +5323,16 @@ function App() {
                 </div>
               )}
               {showDashboardAiButton && (
-              <button
-                aria-expanded={isDashboardAiOpen}
-                className={`dashboard-ai-button ${isDashboardAiOpen ? "active" : ""}`}
-                onClick={() => setIsDashboardAiOpen((current) => !current)}
-                type="button"
-                title="AI에게 대시보드 내용 물어보기"
-              >
-                <span aria-hidden="true">🤖</span>
-                <strong>AI</strong>
-              </button>
+                <button
+                  aria-expanded={isDashboardAiOpen}
+                  className={`dashboard-ai-button ${isDashboardAiOpen ? "active" : ""}`}
+                  onClick={() => setIsDashboardAiOpen((current) => !current)}
+                  type="button"
+                  title="AI에게 대시보드 내용 물어보기"
+                >
+                  <span aria-hidden="true">🤖</span>
+                  <strong>AI</strong>
+                </button>
               )}
               {showSecondaryTopActions && (
               <button
