@@ -163,6 +163,13 @@ const statusStickerLabels = {
   완료: "✅ 완료",
   보류: "⏸ 보류"
 };
+const boardStatusLabels = {
+  "검토/대기": "검토",
+  계획: "계획",
+  진행중: "진행",
+  완료: "완료",
+  보류: "보류"
+};
 const tagFilterDelimiter = "||";
 const defaultAvailableTags = normalizeTags([...categories.filter((item) => item !== "전체"), ...tagOptions]);
 const defaultTagFilterPresets = [
@@ -8626,7 +8633,7 @@ function BoardView({ canManageTask, counts, defaultExpanded = false, onArchive, 
         {boardStatuses.map((status) => (
           <span key={status}>
             <i className={`status-${status.replace("/", "")}`} />
-            <b>{statusStickerLabels[status] ?? status}</b>
+            <b>{boardStatusLabels[status] ?? status}</b>
             {statusMeanings[status]}
           </span>
         ))}
@@ -8659,7 +8666,7 @@ function BoardView({ canManageTask, counts, defaultExpanded = false, onArchive, 
             <button className="lane-header lane-toggle-button" onClick={() => toggleStatus(status)} type="button" aria-expanded={isExpanded}>
               <span className="lane-heading">
                 {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-                <span className="lane-title">{statusStickerLabels[status] ?? status}</span>
+                <span className="lane-title">{boardStatusLabels[status] ?? status}</span>
               </span>
               <small className="lane-count">{counts[status] ?? 0}건</small>
             </button>
@@ -8724,7 +8731,7 @@ function TaskListView({ defaultExpanded = false, onSelect, selectedTaskId, showO
         {boardStatuses.map((status) => (
           <span key={status}>
             <i className={`status-${status.replace("/", "")}`} />
-            <b>{statusStickerLabels[status] ?? status}</b>
+            <b>{boardStatusLabels[status] ?? status}</b>
             {statusMeanings[status]}
           </span>
         ))}
@@ -8738,12 +8745,12 @@ function TaskListView({ defaultExpanded = false, onSelect, selectedTaskId, showO
               <button className="task-list-section-head" onClick={() => toggleStatus(status)} type="button" aria-expanded={isExpanded}>
                 <span className="lane-heading">
                   {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-                  <span className="lane-title">{statusStickerLabels[status] ?? status}</span>
+                  <span className="lane-title">{boardStatusLabels[status] ?? status}</span>
                 </span>
                 <small className="lane-count">{statusTasks.length}건</small>
               </button>
               {isExpanded && (
-                <div className="task-list-table" role="table" aria-label={`${statusStickerLabels[status] ?? status} 업무 목록`}>
+                <div className="task-list-table" role="table" aria-label={`${boardStatusLabels[status] ?? status} 업무 목록`}>
                   <div className="task-list-table-head" role="row">
                     <span role="columnheader">업무</span>
                     {showOwner && <span role="columnheader">담당</span>}
@@ -8829,7 +8836,8 @@ function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEd
   const displayableTags = tags.filter((tag) => !(spot && tag === "스팟 업무"));
   const visibleTags = displayableTags.slice(0, 1);
   const hiddenTagCount = Math.max(0, displayableTags.length - visibleTags.length);
-  const cardStatusLabel = statusStickerLabels[task.status] ?? task.status;
+  const visibleBadges = taskBadges(task).slice(0, 1);
+  const cardStatusLabel = boardStatusLabels[task.status] ?? task.status;
   return (
     <article
       className={`task-card ${spot ? "spot-task-card" : ""} ${selected ? "selected" : ""} ${pulsing ? "is-select-pulsing" : ""} ${dragging ? "dragging" : ""}`}
@@ -8856,6 +8864,9 @@ function TaskCard({ canManage, dragging, onArchive, onDragEnd, onDragStart, onEd
             <span className={`priority-square priority-square-${task.priority}`}>{task.priority}</span>
           )}
           <span className={`task-status-chip status-${task.status.replace("/", "")} ${statusPulsing ? "is-status-popping" : ""}`}>{cardStatusLabel}</span>
+          {visibleBadges.map((badge) => (
+            <span className={`status-chip badge-${badge.tone}`} key={`${task.id}-${badge.label}`}>{badge.label}</span>
+          ))}
         </div>
         {(visibleTags.length > 0 || hiddenTagCount > 0) && (
           <div className="card-tag-row card-tag-row-compact">

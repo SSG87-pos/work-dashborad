@@ -20608,3 +20608,290 @@ body {
   background: #f3f4f6 !important;
   color: #6b7280 !important;
 }
+
+/* Workflow panel rebuild: brighter surface with restrained color cues, not a heavy gray mat. */
+.main-column > .control-row {
+  min-height: 48px !important;
+  border-color: #d9e5f4 !important;
+  border-bottom: 0 !important;
+  border-radius: 10px 10px 0 0 !important;
+  background: linear-gradient(180deg, #fbfdff 0%, #f5f9ff 100%) !important;
+  margin-bottom: 0 !important;
+  padding: 9px 12px 6px !important;
+  box-shadow: inset 0 1px 0 #ffffff !important;
+}
+
+.main-column > .tag-library {
+  border-color: #d9e5f4 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  background: #fbfdff !important;
+  margin-bottom: 0 !important;
+  padding: 0 12px 8px !important;
+}
+
+.main-column > .control-row + .tag-library {
+  border-top: 1px solid #edf3fb !important;
+}
+
+.segmented {
+  min-height: 34px !important;
+  height: 34px !important;
+  border-color: #d7e3f2 !important;
+  background: #edf4fb !important;
+  box-shadow: none !important;
+}
+
+.segmented button {
+  min-height: 26px !important;
+  color: #526171 !important;
+  padding: 0 11px !important;
+}
+
+.segmented button.active {
+  border: 1px solid rgba(0, 102, 204, 0.18) !important;
+  background: #ffffff !important;
+  color: var(--apple-action-blue) !important;
+  box-shadow: 0 1px 2px rgba(0, 76, 153, 0.12) !important;
+}
+
+.tag-library-head {
+  min-height: 30px !important;
+}
+
+.tag-library-title span {
+  color: #4b5b6c !important;
+}
+
+.tag-library-title small {
+  color: #8a97a6 !important;
+}
+
+.workflow-filter-row {
+  gap: 7px !important;
+}
+
+.filter-select,
+.workflow-filter-row .filter-select,
+.tag-library-toggle {
+  border-color: #dce6f2 !important;
+  background: #ffffff !important;
+  color: #445162 !important;
+}
+
+.filter-select.is-filtered,
+.workflow-filter-row .filter-select.is-filtered {
+  border-color: rgba(0, 102, 204, 0.2) !important;
+  background: #f5faff !important;
+}
+
+.board-view,
+.task-list-view,
+.timeline-view,
+.recurring-view {
+  border-color: #d9e5f4 !important;
+  border-top: 0 !important;
+  border-radius: 0 0 10px 10px !important;
+  background: #f8fbff !important;
+  padding: 10px 12px 15px !important;
+}
+
+.board-view {
+  gap: 9px !important;
+}
+
+.status-guide {
+  min-height: 28px !important;
+  border-color: #e3edf8 !important;
+  background: #ffffff !important;
+  padding: 5px 8px !important;
+}
+
+.status-guide span {
+  color: #667485 !important;
+}
+
+.status-guide b {
+  color: #334155 !important;
+}
+
+.status-lane {
+  min-height: 204px !important;
+  border-color: #e0e9f4 !important;
+  background: #ffffff !important;
+  padding: 9px !important;
+}
+
+.status-lane.status-검토대기 {
+  background: #fffaf2 !important;
+}
+
+.status-lane.status-계획 {
+  background: #fbf8ef !important;
+}
+
+.status-lane.status-진행중 {
+  background: #f5f9ff !important;
+}
+
+.status-lane.status-완료 {
+  background: #f5fbf7 !important;
+}
+
+.status-lane.status-보류 {
+  background: #fbfbfd !important;
+}
+
+.lane-header {
+  min-height: 28px !important;
+  margin-bottom: 8px !important;
+  border-bottom-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+.lane-header .lane-title {
+  color: #263241 !important;
+}
+
+.lane-header .lane-count {
+  border-color: #d8e4f0 !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  color: #64748b !important;
+}
+
+.lane-stack {
+  min-height: 132px !important;
+}
+
+.task-card {
+  position: relative !important;
+  padding: 13px 13px 12px !important;
+  border-color: #d9e4ef !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.055) !important;
+}
+
+.task-card::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 10px auto 10px 0 !important;
+  width: 3px !important;
+  border-radius: 0 999px 999px 0 !important;
+  background: #94a3b8 !important;
+}
+
+.status-검토대기 .task-card::before {
+  background: #d97706 !important;
+}
+
+.status-계획 .task-card::before {
+  background: #b08900 !important;
+}
+
+.status-진행중 .task-card::before {
+  background: #0066cc !important;
+}
+
+.status-완료 .task-card::before {
+  background: #16a34a !important;
+}
+
+.status-보류 .task-card::before {
+  background: #ef4444 !important;
+}
+
+.task-card .card-main {
+  gap: 0 !important;
+}
+
+.task-card .card-title-row {
+  margin-bottom: 8px !important;
+  padding-left: 2px !important;
+}
+
+.task-card .card-title-row strong {
+  color: #1f2937 !important;
+  font-size: 13.25px !important;
+  font-weight: 700 !important;
+}
+
+.task-card .card-meta-line {
+  gap: 5px !important;
+}
+
+.task-card .card-meta-line .priority-square,
+.task-card .card-meta-line .task-status-chip,
+.task-card .card-meta-line .status-chip {
+  min-height: 21px !important;
+  height: 21px !important;
+  padding: 0 7px !important;
+  font-size: 10.5px !important;
+  font-weight: 650 !important;
+}
+
+.task-card .card-meta-line .priority-square {
+  border-color: #cfe0f4 !important;
+  background: #f5faff !important;
+  color: var(--apple-action-blue) !important;
+}
+
+.task-card .card-meta-line .task-status-chip.status-검토대기 {
+  border-color: rgba(217, 119, 6, 0.24) !important;
+  background: #fff7ed !important;
+  color: #9a5a05 !important;
+}
+
+.task-card .card-meta-line .task-status-chip.status-계획 {
+  border-color: rgba(176, 137, 0, 0.22) !important;
+  background: #fff9db !important;
+  color: #806100 !important;
+}
+
+.task-card .card-meta-line .task-status-chip.status-진행중 {
+  border-color: rgba(0, 102, 204, 0.22) !important;
+  background: #eef6ff !important;
+  color: #0057b8 !important;
+}
+
+.task-card .card-meta-line .task-status-chip.status-완료 {
+  border-color: rgba(22, 163, 74, 0.22) !important;
+  background: #ecfdf3 !important;
+  color: #13813d !important;
+}
+
+.task-card .card-meta-line .task-status-chip.status-보류 {
+  border-color: rgba(239, 68, 68, 0.2) !important;
+  background: #fff1f2 !important;
+  color: #b4232c !important;
+}
+
+.task-card .card-meta-line .status-chip {
+  border-color: #ead7ad !important;
+  background: #fff8e8 !important;
+  color: #8a5b12 !important;
+}
+
+.task-card .card-tag-row-compact {
+  margin-top: 7px !important;
+  padding-top: 7px !important;
+  border-top-color: #edf2f7 !important;
+}
+
+.task-card .card-tag-row-compact span {
+  border-color: #dce6f0 !important;
+  background: #f9fbfd !important;
+  color: #566579 !important;
+}
+
+.task-card .card-tag-row-compact .tag-more-chip {
+  background: #eef4fb !important;
+  color: #4d6680 !important;
+}
+
+.task-card .card-owner-period {
+  margin-top: 7px !important;
+  color: #607084 !important;
+}
+
+.task-card .progress-wrap {
+  margin-top: 7px !important;
+}
