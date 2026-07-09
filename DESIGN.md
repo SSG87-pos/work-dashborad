@@ -88,8 +88,8 @@ The product is an internal work dashboard, not a landing page. It should feel mo
 - Hide the duplicated workspace team-member strip on the default first screen; the persistent sidebar team list is enough there.
 - Keep the visible briefing header minimal: show `오늘 브리핑` only. Do not show greeting/helper copy under it, and do not show count/status stickers such as `자동 선별 n건`.
 - On the default `나의 업무` first screen, hide empty `오늘 일정` and empty `업무 Note`/`팀 체크` side widgets so the briefing list can use the width. Show those side widgets again when they contain actual records or when the user opens the full workflow.
-- On the default `나의 업무` first screen, briefing rows should read like a plain work list: hide the round status emoji and tag chips, then keep status, task title, and due date as the main scan targets. Fuller workflow views may keep richer metadata.
-- For the simplified dashboard shell, avoid decorative gradients and card shadows on title, AI/account controls, selected team rows, and common cards. Prefer solid text, white or soft-gray surfaces, thin borders, and one restrained active accent.
+- Keep `오늘 브리핑` rows recognizable with their existing compact icon/category/task/due structure; do not over-simplify that surface unless a later review proves it is the main source of confusion.
+- For the simplified dashboard shell, avoid decorative gradients and card shadows on AI/account controls, selected team rows, and common cards, while preserving the top title gradient as the product's primary identity signal. Prefer white or soft-gray surfaces, thin borders, and one restrained active accent.
 - Use plain Korean labels over product jargon. Top-level user-facing navigation should prefer `나의 업무`, `팀 업무`, `일정`, and `자료/보고` over English labels where practical.
 - Legacy top insight cards should not render on the simplified `나의 업무` workflow because they duplicate `오늘 브리핑`. If a future screen reintroduces summary filters, they should stay number-first, compact, and secondary to the briefing.
 - Insight hover previews list only the relevant tasks; do not repeat the summary card title inside the hover panel.
