@@ -15,7 +15,7 @@ const css = read("src/styles.css");
 const design = read("DESIGN.md");
 
 [
-  "오늘",
+  "나의 업무",
   "팀 업무",
   "일정",
   "자료/보고",
@@ -25,16 +25,21 @@ const design = read("DESIGN.md");
   "setIsWorkflowAreaOpen(false)"
 ].forEach((text) => assertIncludes("src/App.jsx", app, text));
 
+if (app.includes("shouldShowWorkflowSummary")) {
+  throw new Error("src/App.jsx should not render the duplicated workflow summary cards.");
+}
+
 [
   ".simple-today-actions",
   ".poslab-entry-visual",
-  "display: none",
-  "#0066cc",
-  "#f5f5f7"
+  "radial-gradient(125% 125% at 36% 8%",
+  ".entry-ai-panel",
+  ".poslab-lanyard-wrapper"
 ].forEach((text) => assertIncludes("src/styles.css", css, text));
 
 [
   "작은 안내판",
+  "나의 업무",
   "오늘 할 일",
   "전체 업무 보기",
   "40대",

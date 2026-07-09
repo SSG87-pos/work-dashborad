@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 19, Vite 4, lucide-react, motion, plain CSS in `src/styles.css`, Node-based static check scripts.
 
-**Correction after browser review:** The first implementation added a four-button guidance strip, but user review found that it made the first screen feel more complex. The final implementation should not render that guidance strip by default. It should show `오늘 브리핑`/today work first and keep the full board/filter workflow behind one quiet `전체 업무 보기` action.
+**Correction after browser review:** The first implementation added a four-button guidance strip, but user review found that it made the first screen feel more complex. The final implementation should keep the original POSLAB entry screen, should not render that guidance strip by default, should show `오늘 브리핑`/today work first, should keep the full board/filter workflow behind one quiet `전체 업무 보기` action, and should not show the duplicated four-card workflow summary.
 
 ---
 
@@ -453,7 +453,7 @@ Add this under `### Today Briefing` or near the current first-screen rules:
 ```markdown
 - For the simplified dashboard direction approved on 2026-07-09, the first `오늘` screen should use a small guidance strip above the work list, not a large hero panel. The strip uses four plain actions: `오늘 확인`, `업무 등록`, `팀 상황`, and `자료 찾기`.
 - The guidance strip is intentionally smaller than `오늘 할 일`/`오늘 브리핑` content. It should help 40대 이상 and non-specialist users find the next place to go without pushing the real work list below the fold.
-- Use plain Korean labels over product jargon. Top-level user-facing navigation should prefer `오늘`, `팀 업무`, `일정`, and `자료/보고` over English labels where practical.
+- Use plain Korean labels over product jargon. Top-level user-facing navigation should prefer `나의 업무`, `팀 업무`, `일정`, and `자료/보고` over English labels where practical.
 ```
 
 - [ ] **Step 2: Update `TODO.md`**
@@ -472,7 +472,7 @@ Add a new `Now` item:
 Add a current-state bullet:
 
 ```markdown
-- 2026-07-09 simplified dashboard UX branch: `codex/simplified-dashboard-ux` changes the user-facing first-screen direction for 40대 이상/non-specialist users. The approved approach is a compact guidance strip (`오늘 확인`, `업무 등록`, `팀 상황`, `자료 찾기`) followed immediately by the real today work list, plus simpler top-level labels (`오늘`, `팀 업무`, `일정`, `자료/보고`). This should stay frontend-only unless a later implementation explicitly expands scope.
+- 2026-07-09 simplified dashboard UX branch: `codex/simplified-dashboard-ux` changes the user-facing first-screen direction for 40대 이상/non-specialist users. The corrected approach keeps the original POSLAB entry screen, shows the real today work list first, hides board/filter workflow controls behind `전체 업무 보기`, removes the duplicated four-card workflow summary, and uses simpler top-level labels (`나의 업무`, `팀 업무`, `일정`, `자료/보고`). This should stay frontend-only unless a later implementation explicitly expands scope.
 ```
 
 - [ ] **Step 4: Run the static check**
@@ -535,8 +535,8 @@ Expected: Vite serves the app, usually at `http://127.0.0.1:5173/`. If the port 
 
 At around `1366x768`, verify:
 
-- Sidebar labels read `오늘`, `팀 업무`, `일정`, `자료/보고`, `Canvas`, and `관리자` when admin is visible.
-- The first work screen shows the compact guidance strip above the insight cards and `오늘 브리핑`.
+- Sidebar labels read `나의 업무`, `팀 업무`, `일정`, `자료/보고`, `Canvas`, and `관리자` when admin is visible.
+- The first work screen shows `오늘 브리핑` first, with no compact guidance strip and no duplicated insight cards.
 - `업무 등록` opens the existing task creation modal.
 - `팀 상황` switches to the team board.
 - `자료 찾기` opens the existing Highlights/materials area.

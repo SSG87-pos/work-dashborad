@@ -5061,7 +5061,6 @@ function App() {
   const isWorkflowDetailContext = hasTaskDetail && !fullPageViews.includes(activeView) && detailContext === "workflow";
   const isBriefingDetailContext = isDetailOpen && !fullPageViews.includes(activeView) && detailContext === "briefing";
   const isSimpleTodayMode = activePage === "my" && activeView === "board" && !isWorkflowAreaOpen && !summaryFilter && !query;
-  const shouldShowWorkflowSummary = !fullPageViews.includes(activeView) && !isSimpleTodayMode;
   const shouldShowWorkflowArea = !fullPageViews.includes(activeView) && !isSimpleTodayMode;
 
   function focusTodayWork() {
@@ -5110,10 +5109,10 @@ function App() {
               focusTodayWork();
             }}
             type="button"
-            title="오늘"
+            title="나의 업무"
           >
             <LayoutDashboard size={18} />
-            <span>오늘</span>
+            <span>나의 업무</span>
           </button>
           <button
             className={`nav-item ${activePage === "team" && !fullPageViews.includes(activeView) ? "active" : ""}`}
@@ -5388,8 +5387,6 @@ function App() {
             </button>
           ))}
         </div>
-
-        {shouldShowWorkflowSummary && <InsightStrip activeFilter={summaryFilter} onSelect={applySummaryFilter} summary={summary} />}
 
         <section className={`dashboard-grid ${activeView === "timeline" ? "timeline-layout" : ""} ${fullPageViews.includes(activeView) ? "calendar-layout" : ""} ${activeView === "admin" ? "admin-layout" : ""} ${isWorkflowDetailContext ? "workflow-detail-mode" : ""} ${isBriefingDetailContext ? "briefing-detail-mode" : ""}`}>
           <div className="main-column">
