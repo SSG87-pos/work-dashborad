@@ -91,7 +91,8 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "hide empty `오늘 일정` and empty `업무 Note`/`팀 체크` side widgets",
   "Keep `오늘 브리핑` rows recognizable",
   "preserving the top title gradient",
-  "avoid decorative gradients and card shadows"
+  "avoid decorative gradients and card shadows",
+  "sidebar brand divider"
 ].forEach((text) => assertIncludes("DESIGN.md", design, text));
 
 console.log("Simplified UX contract check passed.");

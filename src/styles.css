@@ -19529,3 +19529,15 @@ button.post-scope-chip svg {
 .notification-panel {
   box-shadow: none !important;
 }
+
+.sidebar .brand-block::before {
+  height: 1px !important;
+  background: #e2e8f0 !important;
+  opacity: 1 !important;
+}
+
+.sidebar .brand-wordmark span {
+  color: #64748b !important;
+  font-weight: 640 !important;
+  letter-spacing: 0.04em !important;
+}
