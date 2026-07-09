@@ -7868,8 +7868,8 @@ function BriefingPanel({
   const activeItem = ["read", "edit"].includes(activeItemDialog?.mode)
     ? scopedItems.find((item) => item.id === activeItemDialog.itemId)
     : null;
-  const showAgendaSide = !isSimpleTodayMode || todayAgenda.length > 0;
-  const showCaptureSide = !isSimpleTodayMode || listItems.length > 0;
+  const showAgendaSide = todayAgenda.length > 0;
+  const showCaptureSide = listItems.length > 0;
   const showBriefingSide = showAgendaSide || showCaptureSide;
 
   function updateDraft(patch) {

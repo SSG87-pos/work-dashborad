@@ -20073,7 +20073,7 @@ body {
   font-weight: 500 !important;
 }
 
-/* Apple flattening pass: remove nested-card buildup and keep only the meaningful work objects framed. */
+/* Apple workflow surface repair pass: rebuild context after over-flattening and keep controls grounded. */
 .main-column,
 .right-column {
   gap: 14px !important;
@@ -20084,20 +20084,47 @@ body {
 }
 
 .briefing-panel {
-  padding: 22px 24px !important;
+  padding: 18px 22px !important;
+}
+
+.briefing-panel .section-heading {
+  min-height: 0 !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 10px !important;
+  border-bottom: 1px solid var(--apple-divider-soft) !important;
+}
+
+.briefing-panel .section-heading > div {
+  display: flex !important;
+  min-height: 0 !important;
+  align-items: center !important;
+}
+
+.briefing-panel .section-heading .panel-label {
+  line-height: 1.1 !important;
+}
+
+.briefing-content {
+  gap: 10px !important;
+  align-items: start !important;
+}
+
+.briefing-content.is-briefing-only {
+  grid-template-columns: minmax(0, 1fr) !important;
 }
 
 .briefing-list {
   gap: 0 !important;
+  width: 100% !important;
 }
 
 .briefing-card.briefing-row {
-  min-height: 52px !important;
+  min-height: 48px !important;
   border: 0 !important;
   border-top: 1px solid var(--apple-divider-soft) !important;
   border-radius: 0 !important;
   background: transparent !important;
-  padding: 12px 0 !important;
+  padding: 10px 0 !important;
 }
 
 .briefing-list > .briefing-card.briefing-row:first-child {
@@ -20109,8 +20136,8 @@ body {
 }
 
 .briefing-card.briefing-row > .briefing-symbol {
-  width: 32px !important;
-  height: 32px !important;
+  width: 30px !important;
+  height: 30px !important;
 }
 
 .briefing-card.briefing-row > .briefing-kind {
@@ -20124,6 +20151,16 @@ body {
 .briefing-panel .briefing-side,
 .briefing-side {
   border-left-color: var(--apple-divider-soft) !important;
+  padding-left: 14px !important;
+}
+
+.briefing-side-section {
+  min-height: 0 !important;
+  border: 1px solid var(--apple-divider-soft) !important;
+  border-radius: 8px !important;
+  background: #fafafa !important;
+  padding: 12px !important;
+  box-shadow: none !important;
 }
 
 .briefing-side-widget,
@@ -20139,20 +20176,35 @@ body {
   margin-top: -2px !important;
 }
 
-.main-column > .control-row,
+.main-column > .control-row {
+  min-height: 54px !important;
+  border: 1px solid var(--apple-hairline) !important;
+  border-bottom: 0 !important;
+  border-radius: 8px 8px 0 0 !important;
+  background: #ffffff !important;
+  margin-bottom: -14px !important;
+  padding: 10px 14px 8px !important;
+  box-shadow: none !important;
+}
+
 .main-column > .tag-library {
-  border: 0 !important;
+  border: 1px solid var(--apple-hairline) !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
   border-radius: 0 !important;
-  background: transparent !important;
-  padding: 0 !important;
+  background: #ffffff !important;
+  margin-bottom: -14px !important;
+  padding: 0 14px 10px !important;
+  box-shadow: none !important;
 }
 
 .control-row {
-  min-height: 44px !important;
+  min-height: 36px !important;
+  gap: 8px !important;
 }
 
 .tag-library {
-  gap: 10px !important;
+  gap: 6px !important;
 }
 
 .tag-library-head,
@@ -20160,43 +20212,105 @@ body {
   border-color: var(--apple-divider-soft) !important;
 }
 
+.tag-library.is-collapsed {
+  padding: 0 14px 10px !important;
+}
+
+.tag-library-head {
+  min-height: 34px !important;
+  padding-top: 6px !important;
+}
+
+.tag-library-title span {
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+}
+
+.tag-library-title small {
+  color: #777777 !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+}
+
+.tag-library-title em {
+  min-height: 20px !important;
+  border-color: var(--apple-divider-soft) !important;
+  background: var(--apple-pearl) !important;
+  color: #333333 !important;
+  padding: 0 7px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+.tag-library-toggle {
+  min-height: 28px !important;
+  padding: 0 9px !important;
+  color: #333333 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
 .board-view,
 .task-list-view,
 .timeline-view,
 .recurring-view {
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  padding: 0 !important;
+  border: 1px solid var(--apple-hairline) !important;
+  border-top: 0 !important;
+  border-radius: 0 0 8px 8px !important;
+  background: #ffffff !important;
+  padding: 12px 14px 16px !important;
+  box-shadow: none !important;
+}
+
+.board-view {
+  gap: 10px !important;
+  align-items: start !important;
 }
 
 .status-guide {
-  border: 0 !important;
-  border-bottom: 1px solid var(--apple-divider-soft) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  padding: 0 2px 10px !important;
+  min-height: 34px !important;
+  border: 1px solid var(--apple-divider-soft) !important;
+  border-radius: 6px !important;
+  background: #fafafa !important;
+  padding: 7px 9px !important;
+}
+
+.status-guide span {
+  color: #666666 !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+.status-guide b {
+  color: #333333 !important;
+  font-weight: 600 !important;
 }
 
 .status-lane {
   min-width: 168px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
+  padding: 8px !important;
+  border: 1px solid var(--apple-divider-soft) !important;
+  border-radius: 8px !important;
+  background: #f7f7f8 !important;
 }
 
 .lane-header {
   min-height: 30px !important;
   margin-bottom: 8px !important;
+  padding-bottom: 7px !important;
+  border-bottom: 1px solid var(--apple-divider-soft) !important;
+  color: #333333 !important;
+  font-weight: 600 !important;
 }
 
 .lane-header .lane-count {
-  min-height: 22px !important;
+  min-height: 20px !important;
   border-color: var(--apple-divider-soft) !important;
-  background: var(--apple-pearl) !important;
+  background: #ffffff !important;
   color: #333333 !important;
   font-weight: 500 !important;
+  padding: 0 7px !important;
+  font-size: 11px !important;
 }
 
 .lane-stack {
@@ -20206,7 +20320,10 @@ body {
 .task-card {
   min-height: 0 !important;
   padding: 12px !important;
-  border-color: var(--apple-divider-soft) !important;
+  border-color: var(--apple-hairline) !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
 }
 
 .task-card .card-title-row strong {
@@ -20252,23 +20369,49 @@ body {
 
 .filter-select,
 .workflow-filter-row .filter-select {
-  min-height: 40px !important;
-  height: 40px !important;
+  min-height: 34px !important;
+  height: 34px !important;
+  border-color: var(--apple-divider-soft) !important;
+  background: var(--apple-pearl) !important;
+  padding: 2px 9px !important;
 }
 
 .segmented {
-  min-height: 40px !important;
-  height: 40px !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  border-color: var(--apple-divider-soft) !important;
+  background: var(--apple-pearl) !important;
+  padding: 3px !important;
 }
 
 .segmented button {
-  min-height: 30px !important;
+  min-height: 28px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+}
+
+.tag-filter-chip,
+.briefing-tag-chip,
+.task-card .card-tag-row span,
+.task-card .task-status-chip,
+.task-card .status-chip {
+  min-height: 22px !important;
+  height: 22px !important;
+  border-color: var(--apple-divider-soft) !important;
+  background: #ffffff !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+}
+
+.tag-filter-chip.active,
+.tag-filter-chip.active[class*="tag-tone-"] {
+  border-color: rgba(0, 102, 204, 0.18) !important;
+  background: #f5faff !important;
+  color: var(--apple-action-blue) !important;
+  font-weight: 500 !important;
 }
 
 .task-card .card-actions {
   display: none !important;
-}
-
-.task-card {
-  border-color: var(--apple-hairline) !important;
 }
