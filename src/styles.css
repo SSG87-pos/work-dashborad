@@ -19541,3 +19541,166 @@ button.post-scope-chip svg {
   font-weight: 640 !important;
   letter-spacing: 0.04em !important;
 }
+
+/* Apple-token adaptation for the simplified operational shell.
+   This borrows color/button/card restraint from DESIGN-apple.md without changing the approved dashboard structure. */
+:root {
+  --apple-action-blue: #0066cc;
+  --apple-action-blue-focus: #0071e3;
+  --apple-ink: #1d1d1f;
+  --apple-muted: #7a7a7a;
+  --apple-parchment: #f5f5f7;
+  --apple-pearl: #fafafc;
+  --apple-hairline: #e0e0e0;
+}
+
+body {
+  background: var(--apple-parchment);
+  color: var(--apple-ink);
+}
+
+.app-shell,
+.main-area,
+.workspace {
+  background: var(--apple-parchment) !important;
+}
+
+.search-box,
+.top-search,
+.task-knowledge-search {
+  min-height: 44px !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  border-radius: 9999px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.search-box input,
+.top-search input,
+.task-knowledge-search input {
+  color: var(--apple-ink) !important;
+}
+
+.primary-button {
+  min-height: 40px !important;
+  border: 1px solid var(--apple-action-blue) !important;
+  border-radius: 9999px !important;
+  background: var(--apple-action-blue) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  font-weight: 620 !important;
+}
+
+.primary-button:hover,
+.primary-button:focus-visible {
+  border-color: var(--apple-action-blue-focus) !important;
+  background: var(--apple-action-blue-focus) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.secondary-button,
+.simple-today-actions .secondary-button,
+.dashboard-ai-button,
+.quiet-top-actions .dashboard-ai-button,
+.account-button,
+.quiet-top-actions .account-button,
+.view-density-button,
+.notification-button,
+.tag-library-toggle,
+.lane-toggle-button {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  border-radius: 9999px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.secondary-button,
+.simple-today-actions .secondary-button,
+.dashboard-ai-button,
+.quiet-top-actions .dashboard-ai-button {
+  color: var(--apple-action-blue) !important;
+}
+
+.dashboard-ai-button:hover,
+.dashboard-ai-button.active,
+.quiet-top-actions .dashboard-ai-button:hover,
+.quiet-top-actions .dashboard-ai-button.active,
+.secondary-button:hover,
+.simple-today-actions .secondary-button:hover,
+.account-button:hover,
+.quiet-top-actions .account-button:hover,
+.view-density-button:hover,
+.notification-button:hover {
+  border-color: rgba(0, 102, 204, 0.22) !important;
+  background: var(--apple-pearl) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.briefing-panel,
+.detail-panel,
+.board-view,
+.task-list-view,
+.timeline-view,
+.recurring-view,
+.calendar-view,
+.updates-view,
+.performance-view,
+.card,
+.memo-card,
+.control-row,
+.status-guide,
+.status-lane,
+.task-card,
+.task-list-section,
+.tag-library,
+.dashboard-ai-panel,
+.account-menu,
+.notification-panel,
+.performance-work-card,
+.task-post-card,
+.task-knowledge-card,
+.mindmap-node-card {
+  border-color: var(--apple-hairline) !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.task-card:hover,
+.task-card.selected {
+  border-color: rgba(0, 102, 204, 0.28) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.task-card.selected {
+  box-shadow: inset 3px 0 0 var(--apple-action-blue) !important;
+}
+
+.task-card.spot-task-card,
+.task-card.spot-task-card:hover,
+.task-card.spot-task-card.selected {
+  border-color: var(--apple-hairline) !important;
+  box-shadow: inset 3px 0 0 rgba(20, 184, 166, 0.72) !important;
+}
+
+.nav-list::before {
+  background: #ffffff !important;
+  box-shadow: inset 3px 0 0 var(--apple-action-blue) !important;
+}
+
+.team-stack .person-pill.selected {
+  border-color: var(--apple-hairline) !important;
+  background: #ffffff !important;
+  box-shadow: inset 3px 0 0 var(--apple-action-blue) !important;
+}
+
+.lane-header .lane-count,
+.status-lane.status-진행중 .lane-count {
+  border-color: rgba(0, 102, 204, 0.18) !important;
+  background: #f5faff !important;
+  color: var(--apple-action-blue) !important;
+}

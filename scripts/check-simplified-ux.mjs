@@ -70,6 +70,10 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   ".entry-ai-panel",
   ".poslab-lanyard-wrapper",
   "Simplified dashboard quiet-tone pass",
+  "Apple-token adaptation",
+  "--apple-action-blue: #0066cc",
+  "--apple-parchment: #f5f5f7",
+  "--apple-hairline: #e0e0e0",
   ".dashboard-ai-button",
   ".nav-list::before"
 ].forEach((text) => assertIncludes("src/styles.css", css, text));
@@ -81,6 +85,9 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "전체 업무 보기",
   "40대",
   "Apple-inspired operational",
+  "`#0066cc` Action Blue",
+  "`#f5f5f7`",
+  "`#e0e0e0` hairlines",
   "name and role only",
   "without avatar/initial badges",
   "centered team selector",
