@@ -7939,7 +7939,7 @@ function BriefingPanel({
     <motion.section
       animate={{ opacity: 1, y: 0 }}
       aria-label="오늘 브리핑"
-      className="briefing-panel"
+      className={`briefing-panel ${isSimpleTodayMode ? "simple-briefing" : ""}`}
       initial={{ opacity: 0, y: 10 }}
       transition={{ duration: 0.24 }}
     >

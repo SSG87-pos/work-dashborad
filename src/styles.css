@@ -13166,6 +13166,47 @@ button.post-scope-chip svg {
   font-weight: 560 !important;
 }
 
+.briefing-panel.simple-briefing .briefing-row {
+  grid-template-columns: minmax(104px, 138px) minmax(0, 1fr) 48px !important;
+  column-gap: 8px !important;
+  min-height: 58px;
+}
+
+.briefing-panel.simple-briefing .briefing-symbol {
+  display: none !important;
+}
+
+.briefing-panel.simple-briefing .briefing-kind {
+  border-right: 0;
+  padding-right: 0 !important;
+}
+
+.briefing-panel.simple-briefing .briefing-kind strong {
+  color: #243044;
+  font-weight: 650;
+}
+
+.briefing-panel.simple-briefing .briefing-copy {
+  grid-column: auto !important;
+}
+
+.briefing-panel.simple-briefing .briefing-copy.has-task-dues {
+  grid-column: 2 / 4 !important;
+}
+
+.briefing-panel.simple-briefing .briefing-tag-chip {
+  display: none !important;
+}
+
+.briefing-panel.simple-briefing .briefing-task-title {
+  font-weight: 540 !important;
+}
+
+.briefing-panel.simple-briefing .briefing-row.selected {
+  background: #f8fafc;
+  box-shadow: inset 2px 0 0 #94a3b8;
+}
+
 /* Final density pass for calendar, agenda, task detail schedule stickers, and performance rows. */
 .agenda-item {
   min-height: 40px !important;
