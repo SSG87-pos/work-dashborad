@@ -821,18 +821,14 @@ h1 {
 }
 
 .simple-today-actions {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
   margin-top: -6px;
   padding: 0 2px 2px;
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.35;
 }
 
 .simple-today-actions .secondary-button {
@@ -850,14 +846,9 @@ h1 {
   box-shadow: none;
 }
 
-.simple-today-actions span {
-  min-width: 0;
-}
-
 @media (max-width: 639px) {
   .simple-today-actions {
-    align-items: stretch;
-    flex-direction: column;
+    display: flex;
   }
 
   .simple-today-actions .secondary-button {

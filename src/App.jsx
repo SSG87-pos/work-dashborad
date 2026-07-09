@@ -5413,7 +5413,6 @@ function App() {
                   <ListChecks size={16} />
                   전체 업무 보기
                 </button>
-                <span>보드, 필터, 타임라인은 필요할 때만 엽니다.</span>
               </div>
             )}
 

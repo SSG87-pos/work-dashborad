@@ -50,7 +50,8 @@ if (app.includes("shouldShowWorkflowSummary")) {
   "triggerLabel=\"프로필 이모지 선택\"",
   "onUpdateEmoji",
   "updateProfileEmoji",
-  "이름, 직책, 이모지는 팀 구성과 계정 버튼에 바로 반영됩니다."
+  "이름, 직책, 이모지는 팀 구성과 계정 버튼에 바로 반영됩니다.",
+  "보드, 필터, 타임라인은 필요할 때만 엽니다."
 ].forEach((text) => assertNotIncludes("src/App.jsx", app, text));
 
 assertNotIncludes("src/styles.css", css, "briefing-chip");
@@ -73,7 +74,8 @@ assertNotIncludes("src/styles.css", css, "briefing-chip");
   "40대",
   "Apple-inspired operational",
   "quiet initials badge",
-  "profile/team-member emoji selection"
+  "profile/team-member emoji selection",
+  "button only"
 ].forEach((text) => assertIncludes("DESIGN.md", design, text));
 
 console.log("Simplified UX contract check passed.");
