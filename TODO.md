@@ -2,6 +2,28 @@
 
 ## Now
 
+- [x] Prepare a no-runtime Teams/Work-Hub integration plan.
+  - Files: `docs/teams-workhub-integration-plan.md`, `AGENTS.md`, `HANDOFF.md`, `TODO.md`.
+  - Done: documented the opt-in future Teams integration path without adding code, migration, env defaults, or visible UI. The plan keeps current Work-Hub behavior independent if Teams is never adopted, and frames Teams channel intake as a pending 수집함 that can later be reviewed into existing `task_posts` 업무 Note records after company FastAPI/PostgreSQL and tenant approval are ready.
+  - Guardrail: do not implement real Teams import/outbound until company backend apply/smoke, real account permissions, and Teams tenant policy approval are complete.
+
+- [x] Tune task-detail 업무 Note toward channel-style readability.
+  - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
+  - Done: task-detail 업무 Note rows now show author/date/source metadata, calm Note type chip, and title without author-initial chips or body previews, so the narrow panel stays title-first and opens detail on click. Read dialogs repeat the channel-style author/source header without initials and preserve body line breaks.
+  - Guardrail: this is a presentation-only refinement over existing `task_posts`; it does not add Teams integration, migration, new persistence, or a chat-style freeform model.
+
+- [x] Tune workflow 업무자료 > 업무별 노트 toward Teams-channel familiarity.
+  - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
+  - Done: 업무자료 task groups now read more like quiet channels with a `#` task marker, and note rows show author/date/source metadata, type chip, clickable title, body preview, task/status context, and compact 원문/image actions without author-initial chips.
+  - Done: clicking a workflow 업무별 노트 title opens an in-app read dialog, not a browser new window.
+  - Done: the task-level `상세보기` action now uses a quiet blue chip-sized treatment beside 업무 Note/log counts instead of the larger shared secondary button.
+  - Guardrail: this remains a task-linked lookup surface over existing briefing items and `task_posts`; it is not a realtime chat model and does not add Teams import/outbound behavior.
+
+- [x] Show pasted 업무 Note images inline in workflow 업무자료.
+  - Files: `src/App.jsx`, `src/styles.css`, `DESIGN.md`, `TODO.md`, `HANDOFF.md`.
+  - Done: images pasted into task-level 업무 Note remain stored as note attachments, now render as inline thumbnails inside `업무자료 > 업무별 노트`, and open the existing large lightbox when clicked.
+  - Guardrail: this is a review/readability improvement only; it does not introduce uncontrolled rich-text image embedding or new storage behavior.
+
 - [x] Implement simplified dashboard first-screen UX on `codex/simplified-dashboard-ux`.
   - Direction: immediately visible today work list, with the board/list/timeline workflow visible directly below it instead of hidden behind a separate reveal action.
   - Guardrail: preserve existing task detail contexts, backend mode behavior, and workflow views.

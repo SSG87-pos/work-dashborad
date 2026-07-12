@@ -72,6 +72,7 @@ Tech stack: React 19, Vite 4, lucide-react, motion, localStorage prototype persi
 - **[LLM-Wiki architecture plan](./docs/llm-wiki-architecture-plan.md)** — Future agent-readable Wiki layer over FastAPI/PostgreSQL dashboard data, source links, revisions, and Error Book corrections.
 - **[Multi-workspace expansion plan](./docs/multi-workspace-expansion-plan.md)** — Future group/workspace/unit expansion and RLS separation plan.
 - **[Personal notification inbox plan](./docs/personal-notification-inbox-plan.md)** — Per-user notification inbox, bell badge, backend permission rules, read/all-read behavior, and Teams-notification boundary.
+- **[Teams Work-Hub integration plan](./docs/teams-workhub-integration-plan.md)** — Opt-in future Teams channel import/outbound plan, with no runtime effect until company backend and tenant approval are ready.
 
 ## Maintenance Policy
 

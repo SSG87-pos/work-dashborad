@@ -10323,6 +10323,8 @@ function TaskKnowledgeView({ activePage, briefingItems, onSelectTask, postCatego
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [knowledgeSearch, setKnowledgeSearch] = useState("");
+  const [activeKnowledgeNoteId, setActiveKnowledgeNoteId] = useState("");
+  const [expandedKnowledgeImageId, setExpandedKnowledgeImageId] = useState(null);
   const { groups, unlinkedItems } = useMemo(
     () => taskKnowledgeGroups(tasks, briefingItems, activePage, selectedPerson.id, postCategories, ""),
     [activePage, briefingItems, postCategories, selectedPerson.id, tasks]
@@ -10411,6 +10413,12 @@ function TaskKnowledgeView({ activePage, briefingItems, onSelectTask, postCatego
     note.date,
     attachmentEvidenceText(note.attachment)
   ]).includes(searchTerm);
+  const noteSourceLabel = (note) => {
+    if (note?.url && /teams\.microsoft\.com|teams\.live\.com/i.test(note.url)) return "Teams";
+    if (note?.url) return "URL";
+    if (note?.attachment) return "이미지";
+    return note?.source || "Work-Hub";
+  };
   const updateMatchesSearch = (update, task) => !searchTerm || searchableText([
     update.date,
     update.text,
@@ -10447,6 +10455,8 @@ function TaskKnowledgeView({ activePage, briefingItems, onSelectTask, postCatego
     ...linkedNoteGroups.flatMap((group) => group.notes),
     ...otherNotes
   ];
+  const activeKnowledgeNote = allNotes.find((note) => note.id === activeKnowledgeNoteId);
+  const expandedKnowledgeImageNote = allNotes.find((note) => note.id === expandedKnowledgeImageId);
   const noteTypeLabels = [
     ...noteTypeOptions.map((type) => type.label),
     ...allNotes.map((note) => note.typeLabel)
@@ -10487,22 +10497,39 @@ function TaskKnowledgeView({ activePage, briefingItems, onSelectTask, postCatego
 
   const renderNote = (note) => (
     <article className="knowledge-record knowledge-note-record" key={note.id}>
-      <span className={`knowledge-post-chip post-scope-chip tone-${taskPostCategoryMeta(note.typeLabel, postCategories).tone}`}>{note.typeLabel}</span>
-      <div>
-        <strong>{note.title}</strong>
-        <small>{note.date || "날짜 없음"} · {personName(note.authorId)} · {note.taskTitle || "기타/참고"} · {note.statusLabel} · {note.source} · {note.meta}</small>
+      <div className="knowledge-message-main">
+        <small className="knowledge-message-meta">{personName(note.authorId)} · {note.date || "날짜 없음"} · {noteSourceLabel(note)}</small>
+        <span className="knowledge-message-title">
+          <span className={`knowledge-post-chip post-scope-chip tone-${taskPostCategoryMeta(note.typeLabel, postCategories).tone}`}>{note.typeLabel}</span>
+          <button className="knowledge-title-button" onClick={() => setActiveKnowledgeNoteId(note.id)} type="button">
+            {note.title}
+          </button>
+        </span>
         {note.body && <p>{note.body}</p>}
-        {note.url && (
-          <a href={note.url} rel="noreferrer" target="_blank">
-            <Link2 size={13} />
-            {note.url}
-          </a>
-        )}
-        {note.attachment && (
-          <em className="knowledge-evidence-chip">
-            <FileText size={13} />
-            {note.attachment.label || "이미지 근거"}
-          </em>
+        <span className="knowledge-message-foot">
+          <small>{note.taskTitle || "기타/참고"} · {note.statusLabel} · {note.source} · {note.meta}</small>
+          {note.url && (
+            <a href={note.url} rel="noreferrer" target="_blank">
+              <Link2 size={13} />
+              원문
+            </a>
+          )}
+          {note.attachment && (
+            <em className="knowledge-evidence-chip">
+              <FileText size={13} />
+              {note.attachment.label || "이미지 근거"}
+            </em>
+          )}
+        </span>
+        {note.attachment?.imageDataUrl && (
+          <button className="knowledge-inline-image" onClick={() => setExpandedKnowledgeImageId(note.id)} type="button">
+            <img alt={note.attachment.label || "업무 Note 이미지"} src={note.attachment.imageDataUrl} />
+            <span>
+              <FileText size={13} />
+              {note.attachment.label || "붙여넣은 이미지"}
+            </span>
+            <small>{note.attachment.caption || "클릭해서 크게 보기"}</small>
+          </button>
         )}
       </div>
     </article>
@@ -10525,6 +10552,7 @@ function TaskKnowledgeView({ activePage, briefingItems, onSelectTask, postCatego
         <div className="task-knowledge-card-head">
           <button aria-expanded={group.isOpen} className="task-knowledge-toggle" onClick={() => toggleTask(task.id)} type="button">
             {group.isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+            <em aria-hidden="true">#</em>
             <span>
               <strong>{displayTaskTitle(task)}</strong>
               <small>{personName(task.ownerId)} · {taskWorkstreamLabel(task)} · {group.statusLabel}</small>
@@ -10533,8 +10561,8 @@ function TaskKnowledgeView({ activePage, briefingItems, onSelectTask, postCatego
           <div className="task-knowledge-counts">
             {group.notes.length > 0 && <em>업무 Note {group.notes.length}</em>}
             {group.updates.length > 0 && <em>로그 {group.updates.length}</em>}
-            <button className="secondary-button small" onClick={() => onSelectTask(task.id)} type="button">
-              상세
+            <button className="knowledge-task-detail-button" onClick={() => onSelectTask(task.id)} type="button">
+              상세보기
             </button>
           </div>
         </div>
@@ -10660,6 +10688,88 @@ function TaskKnowledgeView({ activePage, briefingItems, onSelectTask, postCatego
         </div>
       ) : (
         <p className="empty-note">현재 조건에서 묶어 볼 업무자료가 없습니다.</p>
+      )}
+      {expandedKnowledgeImageNote?.attachment && (
+        <div className="task-post-image-lightbox" role="dialog" aria-label={`${expandedKnowledgeImageNote.attachment.label || "업무 Note 이미지"} 확대 보기`}>
+          <button className="task-post-image-backdrop" onClick={() => setExpandedKnowledgeImageId(null)} type="button" aria-label="첨부 이미지 확대 닫기" />
+          <div className="task-post-image-modal">
+            <div className="task-post-image-modal-head">
+              <strong>{expandedKnowledgeImageNote.attachment.label || expandedKnowledgeImageNote.title}</strong>
+              <button className="icon-button" onClick={() => setExpandedKnowledgeImageId(null)} type="button" title="이미지 확대 닫기">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="task-post-image-preview-large">
+              <img alt={expandedKnowledgeImageNote.attachment.label || "업무 Note 이미지"} src={expandedKnowledgeImageNote.attachment.imageDataUrl} />
+              <span>{expandedKnowledgeImageNote.typeLabel}</span>
+              <strong>{expandedKnowledgeImageNote.attachment.caption || expandedKnowledgeImageNote.title}</strong>
+              <em>{expandedKnowledgeImageNote.taskTitle || "기타/참고"}</em>
+              {attachmentEvidenceText(expandedKnowledgeImageNote.attachment) && (
+                <p>{attachmentEvidenceText(expandedKnowledgeImageNote.attachment)}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {activeKnowledgeNote && (
+        <div className="task-post-dialog-layer" role="dialog" aria-label="업무 Note 상세">
+          <button className="task-post-dialog-backdrop" onClick={() => setActiveKnowledgeNoteId("")} type="button" aria-label="업무 Note 상세 닫기" />
+          <div className="task-post-dialog">
+            <div className="task-post-dialog-head">
+              <div>
+                <strong>{activeKnowledgeNote.title}</strong>
+                <small>{personName(activeKnowledgeNote.authorId)} · {activeKnowledgeNote.date || "날짜 없음"} · {noteSourceLabel(activeKnowledgeNote)} · {activeKnowledgeNote.taskTitle || "기타/참고"}</small>
+              </div>
+              <button className="icon-button" onClick={() => setActiveKnowledgeNoteId("")} type="button" title="업무 Note 상세 닫기">
+                <X size={16} />
+              </button>
+            </div>
+            <article className="task-post-read-mockup">
+              <div className="task-post-read-meta">
+                <span className={`post-scope-chip tone-${taskPostCategoryMeta(activeKnowledgeNote.typeLabel, postCategories).tone}`}>{activeKnowledgeNote.typeLabel}</span>
+                <small>{activeKnowledgeNote.statusLabel} · {activeKnowledgeNote.source} · {activeKnowledgeNote.meta}</small>
+              </div>
+              <p className="task-post-read-body">{activeKnowledgeNote.body}</p>
+              {activeKnowledgeNote.url && (
+                <a className="task-post-url-card" href={activeKnowledgeNote.url} rel="noreferrer" target="_blank">
+                  <Link2 size={14} />
+                  <span>{activeKnowledgeNote.url}</span>
+                </a>
+              )}
+              {activeKnowledgeNote.attachment?.imageDataUrl && (
+                <button className="task-post-image-thumb" onClick={() => setExpandedKnowledgeImageId(activeKnowledgeNote.id)} type="button">
+                  <img alt={activeKnowledgeNote.attachment.label || "업무 Note 이미지"} src={activeKnowledgeNote.attachment.imageDataUrl} />
+                  <span>
+                    <FileText size={13} />
+                    {activeKnowledgeNote.attachment.label || "붙여넣은 이미지"}
+                  </span>
+                  <small>{activeKnowledgeNote.attachment.caption || "클릭해서 크게 보기"}</small>
+                </button>
+              )}
+              {activeKnowledgeNote.attachment && attachmentEvidenceText(activeKnowledgeNote.attachment) && (
+                <div className="task-post-attachment-evidence">
+                  <strong>이미지 판독 근거</strong>
+                  {activeKnowledgeNote.attachment?.visionSummary && <p>{activeKnowledgeNote.attachment.visionSummary}</p>}
+                  {activeKnowledgeNote.attachment?.ocrText && <pre>{activeKnowledgeNote.attachment.ocrText}</pre>}
+                </div>
+              )}
+              {activeKnowledgeNote.taskId && (
+                <div className="task-post-read-actions">
+                  <button
+                    className="secondary-button small"
+                    onClick={() => {
+                      onSelectTask(activeKnowledgeNote.taskId);
+                      setActiveKnowledgeNoteId("");
+                    }}
+                    type="button"
+                  >
+                    업무 상세
+                  </button>
+                </div>
+              )}
+            </article>
+          </div>
+        </div>
       )}
     </section>
   );
@@ -11922,12 +12032,32 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
     onDeletePost(activePost.id);
     closePostDialog();
   };
+  const postSourceLabel = (post) => {
+    if (post?.url && /teams\.microsoft\.com|teams\.live\.com/i.test(post.url)) return "Teams";
+    if (post?.url) return "URL";
+    if (post?.attachment) return "이미지";
+    return "Work-Hub";
+  };
+  const renderPostRow = (post, className = "task-post-list-row") => (
+    <button className={className} key={post.id} onClick={() => openPost(post.id)} type="button">
+      <div className="task-post-row-main">
+        <span className="task-post-row-meta">
+          {personName(post.authorId)} · {post.date} · {postSourceLabel(post)}
+        </span>
+        <span className="task-post-row-title">
+          <span className={`post-scope-chip tone-${taskPostCategoryMeta(post.scope, postCategories).tone}`}>{post.scope}</span>
+          <strong>{post.title}</strong>
+        </span>
+      </div>
+    </button>
+  );
 
   return (
     <div className="task-posts-mockup-panel" aria-label="업무 Note">
       <div className="task-posts-mockup-head">
         <div>
           <strong>업무 Note</strong>
+          <small>{postItems.length ? `${postItems.length}개 기록` : "기록 없음"}</small>
         </div>
         <button className="secondary-button small" onClick={openWriteDialog} type="button">
           <Plus size={13} />
@@ -11940,15 +12070,7 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
             <MessageSquareText size={15} />
             최근 노트
           </h3>
-          {recentPosts.map((post) => (
-            <button className="task-post-list-row" key={post.id} onClick={() => openPost(post.id)} type="button">
-              <span className={`post-scope-chip tone-${taskPostCategoryMeta(post.scope, postCategories).tone}`}>{post.scope}</span>
-              <div>
-                <strong>{post.title}</strong>
-                <small>{post.date} · {personName(post.authorId)}{post.url ? " · URL" : ""}{post.attachment ? " · 이미지" : ""}</small>
-              </div>
-            </button>
-          ))}
+          {recentPosts.map((post) => renderPostRow(post))}
         </section>
         {olderPosts.length > 0 && (
           <section>
@@ -11964,20 +12086,7 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
             </div>
             {isMoreOpen && (
               <div className="task-post-more-list">
-                {olderPosts.map((post) => (
-                  <button
-                    className="task-post-more-row"
-                    key={`task-more-${post.id}`}
-                    onClick={() => openPost(post.id)}
-                    type="button"
-                  >
-                    <span className={`post-scope-chip tone-${taskPostCategoryMeta(post.scope, postCategories).tone}`}>{post.scope}</span>
-                    <div>
-                      <strong>{post.title}</strong>
-                      <small>{post.date} · {personName(post.authorId)}{post.url ? " · URL" : ""}</small>
-                    </div>
-                  </button>
-                ))}
+                {olderPosts.map((post) => renderPostRow(post, "task-post-more-row"))}
               </div>
             )}
           </section>
@@ -12117,11 +12226,17 @@ function TaskPostsMockup({ canManageTask, currentPersonId, onDeletePost, onSaveP
             )}
             {activePostDialog.mode === "read" && activePost && (
               <article className="task-post-read-mockup">
+                <div className="task-post-read-channel-head">
+                  <div>
+                    <strong>{personName(activePost.authorId)}</strong>
+                    <small>{activePost.date} · {postSourceLabel(activePost)} · {workstream}</small>
+                  </div>
+                </div>
                 <div className="task-post-read-meta">
                   <span className={`post-scope-chip tone-${taskPostCategoryMeta(activePost.scope, postCategories).tone}`}>{activePost.scope}</span>
-                  <small>{workstream}</small>
+                  <small>{taskTitle}</small>
                 </div>
-                <p>{activePost.body}</p>
+                <p className="task-post-read-body">{activePost.body}</p>
                 {activePost.url && (
                   <a className="task-post-url-card" href={activePost.url} rel="noreferrer" target="_blank">
                     <Link2 size={14} />
